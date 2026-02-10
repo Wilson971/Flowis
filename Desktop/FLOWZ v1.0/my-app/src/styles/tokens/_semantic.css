@@ -1,0 +1,414 @@
+/**
+ * ============================================
+ * DESIGN TOKENS - SEMANTIC
+ * ============================================
+ * Couche 2: Tokens sémantiques basés sur les primitives
+ *
+ * Architecture:
+ * 1. Brand Color System (--brand-*) - Couleurs de marque interchangeables
+ * 2. Theme Selectors (.theme-*) - Sélecteurs pour changer la palette de marque
+ * 3. Dark/Light Mode - Modes d'affichage utilisant les variables brand
+ * ============================================
+ */
+
+/* ==========================================
+ * BRAND COLOR SYSTEM
+ * Définit la palette de couleurs de marque
+ * Par défaut: Amber (peut être changé via .theme-*)
+ * ========================================== */
+:root {
+  /* Brand Palette - Default: Amber */
+  --brand-50: var(--primitive-amber-50);
+  --brand-100: var(--primitive-amber-100);
+  --brand-200: var(--primitive-amber-200);
+  --brand-300: var(--primitive-amber-300);
+  --brand-400: var(--primitive-amber-400);
+  --brand-500: var(--primitive-amber-500);
+  --brand-600: var(--primitive-amber-600);
+  --brand-700: var(--primitive-amber-700);
+  --brand-800: var(--primitive-amber-800);
+  --brand-900: var(--primitive-amber-900);
+
+  /* Brand RGB values for rgba() usage */
+  --brand-rgb: 245, 158, 11;
+}
+
+/* ==========================================
+ * THEME COLOR SELECTORS
+ * Changez la classe sur <html> pour switcher la palette
+ * Ex: <html class="dark theme-emerald">
+ * ========================================== */
+
+/* Theme: Emerald (Green) */
+.theme-emerald {
+  --brand-50: var(--primitive-emerald-50);
+  --brand-100: var(--primitive-emerald-100);
+  --brand-200: var(--primitive-emerald-200);
+  --brand-300: var(--primitive-emerald-300);
+  --brand-400: var(--primitive-emerald-400);
+  --brand-500: var(--primitive-emerald-500);
+  --brand-600: var(--primitive-emerald-600);
+  --brand-700: var(--primitive-emerald-700);
+  --brand-800: var(--primitive-emerald-800);
+  --brand-900: var(--primitive-emerald-900);
+  --brand-rgb: 16, 185, 129;
+}
+
+/* Theme: Blue */
+.theme-blue {
+  --brand-50: var(--primitive-blue-50);
+  --brand-100: var(--primitive-blue-100);
+  --brand-200: var(--primitive-blue-200);
+  --brand-300: var(--primitive-blue-300);
+  --brand-400: var(--primitive-blue-400);
+  --brand-500: var(--primitive-blue-500);
+  --brand-600: var(--primitive-blue-600);
+  --brand-700: var(--primitive-blue-700);
+  --brand-800: var(--primitive-blue-800);
+  --brand-900: var(--primitive-blue-900);
+  --brand-rgb: 59, 130, 246;
+}
+
+/* Theme: Red */
+.theme-red {
+  --brand-50: var(--primitive-red-50);
+  --brand-100: var(--primitive-red-100);
+  --brand-200: var(--primitive-red-200);
+  --brand-300: var(--primitive-red-300);
+  --brand-400: var(--primitive-red-400);
+  --brand-500: var(--primitive-red-500);
+  --brand-600: var(--primitive-red-600);
+  --brand-700: var(--primitive-red-700);
+  --brand-800: var(--primitive-red-800);
+  --brand-900: var(--primitive-red-900);
+  --brand-rgb: 239, 68, 68;
+}
+
+/* Theme: Amber (explicit, same as default) */
+.theme-amber {
+  --brand-50: var(--primitive-amber-50);
+  --brand-100: var(--primitive-amber-100);
+  --brand-200: var(--primitive-amber-200);
+  --brand-300: var(--primitive-amber-300);
+  --brand-400: var(--primitive-amber-400);
+  --brand-500: var(--primitive-amber-500);
+  --brand-600: var(--primitive-amber-600);
+  --brand-700: var(--primitive-amber-700);
+  --brand-800: var(--primitive-amber-800);
+  --brand-900: var(--primitive-amber-900);
+  --brand-rgb: 245, 158, 11;
+}
+
+/* ==========================================
+ * DARK THEME (Default) - Anthracite & Brushed Metal
+ * Utilise --brand-* pour toutes les couleurs de marque
+ * ========================================== */
+:root {
+  color-scheme: dark;
+
+  /* ------------------------------------------
+   * SURFACES
+   * ------------------------------------------ */
+  --background: var(--primitive-anthracite-bg);
+  --foreground: var(--primitive-gray-50);
+
+  /* Surface Elevation Scale */
+  --surface-0: var(--primitive-anthracite-bg);
+  --surface-1: var(--primitive-anthracite-card);
+  --surface-2: var(--primitive-anthracite-elevated);
+  --surface-3: var(--primitive-anthracite-highest);
+
+  /* Card Surfaces */
+  --card: var(--primitive-anthracite-card);
+  --card-foreground: var(--primitive-gray-50);
+  --popover: var(--primitive-anthracite-elevated);
+  --popover-foreground: var(--primitive-gray-50);
+
+  /* ------------------------------------------
+   * BRAND COLORS (Using --brand-* system)
+   * ------------------------------------------ */
+  --primary: var(--brand-500);
+  --primary-foreground: var(--primitive-white);
+  --primary-hover: var(--brand-400);
+  --primary-active: var(--brand-600);
+  --primary-muted: rgba(var(--brand-rgb), 0.15);
+
+  --secondary: var(--brand-700);
+  --secondary-foreground: var(--primitive-white);
+
+  --accent: var(--brand-500);
+  --accent-foreground: var(--primitive-white);
+
+  /* ------------------------------------------
+   * SEMANTIC COLORS (Status - Fixed colors)
+   * ------------------------------------------ */
+  --muted: var(--primitive-anthracite-elevated);
+  --muted-foreground: var(--primitive-gray-400);
+
+  /* Status: Success (Always green) */
+  --success: var(--primitive-emerald-500);
+  --success-foreground: var(--primitive-white);
+  --success-muted: rgba(16, 185, 129, 0.15);
+  --success-border: rgba(16, 185, 129, 0.3);
+
+  /* Status: Warning (Always amber) */
+  --warning: var(--primitive-amber-500);
+  --warning-foreground: var(--primitive-anthracite-bg);
+  --warning-muted: rgba(245, 158, 11, 0.15);
+  --warning-border: rgba(245, 158, 11, 0.3);
+
+  /* Status: Error/Destructive (Always red) */
+  --destructive: var(--primitive-red-500);
+  --destructive-foreground: var(--primitive-white);
+  --destructive-muted: rgba(239, 68, 68, 0.15);
+  --destructive-border: rgba(239, 68, 68, 0.3);
+
+  /* Status: Info (Always blue) */
+  --info: var(--primitive-blue-500);
+  --info-foreground: var(--primitive-white);
+  --info-muted: rgba(59, 130, 246, 0.15);
+  --info-border: rgba(59, 130, 246, 0.3);
+
+  /* ------------------------------------------
+   * BORDERS & INPUTS
+   * ------------------------------------------ */
+  --border: var(--primitive-anthracite-highest);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-accent: rgba(var(--brand-rgb), 0.4);
+  --input: var(--primitive-anthracite-highest);
+  --ring: var(--brand-500);
+
+  /* ------------------------------------------
+   * CHARTS (Using brand colors)
+   * ------------------------------------------ */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--brand-700);
+  --chart-3: var(--brand-400);
+  --chart-4: var(--brand-300);
+  --chart-5: var(--brand-200);
+
+  /* ------------------------------------------
+   * SIDEBAR (Using brand colors)
+   * ------------------------------------------ */
+  --sidebar: var(--primitive-anthracite-bg);
+  --sidebar-foreground: var(--primitive-gray-50);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: var(--primitive-white);
+  --sidebar-accent: rgba(var(--brand-rgb), 0.1);
+  --sidebar-accent-foreground: var(--brand-500);
+  --sidebar-border: var(--primitive-anthracite-highest);
+  --sidebar-ring: var(--brand-500);
+
+  /* ------------------------------------------
+   * GLASSMORPHISM
+   * ------------------------------------------ */
+  --glass-bg: rgba(28, 28, 31, 0.85);
+  --glass-bg-subtle: rgba(28, 28, 31, 0.6);
+  --glass-bg-strong: rgba(28, 28, 31, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-subtle: rgba(255, 255, 255, 0.04);
+  --glass-border-strong: rgba(255, 255, 255, 0.12);
+  --glass-blur: 12px;
+  --glass-blur-sm: 8px;
+  --glass-blur-lg: 20px;
+
+  /* ------------------------------------------
+   * METAL EFFECT
+   * ------------------------------------------ */
+  --metal-base: var(--primitive-anthracite-card);
+  --metal-shine: rgba(255, 255, 255, 0.06);
+  --metal-highlight: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.03) 100%);
+
+  /* ------------------------------------------
+   * SELECTION (Using brand colors)
+   * ------------------------------------------ */
+  --selection-bg: rgba(var(--brand-rgb), 0.3);
+  --selection-text: var(--primitive-gray-50);
+
+  /* ------------------------------------------
+   * SCROLLBAR (Using brand colors)
+   * ------------------------------------------ */
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(var(--brand-rgb), 0.3);
+  --scrollbar-thumb-hover: rgba(var(--brand-rgb), 0.5);
+}
+
+/* ==========================================
+ * LIGHT THEME - Neo-Bank Style
+ * Utilise --brand-* pour toutes les couleurs de marque
+ * ========================================== */
+.light {
+  color-scheme: light;
+
+  /* ------------------------------------------
+   * SURFACES
+   * ------------------------------------------ */
+  --background: var(--primitive-gray-100);
+  --foreground: var(--primitive-gray-900);
+
+  /* Surface Elevation Scale */
+  --surface-0: var(--primitive-gray-100);
+  --surface-1: var(--primitive-white);
+  --surface-2: var(--primitive-gray-100);
+  --surface-3: var(--primitive-gray-200);
+
+  /* Card Surfaces */
+  --card: var(--primitive-white);
+  --card-foreground: var(--primitive-gray-900);
+  --popover: var(--primitive-white);
+  --popover-foreground: var(--primitive-gray-900);
+
+  /* ------------------------------------------
+   * BRAND COLORS (Using --brand-* system)
+   * ------------------------------------------ */
+  --primary: var(--brand-500);
+  --primary-foreground: var(--primitive-white);
+  --primary-hover: var(--brand-600);
+  --primary-active: var(--brand-700);
+  --primary-muted: rgba(var(--brand-rgb), 0.1);
+
+  --secondary: var(--brand-700);
+  --secondary-foreground: var(--primitive-white);
+
+  --accent: var(--brand-500);
+  --accent-foreground: var(--primitive-white);
+
+  /* ------------------------------------------
+   * SEMANTIC COLORS
+   * ------------------------------------------ */
+  --muted: var(--primitive-gray-100);
+  --muted-foreground: var(--primitive-gray-500);
+
+  /* Status: Success */
+  --success: var(--primitive-emerald-500);
+  --success-foreground: var(--primitive-white);
+  --success-muted: rgba(16, 185, 129, 0.1);
+  --success-border: rgba(16, 185, 129, 0.2);
+
+  /* Status: Warning */
+  --warning: var(--primitive-amber-500);
+  --warning-foreground: var(--primitive-gray-900);
+  --warning-muted: rgba(245, 158, 11, 0.1);
+  --warning-border: rgba(245, 158, 11, 0.2);
+
+  /* Status: Error/Destructive */
+  --destructive: var(--primitive-red-500);
+  --destructive-foreground: var(--primitive-white);
+  --destructive-muted: rgba(239, 68, 68, 0.1);
+  --destructive-border: rgba(239, 68, 68, 0.2);
+
+  /* Status: Info */
+  --info: var(--primitive-blue-500);
+  --info-foreground: var(--primitive-white);
+  --info-muted: rgba(59, 130, 246, 0.1);
+  --info-border: rgba(59, 130, 246, 0.2);
+
+  /* ------------------------------------------
+   * BORDERS & INPUTS
+   * ------------------------------------------ */
+  --border: var(--primitive-gray-200);
+  --border-subtle: var(--primitive-gray-100);
+  --border-accent: rgba(var(--brand-rgb), 0.3);
+  --input: var(--primitive-gray-200);
+  --ring: var(--brand-500);
+
+  /* ------------------------------------------
+   * CHARTS (Using brand colors)
+   * ------------------------------------------ */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--brand-700);
+  --chart-3: var(--brand-400);
+  --chart-4: var(--brand-600);
+  --chart-5: var(--brand-800);
+
+  /* ------------------------------------------
+   * SIDEBAR (Using brand colors)
+   * ------------------------------------------ */
+  --sidebar: var(--primitive-white);
+  --sidebar-foreground: var(--primitive-gray-900);
+  --sidebar-primary: var(--brand-500);
+  --sidebar-primary-foreground: var(--primitive-white);
+  --sidebar-accent: rgba(var(--brand-rgb), 0.1);
+  --sidebar-accent-foreground: var(--brand-500);
+  --sidebar-border: var(--primitive-gray-200);
+  --sidebar-ring: var(--brand-500);
+
+  /* ------------------------------------------
+   * GLASSMORPHISM
+   * ------------------------------------------ */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.5);
+  --glass-bg-strong: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-border-subtle: rgba(255, 255, 255, 0.2);
+  --glass-border-strong: rgba(255, 255, 255, 0.4);
+
+  /* ------------------------------------------
+   * METAL EFFECT (Light version)
+   * ------------------------------------------ */
+  --metal-base: var(--primitive-gray-50);
+  --metal-shine: rgba(255, 255, 255, 0.8);
+  --metal-highlight: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.9) 0%,
+      transparent 50%);
+
+  /* ------------------------------------------
+   * SELECTION (Using brand colors)
+   * ------------------------------------------ */
+  --selection-bg: rgba(var(--brand-rgb), 0.2);
+  --selection-text: var(--primitive-gray-900);
+
+  /* ------------------------------------------
+   * SCROLLBAR (Using brand colors)
+   * ------------------------------------------ */
+  --scrollbar-thumb: rgba(var(--brand-rgb), 0.2);
+  --scrollbar-thumb-hover: rgba(var(--brand-rgb), 0.4);
+}
+
+/* ==========================================
+ * SEMANTIC COLOR ALIASES FOR TAILWIND
+ * ========================================== */
+:root {
+  /* Status Colors (for utilities) */
+  --status-success-muted: var(--success-muted);
+  --status-success-text: var(--success);
+  --status-success-border: var(--success-border);
+
+  --status-warning-muted: var(--warning-muted);
+  --status-warning-text: var(--warning);
+  --status-warning-border: var(--warning-border);
+
+  --status-error-muted: var(--destructive-muted);
+  --status-error-text: var(--destructive);
+  --status-error-border: var(--destructive-border);
+
+  --status-info-muted: var(--info-muted);
+  --status-info-text: var(--info);
+  --status-info-border: var(--info-border);
+
+  /* ------------------------------------------
+   * PLATFORM COLORS
+   * E-commerce platform brand colors
+   * Usage: text-[color:var(--platform-shopify)]
+   * ------------------------------------------ */
+  --platform-shopify: #96bf48;
+  --platform-woocommerce: #9b5c8f;
+  --platform-wordpress: #21759b;
+  --platform-prestashop: #df0067;
+
+  /* ------------------------------------------
+   * Z-INDEX SCALE
+   * Standardized z-index layers
+   * ------------------------------------------ */
+  --z-base: 0;
+  --z-elevated: 10;
+  --z-dropdown: 20;
+  --z-sticky: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+}

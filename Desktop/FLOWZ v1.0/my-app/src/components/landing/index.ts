@@ -1,0 +1,9 @@
+export { Navbar } from './Navbar';
+export { HeroSection } from './Hero';
+export { DashboardPreviewSection } from './DashboardPreview';
+export { MarqueeSection } from './Marquee';
+export { MarketIntelligenceSection } from './MarketIntelligence';
+export { FeaturesSection } from './Features';
+export { TestimonialsSection } from './Testimonials';
+export { PricingSection } from './Pricing';
+export { FooterSection } from './Footer';

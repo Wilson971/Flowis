@@ -1,0 +1,17 @@
+{
+  "name": "flowz",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix my-app run dev",
+    "build": "npm --prefix my-app run build",
+    "start": "npm --prefix my-app run start",
+    "preview": "npm --prefix my-app run preview"
+  },
+  "devDependencies": {
+    "shadcn": "^3.8.3"
+  },
+  "dependencies": {
+    "tailwindcss": "^4.1.18"
+  }
+}

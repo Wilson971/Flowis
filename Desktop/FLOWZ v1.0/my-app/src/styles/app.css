@@ -1,0 +1,247 @@
+/**
+ * ============================================
+ * FLOWZ DESIGN SYSTEM v2.0
+ * ============================================
+ *
+ * Architecture en couches sémantiques :
+ *
+ * 1. TAILWIND     - Framework CSS utilitaire
+ * 2. PRIMITIVES   - Valeurs brutes (couleurs, espacements, etc.)
+ * 3. SEMANTIC     - Tokens sémantiques (surfaces, couleurs de marque, etc.)
+ * 4. TYPOGRAPHY   - Système typographique
+ * 5. COMPONENTS   - Styles de composants réutilisables
+ * 6. EFFECTS      - Animations, ombres, transitions
+ * 7. TAILWIND CONFIG - Configuration @theme pour Tailwind v4
+ *
+ * ============================================
+ */
+
+/* 1. Tailwind CSS */
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* 2. Design Tokens - Primitives */
+@import "./tokens/_primitives.css";
+
+/* 3. Design Tokens - Semantic */
+@import "./tokens/_semantic.css";
+
+/* 4. Base - Typography */
+@import "./base/_typography.css";
+
+/* 5. Design Tokens - Components */
+@import "./tokens/_components.css";
+
+/* 6. Utilities - Effects */
+@import "./utilities/_effects.css";
+
+/* ==========================================
+ * TAILWIND V4 - @theme CONFIGURATION
+ * Maps CSS variables to Tailwind utilities
+ * ========================================== */
+
+/* Dark mode variant */
+@custom-variant dark (&:is(.dark, .dark *));
+
+@theme inline {
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-heading);
+
+  /* Border Radius */
+  --radius: var(--radius-lg);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-full: var(--radius-full);
+
+  /* Spacing */
+  --space-xs: var(--space-1);
+  --space-sm: var(--space-2);
+  --space-md: var(--space-4);
+  --space-lg: var(--space-6);
+  --space-xl: var(--space-8);
+  --space-2xl: var(--space-12);
+  --space-3xl: var(--space-16);
+
+  /* Letter Spacing */
+  --tracking-tighter: var(--tracking-tighter);
+  --tracking-tight: var(--tracking-tight);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-wide: var(--tracking-wide);
+
+  /* Shadows */
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+  --shadow-glow: var(--shadow-glow);
+  --shadow-glow-sm: var(--shadow-glow-sm);
+  --shadow-glow-lg: var(--shadow-glow-lg);
+
+  /* Semantic Color Mappings for Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Status Colors */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+
+  /* Surface Elevation */
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  /* Chart Colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Platform Colors */
+  --color-platform-shopify: var(--platform-shopify);
+  --color-platform-woocommerce: var(--platform-woocommerce);
+  --color-platform-wordpress: var(--platform-wordpress);
+  --color-platform-prestashop: var(--platform-prestashop);
+
+  /* Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-spin: spin 1s linear infinite;
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-in: slide-in-left 0.25s ease-out;
+  --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+
+  /* Keyframes (registered in @theme for Tailwind) */
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slide-in-left {
+    from {
+      opacity: 0;
+      transform: translateX(-16px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes glow-pulse {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px color-mix(in srgb, var(--primary), transparent 70%);
+    }
+
+    50% {
+      box-shadow: 0 0 30px color-mix(in srgb, var(--primary), transparent 50%);
+    }
+  }
+}
+
+/* ==========================================
+ * STATUS COLOR UTILITIES
+ * For badge and indicator components
+ * ========================================== */
+:root {
+  /* Status semantic mappings */
+  --status-success-muted: var(--success-muted);
+  --status-success-text: var(--success);
+  --status-success-border: var(--success-border);
+
+  --status-warning-muted: var(--warning-muted);
+  --status-warning-text: var(--warning);
+  --status-warning-border: var(--warning-border);
+
+  --status-error-muted: var(--destructive-muted);
+  --status-error-text: var(--destructive);
+  --status-error-border: var(--destructive-border);
+
+  --status-info-muted: var(--info-muted);
+  --status-info-text: var(--info);
+  --status-info-border: var(--info-border);
+}

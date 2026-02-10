@@ -1,0 +1,266 @@
+/**
+ * useBlogArticle Hook
+ *
+ * Fetch and manage a single blog article with optimistic updates
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
+import { blogArticlesKeys } from './useBlogArticles';
+import type { BlogArticle, BlogFormData } from '@/types/blog';
+
+// ============================================================================
+// FETCH SINGLE ARTICLE
+// ============================================================================
+
+interface UseBlogArticleOptions {
+  enabled?: boolean;
+}
+
+export function useBlogArticle(id?: string, options: UseBlogArticleOptions = {}) {
+  const { enabled = true } = options;
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: blogArticlesKeys.detail(id || ''),
+    queryFn: async () => {
+      if (!id) return null;
+
+      const { data, error } = await supabase
+        .from('blog_articles')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data as BlogArticle;
+    },
+    enabled: enabled && !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// ============================================================================
+// UPDATE ARTICLE
+// ============================================================================
+
+interface UpdateArticleParams {
+  id: string;
+  updates: Partial<BlogFormData>;
+}
+
+export function useUpdateBlogArticle() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: UpdateArticleParams) => {
+      // Generate slug if title changed
+      const updateData: Record<string, unknown> = { ...updates };
+
+      if (updates.title && !updates.slug) {
+        updateData.slug = updates.title
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+      }
+
+      // Set published_at if publishing
+      if (
+        (updates.status === 'published' || updates.status === 'publish') &&
+        !updates.published_at
+      ) {
+        updateData.published_at = new Date().toISOString();
+      }
+
+      updateData.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('blog_articles')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as BlogArticle;
+    },
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: blogArticlesKeys.detail(id) });
+
+      // Snapshot previous value
+      const previousArticle = queryClient.getQueryData<BlogArticle>(
+        blogArticlesKeys.detail(id)
+      );
+
+      // Optimistically update
+      if (previousArticle) {
+        queryClient.setQueryData(blogArticlesKeys.detail(id), {
+          ...previousArticle,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      return { previousArticle };
+    },
+    onError: (error, { id }, context) => {
+      // Rollback on error
+      if (context?.previousArticle) {
+        queryClient.setQueryData(blogArticlesKeys.detail(id), context.previousArticle);
+      }
+      toast.error('Erreur de sauvegarde', {
+        description: error.message || 'Impossible de sauvegarder l\'article.',
+      });
+    },
+    onSuccess: (data) => {
+      // Update cache with server response
+      queryClient.setQueryData(blogArticlesKeys.detail(data.id), data);
+      queryClient.invalidateQueries({ queryKey: blogArticlesKeys.all });
+    },
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+
+// ============================================================================
+// AUTO-SAVE HOOK
+// ============================================================================
+
+import { useRef, useCallback, useEffect } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
+
+interface UseAutoSaveOptions {
+  articleId: string;
+  enabled?: boolean;
+  debounceMs?: number;
+  onSaveStart?: () => void;
+  onSaveComplete?: () => void;
+  onSaveError?: (error: Error) => void;
+}
+
+export function useAutoSave(options: UseAutoSaveOptions) {
+  const {
+    articleId,
+    enabled = true,
+    debounceMs = 3000,
+    onSaveStart,
+    onSaveComplete,
+    onSaveError,
+  } = options;
+
+  const updateMutation = useUpdateBlogArticle();
+  const pendingChangesRef = useRef<Partial<BlogFormData> | null>(null);
+  const isSavingRef = useRef(false);
+
+  const performSave = useCallback(async () => {
+    if (!pendingChangesRef.current || !enabled || isSavingRef.current) return;
+
+    const changes = pendingChangesRef.current;
+    pendingChangesRef.current = null;
+    isSavingRef.current = true;
+
+    onSaveStart?.();
+
+    try {
+      await updateMutation.mutateAsync({ id: articleId, updates: changes });
+      onSaveComplete?.();
+    } catch (error) {
+      onSaveError?.(error as Error);
+      // Restore pending changes on error
+      pendingChangesRef.current = changes;
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [articleId, enabled, updateMutation, onSaveStart, onSaveComplete, onSaveError]);
+
+  const debouncedSave = useDebouncedCallback(performSave, debounceMs);
+
+  const queueSave = useCallback(
+    (updates: Partial<BlogFormData>) => {
+      pendingChangesRef.current = {
+        ...pendingChangesRef.current,
+        ...updates,
+      };
+      debouncedSave();
+    },
+    [debouncedSave]
+  );
+
+  const flushSave = useCallback(async () => {
+    debouncedSave.cancel();
+    await performSave();
+  }, [debouncedSave, performSave]);
+
+  // Flush on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingChangesRef.current) {
+        flushSave();
+      }
+    };
+  }, [flushSave]);
+
+  return {
+    queueSave,
+    flushSave,
+    isSaving: updateMutation.isPending || isSavingRef.current,
+    hasPendingChanges: !!pendingChangesRef.current,
+  };
+}
+
+// ============================================================================
+// DUPLICATE ARTICLE
+// ============================================================================
+
+export function useDuplicateBlogArticle() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Fetch original
+      const { data: original, error: fetchError } = await supabase
+        .from('blog_articles')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Create duplicate
+      const { id: _, created_at, updated_at, published_at, ...rest } = original;
+
+      const { data, error } = await supabase
+        .from('blog_articles')
+        .insert({
+          ...rest,
+          title: `${original.title} (copie)`,
+          slug: `${original.slug}-copy-${Date.now()}`,
+          status: 'draft',
+          published_at: null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as BlogArticle;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: blogArticlesKeys.all });
+      toast.success('Article dupliqué', {
+        description: `"${data.title}" a été créé.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast.error('Erreur', {
+        description: error.message || 'Impossible de dupliquer l\'article.',
+      });
+    },
+  });
+}

@@ -344,11 +344,11 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // 2. Form hook with Zod validation
     const methods = useProductForm({ product });
 
-    // 3. Actions (save, etc.)
-    const actions = useProductActions({ productId });
-
-    // 4. Categories fetching
+    // 3. Categories fetching (avant actions pour passer les catégories disponibles)
     const { data: categories = [], isLoading: isLoadingCategories } = useCategories(selectedStore?.id);
+
+    // 4. Actions (save, etc.) - avec les catégories pour résoudre les IDs WooCommerce
+    const actions = useProductActions({ productId, availableCategories: categories });
 
     // 4b. Conflict detection
     const { data: conflictData, refetch: refetchConflicts } = useConflictDetection(productId);
@@ -417,16 +417,14 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     ]);
 
     // Submit handler
+    // Note: Le toast et l'invalidation des queries sont gérés par useProductSave.onSuccess
+    // Le useEffect dans useProductForm re-sync le formulaire quand le produit est refetché
     const handleSubmit = async (data: ProductFormValues) => {
         try {
             await actions.handleSave(data);
-
-            // Reset form with new data to clear badged "Unsaved" state
-            methods.reset(data);
-
-            toast.success("Produit sauvegardé", {
-                description: "Les modifications ont été enregistrées avec succès.",
-            });
+            // Reset dirty state immédiatement pour retirer le badge "Non sauvegardé"
+            // Le useEffect re-sync avec les données DB quand les queries se rafraîchissent
+            methods.reset(data, { keepDefaultValues: false });
         } catch (e) {
             toast.error("Erreur de sauvegarde", {
                 description: "Une erreur est survenue. Veuillez réessayer.",

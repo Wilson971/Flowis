@@ -1,0 +1,320 @@
+/**
+ * ======================================
+ * GM3 SEMANTIC DESIGN TOKENS
+ * Basé sur l'extraction de gemini.google.com
+ * Google Material Design 3 (GM3)
+ * ======================================
+ */
+
+:root {
+    /* ======================================
+   * COULEURS PRIMITIVES (Palette de base)
+   * ====================================== */
+
+    /* Couleurs de marque */
+    --gm3-color-primary: #0b57d0;
+    /* Bleu primaire GM3 */
+    --gm3-color-on-primary: #ffffff;
+    /* Texte sur primaire */
+    --gm3-color-primary-container: #d3e3fd;
+    /* Conteneur primaire clair */
+
+    --gm3-color-secondary: #00639b;
+    /* Bleu secondaire (focus ring) */
+
+    /* Couleurs de surface */
+    --gm3-color-surface: #1f1f1f;
+    /* Surface principale (dark) */
+    --gm3-color-on-surface: #ffffff;
+    /* Texte sur surface */
+    --gm3-color-surface-variant: #303030;
+    /* Surface variante */
+
+    /* Couleurs de fond */
+    --gm3-color-background: #1f1f1f;
+    /* Fond principal */
+    --gm3-color-on-background: #e3e3e3;
+    /* Texte sur fond */
+
+    /* Couleurs d'accent/liens */
+    --gm3-color-link: #2962ff;
+    /* Liens par défaut */
+    --gm3-color-link-alt: #0b57d0;
+    /* Liens alternatifs */
+
+    /* ======================================
+   * TYPOGRAPHIE
+   * ====================================== */
+
+    /* Familles de polices */
+    --gm3-font-family-brand: 'Google Sans', 'Roboto', 'Arial', sans-serif;
+    --gm3-font-family-plain: 'Roboto', 'RobotoDraft', 'Helvetica', 'Arial', sans-serif;
+    --gm3-font-family-flex: 'Google Sans Flex', 'Google Sans Text', 'Google Sans', 'Roboto', 'Arial', sans-serif;
+
+    /* Heading 1 */
+    --gm3-typescale-headline-large-size: 1.5rem;
+    /* 24px */
+    --gm3-typescale-headline-large-line-height: 1.00;
+    /* tight */
+    --gm3-typescale-headline-large-weight: 400;
+
+    --gm3-typescale-headline-medium-size: 1.375rem;
+    /* 22px */
+    --gm3-typescale-headline-medium-line-height: 1.27;
+    /* tight */
+    --gm3-typescale-headline-medium-weight: 400;
+
+    /* Body */
+    --gm3-typescale-body-large-size: 1rem;
+    /* 16px */
+    --gm3-typescale-body-large-line-height: 1.5;
+    --gm3-typescale-body-large-weight: 400;
+
+    /* Caption / Labels */
+    --gm3-typescale-label-large-size: 0.875rem;
+    /* 14px */
+    --gm3-typescale-label-large-line-height: 1.43;
+    --gm3-typescale-label-large-weight: 500;
+    --gm3-typescale-label-large-tracking: 0.25px;
+
+    --gm3-typescale-label-medium-size: 0.75rem;
+    /* 12px */
+    --gm3-typescale-label-medium-line-height: 1.67;
+    /* relaxed */
+    --gm3-typescale-label-medium-weight: 500;
+    --gm3-typescale-label-medium-tracking: 0.3px;
+
+    /* Button text */
+    --gm3-typescale-button-size: 0.833rem;
+    /* 13.3333px */
+    --gm3-typescale-button-weight: 500;
+
+    /* ======================================
+   * ESPACEMENT (Système de 8px)
+   * ====================================== */
+
+    --gm3-spacing-unit: 8px;
+    --gm3-spacing-0: 0;
+    --gm3-spacing-1: 0.25rem;
+    /* 4px */
+    --gm3-spacing-2: 0.5rem;
+    /* 8px */
+    --gm3-spacing-2-5: 0.625rem;
+    /* 10px */
+    --gm3-spacing-3-5: 0.875rem;
+    /* 14px */
+    --gm3-spacing-5: 1.25rem;
+    /* 20px */
+    --gm3-spacing-6: 1.5rem;
+    /* 24px */
+    --gm3-spacing-12: 3rem;
+    /* 48px */
+
+    /* ======================================
+   * BORDER RADIUS
+   * ====================================== */
+
+    --gm3-shape-corner-none: 0;
+    --gm3-shape-corner-extra-small: 4px;
+    --gm3-shape-corner-small: 8px;
+    --gm3-shape-corner-medium: 12px;
+    --gm3-shape-corner-large: 20px;
+    /* Buttons, chips */
+    --gm3-shape-corner-extra-large: 22px;
+    --gm3-shape-corner-full: 9999px;
+    /* Pills, circular */
+
+    /* ======================================
+   * BORDURES
+   * ====================================== */
+
+    --gm3-border-width-thin: 1px;
+    --gm3-border-width-thick: 3px;
+    /* Focus ring */
+
+    --gm3-border-color-outline: rgb(116, 119, 117);
+    /* Outlined buttons */
+    --gm3-border-color-focus: #00639b;
+    /* Focus ring color */
+
+    /* ======================================
+   * OMBRES (Elevation)
+   * ====================================== */
+
+    --gm3-elevation-level0: none;
+    --gm3-elevation-level1: 0px 1px 2px rgba(0, 0, 0, 0.3);
+    --gm3-elevation-level2: 0px 2px 6px rgba(0, 0, 0, 0.3);
+    --gm3-elevation-focus: 0px 0px 0px 3px rgb(0, 99, 155);
+
+    /* ======================================
+   * TOKENS SÉMANTIQUES POUR BOUTONS
+   * ====================================== */
+
+    /* Bouton Filled (Primary) */
+    --gm3-button-filled-container-color: var(--gm3-color-primary);
+    --gm3-button-filled-label-color: var(--gm3-color-on-primary);
+    --gm3-button-filled-icon-color: var(--gm3-color-on-primary);
+    --gm3-button-filled-container-shape: var(--gm3-shape-corner-large);
+    --gm3-button-filled-padding-horizontal: var(--gm3-spacing-6);
+
+    /* États du bouton filled */
+    --gm3-button-filled-hover-icon-color: var(--gm3-color-on-primary);
+    --gm3-button-filled-pressed-icon-color: var(--gm3-color-on-primary);
+    --gm3-button-filled-focus-icon-color: var(--gm3-color-on-primary);
+
+    /* Bouton Outlined (Secondary) */
+    --gm3-button-outlined-container-color: transparent;
+    --gm3-button-outlined-label-color: var(--gm3-color-primary);
+    --gm3-button-outlined-icon-color: var(--gm3-color-primary);
+    --gm3-button-outlined-outline-color: var(--gm3-border-color-outline);
+    --gm3-button-outlined-outline-width: var(--gm3-border-width-thin);
+    --gm3-button-outlined-container-shape: var(--gm3-shape-corner-large);
+    --gm3-button-outlined-padding-left: var(--gm3-spacing-4, 1rem);
+    --gm3-button-outlined-padding-right: var(--gm3-spacing-6);
+
+    /* États du bouton outlined */
+    --gm3-button-outlined-hover-icon-color: var(--gm3-color-primary);
+    --gm3-button-outlined-pressed-icon-color: var(--gm3-color-primary);
+    --gm3-button-outlined-focus-icon-color: var(--gm3-color-primary);
+
+    /* ======================================
+   * TOKENS SÉMANTIQUES POUR LIENS
+   * ====================================== */
+
+    --gm3-link-color-default: var(--gm3-color-link);
+    --gm3-link-color-alt: var(--gm3-color-link-alt);
+    --gm3-link-decoration-default: none;
+    --gm3-link-decoration-hover: underline;
+
+    /* ======================================
+   * BREAKPOINTS (Responsive)
+   * ====================================== */
+
+    --gm3-breakpoint-compact: 380px;
+    /* Mobile petit */
+    --gm3-breakpoint-medium: 480px;
+    /* Mobile */
+    --gm3-breakpoint-expanded: 840px;
+    /* Tablette */
+    --gm3-breakpoint-large: 1200px;
+    /* Desktop */
+    --gm3-breakpoint-extra-large: 1600px;
+    /* Large desktop */
+}
+
+/* ======================================
+ * CLASSES UTILITAIRES GM3
+ * ====================================== */
+
+/* Typographie */
+.gm3-headline-large {
+    font-family: var(--gm3-font-family-brand);
+    font-size: var(--gm3-typescale-headline-large-size);
+    line-height: var(--gm3-typescale-headline-large-line-height);
+    font-weight: var(--gm3-typescale-headline-large-weight);
+}
+
+.gm3-headline-medium {
+    font-family: var(--gm3-font-family-brand);
+    font-size: var(--gm3-typescale-headline-medium-size);
+    line-height: var(--gm3-typescale-headline-medium-line-height);
+    font-weight: var(--gm3-typescale-headline-medium-weight);
+}
+
+.gm3-body-large {
+    font-family: var(--gm3-font-family-plain);
+    font-size: var(--gm3-typescale-body-large-size);
+    line-height: var(--gm3-typescale-body-large-line-height);
+    font-weight: var(--gm3-typescale-body-large-weight);
+}
+
+.gm3-label-large {
+    font-family: var(--gm3-font-family-brand);
+    font-size: var(--gm3-typescale-label-large-size);
+    line-height: var(--gm3-typescale-label-large-line-height);
+    font-weight: var(--gm3-typescale-label-large-weight);
+    letter-spacing: var(--gm3-typescale-label-large-tracking);
+}
+
+.gm3-label-medium {
+    font-family: var(--gm3-font-family-brand);
+    font-size: var(--gm3-typescale-label-medium-size);
+    line-height: var(--gm3-typescale-label-medium-line-height);
+    font-weight: var(--gm3-typescale-label-medium-weight);
+    letter-spacing: var(--gm3-typescale-label-medium-tracking);
+}
+
+/* Bouton Filled */
+.gm3-button-filled {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gm3-spacing-2);
+    padding: 0 var(--gm3-button-filled-padding-horizontal);
+    min-height: 40px;
+    background-color: var(--gm3-button-filled-container-color);
+    color: var(--gm3-button-filled-label-color);
+    border: none;
+    border-radius: var(--gm3-button-filled-container-shape);
+    font-family: var(--gm3-font-family-brand);
+    font-size: var(--gm3-typescale-label-large-size);
+    font-weight: var(--gm3-typescale-label-large-weight);
+    letter-spacing: var(--gm3-typescale-label-large-tracking);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gm3-button-filled:hover {
+    filter: brightness(1.1);
+}
+
+.gm3-button-filled:focus-visible {
+    outline: none;
+    box-shadow: var(--gm3-elevation-focus);
+}
+
+/* Bouton Outlined */
+.gm3-button-outlined {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gm3-spacing-2);
+    padding: 0 var(--gm3-button-outlined-padding-right) 0 var(--gm3-button-outlined-padding-left);
+    min-height: 40px;
+    background-color: var(--gm3-button-outlined-container-color);
+    color: var(--gm3-button-outlined-label-color);
+    border: var(--gm3-button-outlined-outline-width) solid var(--gm3-button-outlined-outline-color);
+    border-radius: var(--gm3-button-outlined-container-shape);
+    font-family: var(--gm3-font-family-brand);
+    font-size: var(--gm3-typescale-label-large-size);
+    font-weight: var(--gm3-typescale-label-large-weight);
+    letter-spacing: var(--gm3-typescale-label-large-tracking);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.gm3-button-outlined:hover {
+    background-color: rgba(11, 87, 208, 0.08);
+}
+
+.gm3-button-outlined:focus-visible {
+    outline: none;
+    box-shadow: var(--gm3-elevation-focus);
+}
+
+/* Lien GM3 */
+.gm3-link {
+    color: var(--gm3-link-color-default);
+    text-decoration: var(--gm3-link-decoration-default);
+    transition: text-decoration 0.15s ease;
+}
+
+.gm3-link:hover {
+    text-decoration: var(--gm3-link-decoration-hover);
+}
+
+/* Surface GM3 */
+.gm3-surface {
+    background-color: var(--gm3-color-surface);
+    color: var(--gm3-color-on-surface);
+}

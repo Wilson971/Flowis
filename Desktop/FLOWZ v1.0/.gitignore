@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Environment variables (SECRETS - never push)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Next.js build output
+.next/
+out/
+
+# Build cache
+*.tsbuildinfo
+.tanstack/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# AI / Tool configs (local only)
+.claude/
+.agents/
+.gemini/
+.mcp.json
+
+# OS files
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Windows artifacts
+nul
+
+# Temp / generated files
+generated-page.html
+count.txt
+my-app/nul
+my-app/src/nul
+my-app/count.txt
+
+# Debug scripts
+inspect_products.js
+retrieve_product.js
+verify_rpc.js
+
+# Old backups
+ecocombo-sync-main - antygravity OLD/

@@ -1,0 +1,4 @@
+-- No-op: Code has been aligned to match the existing DB enum types.
+-- batch_jobs.status enum: pending, running, completed, failed, partial
+-- batch_job_items.status enum: pending, processing, completed, failed
+-- No migration needed.

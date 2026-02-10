@@ -1,0 +1,410 @@
+/**
+ * ============================================
+ * UTILITIES - EFFECTS
+ * ============================================
+ * Effets visuels, animations, ombres, interactions
+ * Scrollbars, loaders, transitions
+ * ============================================
+ */
+
+/* ==========================================
+ * SHADOWS
+ * ========================================== */
+:root {
+  /* Shadow Scale - Dark Mode Optimized */
+  --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.15);
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+  --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.25);
+  --shadow: 0 2px 4px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 16px 48px rgb(0 0 0 / 0.6);
+  --shadow-2xl: 0 25px 60px -12px rgb(0 0 0 / 0.7);
+
+  /* Glow Effects - Using primary color */
+  --shadow-glow-sm: 0 0 12px color-mix(in srgb, var(--primary), transparent 80%);
+  --shadow-glow: 0 0 20px color-mix(in srgb, var(--primary), transparent 70%);
+  --shadow-glow-lg: 0 0 40px color-mix(in srgb, var(--primary), transparent 60%);
+}
+
+/* ==========================================
+ * KEYFRAME ANIMATIONS
+ * ========================================== */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px color-mix(in srgb, var(--primary), transparent 70%);
+  }
+  50% {
+    box-shadow: 0 0 30px color-mix(in srgb, var(--primary), transparent 50%);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes skeleton {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+}
+
+/* ==========================================
+ * ANIMATION UTILITIES
+ * ========================================== */
+.animate-accordion-down {
+  animation: accordion-down var(--duration-200) var(--ease-out);
+}
+
+.animate-accordion-up {
+  animation: accordion-up var(--duration-200) var(--ease-out);
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in var(--duration-200) var(--ease-out);
+}
+
+.animate-fade-out {
+  animation: fade-out var(--duration-200) var(--ease-out);
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left var(--duration-300) var(--ease-out);
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right var(--duration-300) var(--ease-out);
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up var(--duration-300) var(--ease-out);
+}
+
+.animate-slide-in-down {
+  animation: slide-in-down var(--duration-300) var(--ease-out);
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-200) var(--ease-out);
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ==========================================
+ * INTERACTIVE UTILITIES
+ * ========================================== */
+
+/* Hover Lift Effect */
+.hover-lift {
+  transition: transform var(--duration-200) var(--ease-out),
+    box-shadow var(--duration-200) var(--ease-out);
+  cursor: pointer;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Hover Glow Effect */
+.hover-glow {
+  transition: box-shadow var(--duration-200) var(--ease-out),
+    border-color var(--duration-200) var(--ease-out);
+  cursor: pointer;
+}
+
+.hover-glow:hover {
+  box-shadow: var(--shadow-glow);
+  border-color: var(--border-accent);
+}
+
+/* Active Press Effect */
+.active-press:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Focus Ring */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
+
+/* ==========================================
+ * LOADING STATES
+ * ========================================== */
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in srgb, var(--muted), transparent 50%) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--primitive-gray-200) 25%,
+    var(--primitive-gray-100) 50%,
+    var(--primitive-gray-200) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Spinner */
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-full);
+  animation: spin 0.75s linear infinite;
+}
+
+.spinner-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.spinner-lg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* ==========================================
+ * SCROLLBAR
+ * ========================================== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Hide scrollbar */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================
+ * BACKDROP & OVERLAY
+ * ========================================== */
+.backdrop-blur-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.light .backdrop-blur-overlay {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ==========================================
+ * TRANSITION UTILITIES
+ * ========================================== */
+.transition-base {
+  transition-property: color, background-color, border-color, text-decoration-color, fill,
+    stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: var(--ease-in-out);
+  transition-duration: var(--duration-150);
+}
+
+.transition-fast {
+  transition-duration: var(--duration-100);
+}
+
+.transition-slow {
+  transition-duration: var(--duration-300);
+}
+
+.transition-colors {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: var(--ease-in-out);
+  transition-duration: var(--duration-150);
+}
+
+.transition-opacity {
+  transition-property: opacity;
+  transition-timing-function: var(--ease-in-out);
+  transition-duration: var(--duration-150);
+}
+
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: var(--ease-in-out);
+  transition-duration: var(--duration-150);
+}
+
+.transition-shadow {
+  transition-property: box-shadow;
+  transition-timing-function: var(--ease-in-out);
+  transition-duration: var(--duration-150);
+}

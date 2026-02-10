@@ -1,0 +1,886 @@
+@import 'tailwindcss';
+
+/* Dark mode variant - appliqué quand .dark est sur html ou un parent */
+@custom-variant dark (&:is(.dark, .dark *));
+
+/* =========================================
+ * FLOWZ DESIGN SYSTEM - Emerald Ledger
+ * Dark Mode Premium + Glassmorphism
+ * Category: SaaS Dashboard (Fintech / Crypto / BI)
+ * ========================================= */
+
+@theme inline {
+    /* Typography - Inter + Space Grotesk (Tech/Fintech) */
+    --font-sans: var(--font-geist-sans), 'Inter', system-ui, sans-serif;
+    --font-mono: var(--font-geist-mono), 'JetBrains Mono', monospace;
+    --font-heading: 'Space Grotesk', var(--font-geist-sans), system-ui, sans-serif;
+
+    /* Border Radius Scale - Slightly Rounded (Premium) */
+    --radius: 0.75rem;
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    --radius-2xl: 1.5rem;
+    --radius-full: 9999px;
+
+    /* Spacing Scale */
+    --space-xs: 0.25rem;
+    --space-sm: 0.5rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    --space-3xl: 4rem;
+
+    /* Letter Spacing */
+    --tracking-tighter: -0.05em;
+    --tracking-tight: -0.025em;
+    --tracking-normal: 0em;
+    --tracking-wide: 0.025em;
+
+    /* Shadow Scale - Premium Dark Mode */
+    --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.15);
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --shadow-sm: 0 1px 3px rgb(0 0 0 / 0.25);
+    --shadow: 0 2px 4px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 8px 24px rgb(0 0 0 / 0.5);
+    --shadow-xl: 0 16px 48px rgb(0 0 0 / 0.6);
+    --shadow-2xl: 0 25px 60px -12px rgb(0 0 0 / 0.7);
+
+    /* Glow Effects - Sémantique */
+    --shadow-glow: 0 0 20px color-mix(in srgb, var(--primary), transparent 70%);
+    --shadow-glow-sm: 0 0 12px color-mix(in srgb, var(--primary), transparent 80%);
+    --shadow-glow-lg: 0 0 40px color-mix(in srgb, var(--primary), transparent 60%);
+
+    /* Brushed Metal Effects */
+    --metal-highlight: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 50%, rgba(255, 255, 255, 0.03) 100%);
+    --metal-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+
+    /* ===== Semantic Color Mappings ===== */
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    /* Status Colors */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+
+    /* Chart Colors - Emerald Gradient */
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    /* Sidebar */
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+
+    /* Animations - Snappy & Premium */
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
+    --animate-spin: spin 1s linear infinite;
+    --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    --animate-fade-in: fade-in 0.2s ease-out;
+    --animate-slide-in: slide-in 0.25s ease-out;
+    --animate-glow-pulse: glow-pulse 2s ease-in-out infinite;
+
+    @keyframes accordion-down {
+        from {
+            height: 0;
+        }
+
+        to {
+            height: var(--radix-accordion-content-height);
+        }
+    }
+
+    @keyframes accordion-up {
+        from {
+            height: var(--radix-accordion-content-height);
+        }
+
+        to {
+            height: 0;
+        }
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes pulse {
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slide-in {
+        from {
+            opacity: 0;
+            transform: translateX(-16px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes glow-pulse {
+
+        0%,
+        100% {
+            box-shadow: 0 0 20px color-mix(in srgb, var(--primary), transparent 70%);
+        }
+
+        50% {
+            box-shadow: 0 0 30px color-mix(in srgb, var(--primary), transparent 50%);
+        }
+    }
+}
+
+/* =========================================
+ * DARK THEME (Default) - Anthracite & Brushed Metal
+ * Nuancier gris foncé anthracite → noir
+ * ========================================= */
+:root {
+    /* Enable dark mode as default */
+    color-scheme: dark;
+
+    /* Core Surfaces - Anthracite Gradient */
+    --background: #121215;
+    /* Near black with warm undertone */
+    --foreground: #FAFAFA;
+
+    /* Cards - Anthracite gray for brushed metal base */
+    --card: #1C1C1F;
+    /* Dark anthracite */
+    --card-foreground: #FAFAFA;
+    --popover: #252528;
+    /* Lighter anthracite */
+    --popover-foreground: #FAFAFA;
+
+    /* Surface Elevation Scale */
+    --surface-0: #121215;
+    /* Background - deepest */
+    --surface-1: #1C1C1F;
+    /* Cards - anthracite */
+    --surface-2: #252528;
+    /* Elevated - lighter gray */
+    --surface-3: #2E2E32;
+    /* Highest - charcoal */
+
+    /* Primary - Emerald */
+    --primary: #10B981;
+    --primary-foreground: #FFFFFF;
+
+    /* Secondary - Emerald Dark */
+    --secondary: #047857;
+    --secondary-foreground: #FFFFFF;
+
+    /* Muted - Anthracite range */
+    --muted: #252528;
+    --muted-foreground: #A1A1A6;
+
+    /* Accent - Emerald Glow */
+    --accent: #10B981;
+    --accent-foreground: #FFFFFF;
+
+    /* Destructive - Error Red */
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+
+    /* Status Colors - Fintech Style */
+    --success: #10B981;
+    --success-foreground: #FFFFFF;
+    --warning: #F59E0B;
+    --warning-foreground: #121215;
+    --info: #10B981;
+    --info-foreground: #FFFFFF;
+
+    /* Borders - Subtle anthracite */
+    --border: #2E2E32;
+    --border-accent: rgba(16, 185, 129, 0.4);
+    --input: #2E2E32;
+    --ring: #10B981;
+
+    /* Charts - Emerald Gradient */
+    --chart-1: #10B981;
+    --chart-2: #047857;
+    --chart-3: #34D399;
+    --chart-4: #6EE7B7;
+    --chart-5: #A7F3D0;
+
+    /* Sidebar - Anthracite unified */
+    --sidebar: #121215;
+    --sidebar-foreground: #FAFAFA;
+    --sidebar-primary: #10B981;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: rgba(16, 185, 129, 0.1);
+    --sidebar-accent-foreground: #10B981;
+    --sidebar-border: #2E2E32;
+    --sidebar-ring: #10B981;
+
+    /* Brushed Metal Tokens */
+    --glass-bg: rgba(28, 28, 31, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: 12px;
+    --metal-base: #1C1C1F;
+    --metal-shine: rgba(255, 255, 255, 0.06);
+}
+
+/* =========================================
+ * LIGHT THEME - Néo-Banque
+ * Clean White + Emerald Accents
+ * ========================================= */
+.light {
+    color-scheme: light;
+
+    /* Core Surfaces - Clean Gray */
+    --background: #F3F4F6;
+    --foreground: #111827;
+
+    /* Surface Elevation Scale - Light Mode */
+    --surface-0: #F3F4F6;
+    /* Background - lightest */
+    --surface-1: #FFFFFF;
+    /* Cards - white */
+    --surface-2: #F9FAFB;
+    /* Elevated - off-white */
+    --surface-3: #F3F4F6;
+    /* Highest - light gray */
+
+    /* Cards & Popovers */
+    --card: #FFFFFF;
+    --card-foreground: #111827;
+    --popover: #FFFFFF;
+    --popover-foreground: #111827;
+
+    /* Primary - Emerald */
+    --primary: #10B981;
+    --primary-foreground: #FFFFFF;
+
+    /* Secondary - Emerald Dark */
+    --secondary: #047857;
+    --secondary-foreground: #FFFFFF;
+
+    /* Muted */
+    --muted: #F3F4F6;
+    --muted-foreground: #6B7280;
+
+    /* Accent */
+    --accent: #10B981;
+    --accent-foreground: #FFFFFF;
+
+    /* Destructive */
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+
+    /* Status Colors */
+    --success: #10B981;
+    --success-foreground: #FFFFFF;
+    --warning: #F59E0B;
+    --warning-foreground: #111827;
+    --info: #10B981;
+    --info-foreground: #FFFFFF;
+
+    /* Borders & Inputs */
+    --border: #E5E7EB;
+    --border-accent: rgba(16, 185, 129, 0.3);
+    --input: #E5E7EB;
+    --ring: #10B981;
+
+    /* Charts */
+    --chart-1: #10B981;
+    --chart-2: #047857;
+    --chart-3: #34D399;
+    --chart-4: #059669;
+    --chart-5: #065F46;
+
+    /* Sidebar */
+    --sidebar: #FFFFFF;
+    --sidebar-foreground: #111827;
+    --sidebar-primary: #10B981;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: rgba(16, 185, 129, 0.1);
+    --sidebar-accent-foreground: #10B981;
+    --sidebar-border: #E5E7EB;
+    --sidebar-ring: #10B981;
+
+    /* Glassmorphism Tokens - Light */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-blur: 12px;
+}
+
+/* =========================================
+ * BASE LAYER - Typography & Defaults
+ * ========================================= */
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        font-family: var(--font-sans);
+        font-feature-settings: "rlig" 1, "calt" 1;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: var(--background);
+        color: var(--foreground);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        font-family: var(--font-heading);
+        letter-spacing: -0.02em;
+        font-weight: 600;
+    }
+
+    /* Tabular Numbers for Financial Data */
+    .tabular-nums {
+        font-variant-numeric: tabular-nums;
+        font-feature-settings: 'tnum' on;
+    }
+
+    /* Focus visible - Accessibility */
+    :focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    /* Selection - Emerald Tint */
+    ::selection {
+        background-color: rgba(16, 185, 129, 0.3);
+        color: #F9FAFB;
+    }
+
+    .light ::selection {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #111827;
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+}
+
+/* =========================================
+ * GLASSMORPHISM UTILITIES
+ * ========================================= */
+
+/* Glass Card - Default */
+.glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+}
+
+/* Glass Levels */
+.glass-subtle {
+    background: rgba(28, 28, 31, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.glass-strong {
+    background: rgba(28, 28, 31, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.light .glass-subtle {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.light .glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+/* =========================================
+ * BRUSHED METAL / ALUMINUM CARDS
+ * Premium industrial finish effect
+ * ========================================= */
+
+/* Base Brushed Metal Card */
+.card-metal {
+    position: relative;
+    background: linear-gradient(145deg,
+            #1C1C1F 0%,
+            #232326 50%,
+            #1A1A1D 100%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+/* Metal highlight overlay */
+.card-metal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.08) 0%,
+            transparent 40%,
+            transparent 60%,
+            rgba(255, 255, 255, 0.03) 100%);
+    pointer-events: none;
+}
+
+/* Brushed grain texture overlay */
+.card-metal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    mix-blend-mode: overlay;
+}
+
+/* Horizontal brushed lines effect */
+.card-metal-brushed {
+    position: relative;
+    background: linear-gradient(180deg,
+            #1F1F22 0%,
+            #1C1C1F 25%,
+            #1E1E21 50%,
+            #1C1C1F 75%,
+            #1F1F22 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.card-metal-brushed::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg,
+            transparent 0px,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 2px,
+            transparent 4px);
+    pointer-events: none;
+}
+
+.card-metal-brushed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(255, 255, 255, 0.04) 20%,
+            rgba(255, 255, 255, 0.06) 50%,
+            rgba(255, 255, 255, 0.04) 80%,
+            transparent 100%);
+    pointer-events: none;
+}
+
+/* Darker, more industrial metal */
+.card-metal-dark {
+    position: relative;
+    background: linear-gradient(160deg,
+            #18181B 0%,
+            #1C1C1F 40%,
+            #151517 100%);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.03),
+        0 4px 12px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
+
+.card-metal-dark::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.05) 0%,
+            transparent 50%);
+    pointer-events: none;
+}
+
+/* Hover states for metal cards */
+.card-metal:hover,
+.card-metal-brushed:hover,
+.card-metal-dark:hover {
+    border-color: color-mix(in srgb, var(--primary), transparent 70%);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--primary), transparent 90%),
+        0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.light .card-metal:hover,
+.light .card-metal-brushed:hover,
+.light .card-metal-dark:hover {
+    border-color: color-mix(in srgb, var(--primary), transparent 60%);
+    box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--primary), transparent 85%),
+        0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Metal Card with Emerald Accent Line */
+.card-metal-accent {
+    position: relative;
+    background: linear-gradient(145deg,
+            #1C1C1F 0%,
+            #232326 100%);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.card-metal-accent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+/* Light mode metal cards */
+.light .card-metal,
+.light .card-metal-brushed,
+.light .card-metal-dark {
+    background: linear-gradient(145deg,
+            #FAFAFA 0%,
+            #F5F5F5 50%,
+            #FAFAFA 100%);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.light .card-metal::before,
+.light .card-metal-brushed::before {
+    background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.9) 0%,
+            transparent 50%);
+}
+
+.light .card-metal::after,
+.light .card-metal-brushed::after {
+    opacity: 0.02;
+}
+
+/* =========================================
+ * INTERACTIVE UTILITIES
+ * ========================================= */
+
+/* Hover Lift Effect - Premium */
+.hover-lift {
+    transition: transform 200ms ease, box-shadow 200ms ease;
+    cursor: pointer;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Hover Glow - Emerald */
+.hover-glow {
+    transition: box-shadow 200ms ease, border-color 200ms ease;
+    cursor: pointer;
+}
+
+.hover-glow:hover {
+    box-shadow: var(--shadow-glow);
+    border-color: var(--border-accent);
+}
+
+/* Active Press */
+.active-press:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+/* =========================================
+ * SCROLLBAR - Premium Dark
+ * ========================================= */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--primary), transparent 70%);
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--primary), transparent 50%);
+}
+
+.light .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--primary), transparent 80%);
+}
+
+.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--primary), transparent 60%);
+}
+
+/* =========================================
+ * LOADING STATES
+ * ========================================= */
+
+/* Skeleton Loading */
+@keyframes skeleton {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+.skeleton {
+    background: linear-gradient(90deg,
+            var(--muted) 25%,
+            rgba(31, 41, 55, 0.5) 50%,
+            var(--muted) 75%);
+    background-size: 200% 100%;
+    animation: skeleton 1.5s ease-in-out infinite;
+    border-radius: var(--radius-md);
+}
+
+.light .skeleton {
+    background: linear-gradient(90deg,
+            #E5E7EB 25%,
+            #F3F4F6 50%,
+            #E5E7EB 75%);
+    background-size: 200% 100%;
+}
+
+/* Shimmer Effect */
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.animate-shimmer {
+    animation: shimmer 2s infinite;
+}
+
+/* Pulse Dot for Status */
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.9);
+    }
+}
+
+.animate-pulse-dot {
+    animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* =========================================
+ * TREND INDICATORS - Fintech Style
+ * ========================================= */
+.trend-up {
+    color: var(--success);
+}
+
+.trend-down {
+    color: var(--destructive);
+}
+
+.trend-neutral {
+    color: var(--muted-foreground);
+}
+
+/* Trend Badge */
+.trend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.trend-badge-up {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+}
+
+.trend-badge-down {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--destructive);
+}
+
+/* =========================================
+ * CARD STYLES - Premium Dark
+ * ========================================= */
+.card-elevated {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+/* Metal Header for standard cards - Refined for Subtlety + Grain */
+.header-metal {
+    background: linear-gradient(135deg, var(--surface-2) 0%, var(--surface-1) 100%) !important;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid color-mix(in srgb, var(--foreground), transparent 90%) !important;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground), transparent 95%), var(--shadow-md) !important;
+}
+
+.header-metal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.header-metal::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.08;
+    /* More visible grain per user request */
+    background-image: var(--metal-grain);
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    z-index: 1;
+}
+
+/* Light Mode Overrides for Metal Header */
+.light .header-metal {
+    background: linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%) !important;
+    border-bottom: 1px solid var(--border) !important;
+    box-shadow: inset 0 1px 0 var(--card), var(--shadow-sm) !important;
+}
+
+.light .header-metal::before {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, transparent 50%);
+    opacity: 0.5;
+}
+
+.light .header-metal::after {
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+}
+
+.header-metal>* {
+    position: relative;
+    z-index: 2;
+}
+
+/* KPI Card */
+.card-kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-lg);
+}
+
+.card-kpi-value {
+    font-size: 2.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+/* =========================================
+ * NAVIGATION - Sidebar Active States
+ * ========================================= */
+.nav-item-active {
+    color: var(--primary);
+    background: var(--sidebar-accent);
+    border-left: 3px solid var(--primary);
+}
+
+/* =========================================
+ * FOCUS RING - Emerald
+ * ========================================= */
+.focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+}
