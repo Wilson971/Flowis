@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { SettingsModalProvider } from '@/contexts/SettingsModalContext';
 import { SettingsModal } from '@/components/settings/SettingsModal';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { CommandPalette } from '@/components/command-palette/CommandPalette';
 
 export default function DashboardLayout({
     children,
@@ -19,6 +20,7 @@ export default function DashboardLayout({
                         {children}
                     </AppLayout>
                     <SettingsModal />
+                    <CommandPalette />
                 </SettingsModalProvider>
             </TooltipProvider>
         </AuthGuard>

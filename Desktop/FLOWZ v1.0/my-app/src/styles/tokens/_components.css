@@ -232,6 +232,54 @@
 }
 
 /* ==========================================
+ * NEUMORPHISM / SOFT UI
+ * For secondary interactive elements (inputs, toggles, sliders)
+ * ========================================== */
+.soft-ui {
+  background: var(--neu-bg);
+  box-shadow:
+    inset 2px 2px 4px var(--neu-shadow-dark),
+    inset -2px -2px 4px var(--neu-shadow-light);
+  border: 1px solid var(--glass-border-subtle);
+  transition: box-shadow var(--duration-200) var(--ease-out);
+}
+
+.soft-ui:focus,
+.soft-ui:focus-within {
+  box-shadow:
+    inset 1px 1px 2px var(--neu-shadow-dark),
+    0 0 0 2px color-mix(in srgb, var(--primary), transparent 70%);
+}
+
+.soft-ui-raised {
+  background: var(--neu-bg);
+  box-shadow:
+    4px 4px 8px var(--neu-shadow-dark),
+    -2px -2px 6px var(--neu-shadow-light);
+  border: 1px solid var(--glass-border-subtle);
+  transition: box-shadow var(--duration-200) var(--ease-out);
+}
+
+.soft-ui-raised:hover {
+  box-shadow:
+    2px 2px 4px var(--neu-shadow-dark),
+    -1px -1px 3px var(--neu-shadow-light);
+}
+
+/* Light mode adjustments */
+.light .soft-ui {
+  box-shadow:
+    inset 2px 2px 4px var(--neu-shadow-dark),
+    inset -2px -2px 4px var(--neu-shadow-light);
+}
+
+.light .soft-ui-raised {
+  box-shadow:
+    4px 4px 10px var(--neu-shadow-dark),
+    -3px -3px 8px var(--neu-shadow-light);
+}
+
+/* ==========================================
  * TREND INDICATORS
  * ========================================== */
 .trend-up {

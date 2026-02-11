@@ -34,6 +34,12 @@ export const cardStyles = {
 
   /** Outlined card */
   outlined: 'bg-transparent border-2 border-border rounded-lg',
+
+  /** Glass card with interactive border glow */
+  glassInteractive: 'bg-card/80 backdrop-blur-xl border border-border/40 rounded-xl transition-all duration-200 hover:border-primary/20 hover:shadow-glow-sm cursor-pointer',
+
+  /** Bento grid cell */
+  bento: 'bg-card/80 backdrop-blur-xl border border-border/40 rounded-xl p-6',
 } as const;
 
 // ============================================
@@ -94,6 +100,12 @@ export const inputStyles = {
 
   /** Input with icon */
   withIcon: 'pl-10',
+
+  /** Soft UI neumorphic input */
+  softUI: 'soft-ui rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none',
+
+  /** Glass input */
+  glass: 'bg-card/40 backdrop-blur-sm border border-border/40 rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10',
 } as const;
 
 // ============================================
@@ -141,6 +153,15 @@ export const layoutStyles = {
   flexCenter: 'flex items-center justify-center',
   flexStart: 'flex items-center gap-2',
   flexCol: 'flex flex-col gap-4',
+
+  /** Bento grid layout */
+  bentoGrid: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min',
+
+  /** Bento cell spanning 2 columns */
+  bentoSpan2: 'md:col-span-2',
+
+  /** Bento cell spanning 2 rows */
+  bentoSpanTall: 'row-span-2',
 } as const;
 
 // ============================================

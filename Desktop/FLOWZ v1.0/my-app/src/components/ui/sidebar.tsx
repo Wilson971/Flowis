@@ -4,6 +4,7 @@ import React, { useState, createContext, useContext, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { ShellAurora } from "../layout/AuroraBackground";
+import { motionTokens } from "@/lib/design-system";
 
 /**
  * Sidebar Component System
@@ -147,17 +148,12 @@ export const DesktopSidebar = ({
         pinned ? "w-[80px] px-0" : "w-[280px] px-4",
         className
       )}
-      style={{
-        backgroundColor: "transparent",
-        background: "none",
-        color: "var(--text-main)",
-      }}
       animate={{
         width: getWidth(),
       }}
       transition={{
-        duration: 0.3,
-        ease: "easeInOut",
+        duration: motionTokens.durations.normal,
+        ease: motionTokens.easings.standard,
       }}
       {...props}
     >
@@ -205,8 +201,8 @@ export const MobileSidebar = ({
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: "-100%", opacity: 0 }}
               transition={{
-                duration: 0.3,
-                ease: "easeInOut",
+                duration: motionTokens.durations.normal,
+                ease: motionTokens.easings.standard,
               }}
               className={cn(
                 "fixed h-full w-full inset-0 p-10 z-[100] flex flex-col justify-between bg-shell/95 backdrop-blur-xl",
@@ -266,12 +262,14 @@ export const SidebarLink = ({
       {active && (
         <motion.div
           layoutId="sidebar-active-glow"
-          className="absolute inset-0 bg-primary opacity-20 blur-lg"
+          className="absolute inset-0 bg-primary opacity-20 blur-lg shadow-glow-sm"
+          transition={motionTokens.transitions.spring}
         />
       )}
 
       <motion.div
         whileHover={{ scale: 1.1, rotate: active ? 0 : 5 }}
+        whileTap={motionTokens.variants.pressScale}
         className={cn(
           "flex-shrink-0 flex items-center justify-center w-5 h-5 transition-colors relative z-10",
           active
@@ -288,7 +286,7 @@ export const SidebarLink = ({
           opacity: animate ? (open ? 1 : 0) : 1,
         }}
         transition={{
-          duration: 0.2,
+          duration: motionTokens.durations.fast,
         }}
         className={cn(
           "text-sm font-medium leading-none group-hover/sidebar:translate-x-0.5 transition-transform duration-150 whitespace-pre inline-block !p-0 !m-0 relative z-10",

@@ -377,6 +377,55 @@ export const variants = {
   },
 
   // ------------------------------------------
+  // 2026 REFACTORING - NEW VARIANTS
+  // ------------------------------------------
+
+  /** Deep press scale for CTA buttons */
+  pressScale: {
+    scale: 0.96,
+    transition: { duration: durations.instant },
+  },
+
+  /** Subtle slide up (8px) for micro-interactions */
+  slideUpSmall: {
+    hidden: { opacity: 0, y: 8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: transitions.default,
+    },
+    exit: { opacity: 0, y: -4 },
+  } as Variants,
+
+  /** Bento grid item entry */
+  bentoItem: {
+    hidden: { opacity: 0, scale: 0.95, y: 12 },
+    visible: (i: number) => ({
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: {
+        delay: i * staggerDelays.fast,
+        duration: durations.normal,
+        ease: easings.smooth,
+      },
+    }),
+  } as Variants,
+
+  /** Count-up number animation trigger */
+  countUp: {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: durations.slow,
+        ease: easings.smooth,
+      },
+    },
+  } as Variants,
+
+  // ------------------------------------------
   // LOADING STATES
   // ------------------------------------------
 

@@ -52,7 +52,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
                         <StoreProvider>
                             <TooltipProvider delayDuration={200}>
                                 {children}
-                                <Toaster richColors position="bottom-right" />
+                                <Toaster
+                                    richColors
+                                    position="bottom-right"
+                                    toastOptions={{
+                                        className: "bg-card/90 backdrop-blur-xl border-border/40 rounded-xl shadow-lg",
+                                        style: {
+                                            borderRadius: "var(--radius-xl, 0.75rem)",
+                                        },
+                                    }}
+                                />
                             </TooltipProvider>
                         </StoreProvider>
                     </AuthProvider>

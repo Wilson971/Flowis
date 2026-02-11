@@ -1,6 +1,6 @@
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from "../../lib/utils";
-import { staggerItem } from "../../lib/motion";
+import { motionTokens } from "@/lib/design-system";
 
 /**
  * AnimatedCard Component
@@ -72,7 +72,7 @@ export const AnimatedCard = ({
         },
       },
     }
-    : staggerItem;
+    : motionTokens.variants.staggerItem;
 
   return (
     <motion.div

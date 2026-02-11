@@ -37,7 +37,9 @@ export function useProducts(storeId?: string) {
         `
         )
         .eq('store_id', storeId)
-        .order('imported_at', { ascending: false });
+        .order('imported_at', { ascending: false })
+        .order('title', { ascending: true })
+        .order('id', { ascending: true });
 
       if (error) throw error;
       return (data || []) as Product[];

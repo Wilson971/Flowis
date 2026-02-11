@@ -108,7 +108,6 @@ export function PhotoStudioCard({
 
   return (
     <motion.div
-      layout
       variants={motionTokens.variants.fadeInScale}
       initial="hidden"
       animate="visible"

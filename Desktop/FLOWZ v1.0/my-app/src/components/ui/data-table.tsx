@@ -32,6 +32,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-system";
+import { FileX2 } from "lucide-react";
 
 const MotionTableRow = motion(TableRow);
 
@@ -182,7 +184,10 @@ export function DataTable<TData, TValue>({
                                             backgroundColor: "var(--sidebar-accent)",
                                             x: 4,
                                             boxShadow: "inset 4px 0 0 0 var(--primary)",
-                                            transition: { duration: 0.2, ease: "easeOut" }
+                                            transition: {
+                                                duration: motionTokens.durations.fast,
+                                                ease: motionTokens.easings.gentle,
+                                            }
                                         }}
                                     >
                                         {isGenerating ? (
@@ -230,9 +235,13 @@ export function DataTable<TData, TValue>({
                             <TableRow>
                                 <TableCell
                                     colSpan={columns.length}
-                                    className="h-24 text-center"
+                                    className="h-40 text-center"
                                 >
-                                    Aucun résultat.
+                                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                                        <FileX2 className="h-8 w-8 opacity-40" />
+                                        <p className="text-sm font-medium">Aucun résultat.</p>
+                                        <p className="text-xs">Essayez de modifier vos filtres de recherche.</p>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         )}

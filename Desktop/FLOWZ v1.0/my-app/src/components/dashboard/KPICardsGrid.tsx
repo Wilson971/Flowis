@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatedCard } from "./AnimatedCard";
 import { DashboardContext, DashboardKPIs } from "../../types/dashboard";
 import { GenerateSelectionModal } from "./GenerateSelectionModal";
 import { QuickActionsCard } from "./QuickActionsCard";
@@ -10,11 +9,12 @@ import { TimeSavedCard } from "./TimeSavedCard";
 import { ActivityTimeline, ActivityItem } from "./ActivityTimeline";
 import { NorthStarKPICard } from "./NorthStarKPICard";
 import { useSeoGlobalScore } from "../../hooks/useSeoGlobalScore";
+import { BentoGrid, BentoCell } from "../ui/bento-grid";
 
 type KPICardsGridProps = {
     kpis?: DashboardKPIs;
     context?: DashboardContext;
-    activities?: any[]; // Using any to reuse the hook type which is compatible enough
+    activities?: any[];
     isLoading?: boolean;
 };
 
@@ -27,7 +27,6 @@ export const KPICardsGrid = ({ kpis, context, activities, isLoading = false }: K
 
     // Handlers
     const handleTestConnection = () => {
-        // Mock toast
         console.log("Testing connection...");
     };
 
@@ -37,11 +36,10 @@ export const KPICardsGrid = ({ kpis, context, activities, isLoading = false }: K
 
     return (
         <>
-            <div className="space-y-3">
-                {/* Row 1: Ma Boutique + SEO Global + Blog Content (3 colonnes) */}
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 items-stretch">
-                    {/* Ma Boutique */}
-                    <AnimatedCard delay={0.05} glassmorphism={false} className="h-full border border-border bg-card">
+            <BentoGrid columns={3} gap="default">
+                {/* Row 1: Ma Boutique + SEO Global + Blog Content */}
+                <BentoCell index={0} className="h-full">
+                    <div className="h-full border border-border bg-card rounded-xl">
                         <ConnectionHealthCard
                             health={context?.connectionStatus || 'disconnected'}
                             platform={context?.selectedShopPlatform || null}
@@ -51,10 +49,11 @@ export const KPICardsGrid = ({ kpis, context, activities, isLoading = false }: K
                             lastSyncAt={null}
                             onTestConnection={handleTestConnection}
                         />
-                    </AnimatedCard>
+                    </div>
+                </BentoCell>
 
-                    {/* SEO Global (North Star) */}
-                    <AnimatedCard delay={0.1} glassmorphism={false} className="h-full border border-border bg-card">
+                <BentoCell index={1} className="h-full">
+                    <div className="h-full border border-border bg-card rounded-xl">
                         <NorthStarKPICard
                             score={seoData?.averageScore || 0}
                             analyzedProducts={seoData?.analyzedProductsCount || 0}
@@ -62,39 +61,44 @@ export const KPICardsGrid = ({ kpis, context, activities, isLoading = false }: K
                             period="vs mois dernier"
                             onDrillDown={() => router.push("/app/seo")}
                         />
-                    </AnimatedCard>
+                    </div>
+                </BentoCell>
 
-                    {/* Blog Content */}
-                    <AnimatedCard delay={0.15} glassmorphism={false} className="h-full border border-border bg-card">
+                <BentoCell index={2} className="h-full">
+                    <div className="h-full border border-border bg-card rounded-xl">
                         <BlogContentCard
                             publishedCount={kpis?.blogStats?.publishedCount || 0}
                             draftsCount={kpis?.blogStats?.draftCount || 0}
                             lastCreated={kpis?.blogStats?.lastCreatedAt ? new Date(kpis.blogStats.lastCreatedAt).toLocaleDateString() : 'Jamais'}
                             onCreateArticle={handleCreateBlog}
                         />
-                    </AnimatedCard>
-                </div>
+                    </div>
+                </BentoCell>
 
-                {/* Row 2: Actions Rapides + Activité Récente (2 colonnes) */}
-                <div className="grid gap-3 lg:grid-cols-2 items-stretch">
-                    <AnimatedCard delay={0.2} glassmorphism={false} className="h-full border border-border bg-card">
+                {/* Row 2: Actions Rapides + Activité Récente */}
+                <BentoCell index={3} className="h-full">
+                    <div className="h-full border border-border bg-card rounded-xl">
                         <QuickActionsCard />
-                    </AnimatedCard>
+                    </div>
+                </BentoCell>
 
-                    <AnimatedCard delay={0.25} glassmorphism={false} className="h-full border border-border bg-card">
+                <BentoCell index={4} colSpan={2} className="h-full">
+                    <div className="h-full border border-border bg-card rounded-xl">
                         <ActivityTimeline
                             activities={(activities || []) as ActivityItem[]}
                         />
-                    </AnimatedCard>
-                </div>
+                    </div>
+                </BentoCell>
 
-                {/* Row 3: Temps économisé (optionnel) */}
-                <AnimatedCard delay={0.3} glassmorphism={false} className="border border-border bg-card">
-                    <TimeSavedCard
-                        hoursSaved={Math.round((kpis?.timeSavedMinutes || 0) / 60)}
-                    />
-                </AnimatedCard>
-            </div>
+                {/* Row 3: Temps économisé (full width) */}
+                <BentoCell index={5} colSpan={3}>
+                    <div className="border border-border bg-card rounded-xl">
+                        <TimeSavedCard
+                            hoursSaved={Math.round((kpis?.timeSavedMinutes || 0) / 60)}
+                        />
+                    </div>
+                </BentoCell>
+            </BentoGrid>
 
             {/* Modal de génération en masse */}
             <GenerateSelectionModal

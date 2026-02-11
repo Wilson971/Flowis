@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Target, TrendingUp, TrendingDown, Minus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motionTokens } from "@/lib/design-system";
 
 interface NorthStarKPICardProps {
     /** Score SEO global (0-100) */
@@ -135,7 +136,11 @@ export function NorthStarKPICard({
                                 strokeDasharray={circumference}
                                 initial={{ strokeDashoffset: circumference }}
                                 animate={{ strokeDashoffset }}
-                                transition={{ duration: 1.5, ease: "easeOut", delay: 0.3 }}
+                                transition={{
+                                    duration: motionTokens.durations.slow * 3,
+                                    ease: motionTokens.easings.smooth,
+                                    delay: motionTokens.durations.normal,
+                                }}
                             />
                         </svg>
 
@@ -148,7 +153,11 @@ export function NorthStarKPICard({
                                 )}
                                 initial={{ opacity: 0, scale: 0.5 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.5, delay: 0.5 }}
+                                transition={{
+                                    duration: motionTokens.durations.slow,
+                                    delay: motionTokens.durations.slow,
+                                    ease: motionTokens.easings.smooth,
+                                }}
                             >
                                 {score}
                             </motion.span>

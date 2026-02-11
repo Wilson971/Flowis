@@ -10,6 +10,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/AuthContext';
 
 export interface PlatformConnection {
   shop_url?: string;
@@ -45,10 +46,11 @@ const SELECTED_STORE_KEY = 'flowiz-selected-store';
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [selectedStore, setSelectedStoreState] = useState<Store | null>(null);
+  const { user, loading: authLoading } = useAuth();
 
-  // Fetch all stores for the current user
+  // Fetch all stores for the current user (only when authenticated)
   const { data: stores = [], isLoading, refetch } = useQuery({
-    queryKey: ['stores'],
+    queryKey: ['stores', user?.id],
     queryFn: async () => {
       const supabase = createClient();
       const { data, error } = await supabase
@@ -60,6 +62,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return (data || []) as Store[];
     },
     staleTime: 300000, // 5 minutes
+    enabled: !!user && !authLoading, // Only query when user is authenticated
   });
 
   // Load selected store from localStorage on mount

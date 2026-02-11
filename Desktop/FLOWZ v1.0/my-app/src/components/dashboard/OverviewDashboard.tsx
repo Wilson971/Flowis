@@ -9,7 +9,7 @@ import { DashboardHeader } from "./DashboardHeader";
 import { KPICardsGrid } from "./KPICardsGrid";
 import { DashboardSkeleton } from "../skeletons/DashboardSkeleton";
 import { motion } from "framer-motion";
-import { staggerContainer } from "../../lib/motion";
+import { motionTokens } from "@/lib/design-system";
 import { DashboardContext } from "../../types/dashboard";
 
 export const OverviewDashboard = () => {
@@ -51,7 +51,7 @@ export const OverviewDashboard = () => {
     return (
         <div className="container mx-auto p-3 max-w-none space-y-3">
             <motion.div
-                variants={staggerContainer}
+                variants={motionTokens.variants.staggerContainer}
                 initial="hidden"
                 animate="visible"
                 className="space-y-3"

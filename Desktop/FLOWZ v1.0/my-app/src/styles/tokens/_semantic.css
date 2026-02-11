@@ -211,6 +211,31 @@
   --glass-blur: 12px;
   --glass-blur-sm: 8px;
   --glass-blur-lg: 20px;
+  --glass-blur-xl: 32px;
+
+  /* ------------------------------------------
+   * EXTENDED SURFACES (2026 Refactoring)
+   * ------------------------------------------ */
+  --surface-glass: color-mix(in srgb, var(--surface-1), transparent 15%);
+  --surface-elevated: var(--surface-2);
+  --surface-sunken: color-mix(in srgb, var(--surface-0), black 10%);
+
+  /* ------------------------------------------
+   * GLOW COLOR TOKENS
+   * Raw glow colors for box-shadow usage
+   * ------------------------------------------ */
+  --glow-primary: color-mix(in srgb, var(--primary), transparent 60%);
+  --glow-success: color-mix(in srgb, var(--success), transparent 60%);
+  --glow-destructive: color-mix(in srgb, var(--destructive), transparent 60%);
+  --glow-info: color-mix(in srgb, var(--info), transparent 60%);
+
+  /* ------------------------------------------
+   * NEUMORPHISM TOKENS (Soft UI)
+   * For secondary interactive elements only
+   * ------------------------------------------ */
+  --neu-shadow-light: rgba(255, 255, 255, 0.05);
+  --neu-shadow-dark: rgba(0, 0, 0, 0.4);
+  --neu-bg: color-mix(in srgb, var(--surface-1), var(--surface-0) 30%);
 
   /* ------------------------------------------
    * METAL EFFECT
@@ -345,6 +370,23 @@
   --glass-border: rgba(255, 255, 255, 0.3);
   --glass-border-subtle: rgba(255, 255, 255, 0.2);
   --glass-border-strong: rgba(255, 255, 255, 0.4);
+  --glass-blur-xl: 32px;
+
+  /* Extended Surfaces (Light) */
+  --surface-glass: color-mix(in srgb, var(--surface-1), transparent 10%);
+  --surface-elevated: var(--surface-2);
+  --surface-sunken: color-mix(in srgb, var(--surface-0), black 3%);
+
+  /* Glow Colors (Light - more subtle) */
+  --glow-primary: color-mix(in srgb, var(--primary), transparent 70%);
+  --glow-success: color-mix(in srgb, var(--success), transparent 70%);
+  --glow-destructive: color-mix(in srgb, var(--destructive), transparent 70%);
+  --glow-info: color-mix(in srgb, var(--info), transparent 70%);
+
+  /* Neumorphism (Light) */
+  --neu-shadow-light: rgba(255, 255, 255, 0.8);
+  --neu-shadow-dark: rgba(0, 0, 0, 0.1);
+  --neu-bg: color-mix(in srgb, var(--surface-1), var(--surface-0) 20%);
 
   /* ------------------------------------------
    * METAL EFFECT (Light version)
