@@ -19,6 +19,7 @@ import {
     Package,
 } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
+import { getProductCardTheme } from "@/lib/design-system";
 
 interface LinkedProduct {
     id: number;
@@ -77,6 +78,8 @@ export const LinkedProductsCard = ({
     );
 
     // Remove product from a list
+    const theme = getProductCardTheme('LinkedProductsCard');
+
     const removeProduct = useCallback(
         (field: "upsell_ids" | "cross_sell_ids" | "related_ids", id: number) => {
             const currentIds = getValues(field) || [];
@@ -142,10 +145,15 @@ export const LinkedProductsCard = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                        <div className={theme.iconContainer}>
                             <Link2 className="w-5 h-5" />
                         </div>
                         <div>
@@ -158,7 +166,7 @@ export const LinkedProductsCard = ({
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-3">
+                <CardContent className="p-4 pt-3 relative z-10">
                     <Tabs defaultValue="upsell" className="w-full">
                         <TabsList className="grid grid-cols-3 mb-4 h-8">
                             <TabsTrigger value="upsell" className="text-[10px] gap-1 px-2">

@@ -8,9 +8,11 @@ import { RefreshCw, ALargeSmall, FileText } from "lucide-react";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { SeoScoreGauge } from "@/components/seo/SeoScoreGauge";
 import { cn } from "@/lib/utils";
+import { getProductCardTheme } from "@/lib/design-system";
 import { SeoIssueSeverity } from "@/types/seo";
 
 export const SeoSidebarWidget = () => {
+    const theme = getProductCardTheme('SeoSidebarWidget');
     const { seoAnalysis, runSeoAnalysis } = useProductEditContext();
 
     if (!seoAnalysis) return null;
@@ -27,11 +29,16 @@ export const SeoSidebarWidget = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                            <div className={theme.iconContainer}>
                                 <ALargeSmall className="w-5 h-5" />
                             </div>
                             <div>
@@ -56,7 +63,7 @@ export const SeoSidebarWidget = () => {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-4 flex flex-col items-center gap-4">
+                <CardContent className="p-4 flex flex-col items-center gap-4 relative z-10">
 
                     <div className="relative">
                         <SeoScoreGauge score={overallScore} size="md" isLoading={isAnalyzing} />

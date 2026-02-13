@@ -657,6 +657,197 @@ function buildSeoMetadata(
     return metaData;
 }
 
+// ============================================================================
+// VARIATION PUSH (WooCommerce Batch API)
+// ============================================================================
+
+/**
+ * Push dirty variations to WooCommerce using the batch endpoint.
+ * Handles create, update, and delete operations in a single API call.
+ */
+async function pushDirtyVariations(
+    supabase: SupabaseClient,
+    credentials: WooCredentials,
+    productDbId: string,
+    platformProductId: string,
+    storeId: string
+): Promise<void> {
+    // Fetch all dirty variations for this product
+    const { data: dirtyVariations, error: fetchError } = await supabase
+        .from('product_variations')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('parent_product_external_id', platformProductId)
+        .eq('is_dirty', true);
+
+    if (fetchError) {
+        console.error('[push-variations] Fetch error:', fetchError);
+        return;
+    }
+
+    if (!dirtyVariations || dirtyVariations.length === 0) {
+        console.log('[push-variations] No dirty variations to push');
+        return;
+    }
+
+    console.log(`[push-variations] Pushing ${dirtyVariations.length} dirty variations`);
+
+    // Build batch payload
+    const toCreate: Record<string, unknown>[] = [];
+    const toUpdate: Record<string, unknown>[] = [];
+    const toDeleteIds: number[] = [];
+
+    // Track DB IDs for post-push cleanup
+    const createDbIds: string[] = [];
+    const updateDbIds: string[] = [];
+    const deleteDbIds: string[] = [];
+
+    for (const v of dirtyVariations) {
+        const variationPayload = buildVariationPayload(v);
+
+        switch (v.dirty_action) {
+            case 'created':
+                toCreate.push(variationPayload);
+                createDbIds.push(v.id);
+                break;
+            case 'updated':
+                if (v.external_id && !v.external_id.startsWith('local_')) {
+                    toUpdate.push({ id: Number(v.external_id), ...variationPayload });
+                    updateDbIds.push(v.id);
+                }
+                break;
+            case 'deleted':
+                if (v.external_id && !v.external_id.startsWith('local_')) {
+                    toDeleteIds.push(Number(v.external_id));
+                    deleteDbIds.push(v.id);
+                }
+                break;
+        }
+    }
+
+    // WooCommerce batch endpoint: POST /products/{id}/variations/batch
+    // Max 100 items per batch
+    const batchBody: Record<string, unknown> = {};
+    if (toCreate.length > 0) batchBody.create = toCreate;
+    if (toUpdate.length > 0) batchBody.update = toUpdate;
+    if (toDeleteIds.length > 0) batchBody.delete = toDeleteIds;
+
+    if (Object.keys(batchBody).length === 0) return;
+
+    const baseUrl = credentials.shopUrl.replace(/\/+$/, '');
+    const batchUrl = `${baseUrl}/wp-json/wc/v3/products/${platformProductId}/variations/batch`;
+    const authHeader = 'Basic ' + btoa(`${credentials.consumerKey}:${credentials.consumerSecret}`);
+
+    const response = await fetch(batchUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
+        },
+        body: JSON.stringify(batchBody),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[push-variations] WC batch error ${response.status}:`, errorText);
+        return;
+    }
+
+    const batchResult = await response.json() as {
+        create?: Array<{ id: number }>;
+        update?: Array<{ id: number }>;
+        delete?: Array<{ id: number }>;
+    };
+
+    // Post-push cleanup: update external_ids for created variations
+    if (batchResult.create && createDbIds.length > 0) {
+        for (let i = 0; i < Math.min(batchResult.create.length, createDbIds.length); i++) {
+            const wcVariation = batchResult.create[i];
+            const dbId = createDbIds[i];
+            if (wcVariation?.id) {
+                await supabase
+                    .from('product_variations')
+                    .update({
+                        external_id: String(wcVariation.id),
+                        is_dirty: false,
+                        dirty_action: null,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq('id', dbId);
+            }
+        }
+    }
+
+    // Clear dirty flags on updated variations
+    if (updateDbIds.length > 0) {
+        await supabase
+            .from('product_variations')
+            .update({ is_dirty: false, dirty_action: null })
+            .in('id', updateDbIds);
+    }
+
+    // Hard-delete variations that were deleted from WooCommerce
+    if (deleteDbIds.length > 0) {
+        await supabase
+            .from('product_variations')
+            .delete()
+            .in('id', deleteDbIds);
+    }
+
+    console.log(`[push-variations] Done: ${toCreate.length} created, ${toUpdate.length} updated, ${toDeleteIds.length} deleted`);
+}
+
+/**
+ * Build a WooCommerce variation payload from a DB row
+ */
+function buildVariationPayload(v: Record<string, unknown>): Record<string, unknown> {
+    const payload: Record<string, unknown> = {};
+
+    if (v.sku) payload.sku = String(v.sku);
+    if (v.regular_price != null) payload.regular_price = String(v.regular_price);
+    if (v.sale_price != null) payload.sale_price = String(v.sale_price);
+    if (v.manage_stock != null) payload.manage_stock = Boolean(v.manage_stock);
+    if (v.stock_quantity != null) payload.stock_quantity = Number(v.stock_quantity);
+    if (v.stock_status) payload.stock_status = String(v.stock_status);
+    if (v.weight) payload.weight = String(v.weight);
+    if (v.status) payload.status = String(v.status);
+    if (v.description) payload.description = String(v.description);
+
+    // Dimensions
+    if (v.dimensions && typeof v.dimensions === 'object') {
+        const dims = v.dimensions as Record<string, string>;
+        if (dims.length || dims.width || dims.height) {
+            payload.dimensions = {
+                length: dims.length || '',
+                width: dims.width || '',
+                height: dims.height || '',
+            };
+        }
+    }
+
+    // Attributes
+    if (Array.isArray(v.attributes)) {
+        payload.attributes = (v.attributes as Array<{ name: string; option: string }>).map(a => ({
+            name: String(a.name || ''),
+            option: String(a.option || ''),
+        }));
+    }
+
+    // Image
+    if (v.image && typeof v.image === 'object') {
+        const img = v.image as Record<string, unknown>;
+        if (img.src) {
+            payload.image = {
+                ...(img.id ? { id: Number(img.id) } : {}),
+                src: String(img.src),
+                alt: String(img.alt || ''),
+            };
+        }
+    }
+
+    return payload;
+}
+
 /**
  * Build complete WooCommerce product update payload
  * @param workingContent - Product working content
@@ -1087,10 +1278,15 @@ async function handleProductPush(
         if (pushResult.success) {
             const now = new Date().toISOString();
             try {
+                // After successful push, copy working_content to store_snapshot_content
+                // so that subsequent dirty field computations find no differences.
+                // This prevents false "modifications en attente" from appearing after sync.
                 await supabase
                     .from('products')
                     .update({
                         dirty_fields_content: [],
+                        store_snapshot_content: workingContent,
+                        store_content_updated_at: now,
                         last_synced_at: now,
                         sync_source: 'push',
                         metadata: {
@@ -1103,6 +1299,28 @@ async function handleProductPush(
                     .eq('tenant_id', userId); // Double-check ownership on update
             } catch (updateError) {
                 console.error('[push] Failed to update product after push:', updateError);
+            }
+
+            // ================================================================
+            // PUSH DIRTY VARIATIONS TO WOOCOMMERCE (Batch API)
+            // ================================================================
+            try {
+                const isVariable = payload.type === 'variable' ||
+                    workingContent.product_type === 'variable' ||
+                    metadata.type === 'variable';
+
+                if (isVariable) {
+                    await pushDirtyVariations(
+                        supabase,
+                        credentials,
+                        product.id,
+                        product.platform_product_id,
+                        store.id
+                    );
+                }
+            } catch (variationError) {
+                console.error('[push] Variation push error (non-blocking):', variationError);
+                // Variation push failure should not block the main product push result
             }
         }
 

@@ -27,10 +27,12 @@ interface UseDraftActionsParams {
     storeId: string | undefined;
     setValue: UseFormSetValue<ProductFormValues>;
     userModifiedFieldsRef?: React.MutableRefObject<Set<string>>;
+    /** Called after a field is accepted and loaded into the form (for version creation) */
+    onFieldAccepted?: () => void;
 }
 
 export interface UseDraftActionsReturn {
-    handleAcceptField: (field: string) => Promise<void>;
+    handleAcceptField: (field: string, editedValue?: string) => Promise<void>;
     handleRejectField: (field: string) => Promise<void>;
     handleRegenerateField: (field: string) => Promise<void>;
     previewField: string | null;
@@ -86,6 +88,7 @@ export const useDraftActions = ({
     storeId,
     setValue,
     userModifiedFieldsRef,
+    onFieldAccepted,
 }: UseDraftActionsParams): UseDraftActionsReturn => {
     const [previewField, setPreviewField] = useState<string | null>(null);
 
@@ -97,8 +100,10 @@ export const useDraftActions = ({
     // -------------------------------------------------------------------------
     // ACCEPTER un champ
     // -------------------------------------------------------------------------
-    const handleAcceptField = useCallback(async (field: string) => {
+    const handleAcceptField = useCallback(async (field: string, editedValue?: string) => {
         if (!productId) return;
+
+        const useEdited = editedValue !== undefined;
 
         acceptDraft(
             { productId, field },
@@ -107,35 +112,36 @@ export const useDraftActions = ({
                     // L'edge function retourne maintenant working_content dans data
                     const wc = (response?.data?.working_content as Partial<ContentData>) || {};
 
-                    if (!wc || Object.keys(wc).length === 0) {
+                    if (!useEdited && (!wc || Object.keys(wc).length === 0)) {
                         console.warn("Pas de working_content dans la réponse de l'edge function");
                         return;
                     }
 
                     // Mapper le champ accepté vers le champ du formulaire
+                    // Si editedValue fourni, on l'utilise avec shouldDirty: true pour déclencher l'auto-save
                     const fieldMappings: Record<string, () => void> = {
                         title: () => {
-                            setValue("title", wc.title || "", { shouldDirty: false });
+                            setValue("title", useEdited ? editedValue : (wc.title || ""), { shouldDirty: useEdited });
                             userModifiedFieldsRef?.current.delete("title");
                         },
                         description: () => {
-                            setValue("description", wc.description || "", { shouldDirty: false });
+                            setValue("description", useEdited ? editedValue : (wc.description || ""), { shouldDirty: useEdited });
                             userModifiedFieldsRef?.current.delete("description");
                         },
                         short_description: () => {
-                            setValue("short_description", wc.short_description || "", { shouldDirty: false });
+                            setValue("short_description", useEdited ? editedValue : (wc.short_description || ""), { shouldDirty: useEdited });
                             userModifiedFieldsRef?.current.delete("short_description");
                         },
                         sku: () => {
-                            setValue("sku", wc.sku || "", { shouldDirty: false });
+                            setValue("sku", useEdited ? editedValue : (wc.sku || ""), { shouldDirty: useEdited });
                             userModifiedFieldsRef?.current.delete("sku");
                         },
                         "seo.title": () => {
-                            setValue("meta_title", wc.seo?.title || "", { shouldDirty: false });
+                            setValue("meta_title", useEdited ? editedValue : (wc.seo?.title || ""), { shouldDirty: useEdited });
                             userModifiedFieldsRef?.current.delete("meta_title");
                         },
                         "seo.description": () => {
-                            setValue("meta_description", wc.seo?.description || "", { shouldDirty: false });
+                            setValue("meta_description", useEdited ? editedValue : (wc.seo?.description || ""), { shouldDirty: useEdited });
                             userModifiedFieldsRef?.current.delete("meta_description");
                         },
                     };
@@ -143,7 +149,9 @@ export const useDraftActions = ({
                     const updateField = fieldMappings[field];
                     if (updateField) {
                         updateField();
-                        console.log("Champ accepté et formulaire mis à jour", { field, value: wc[field] || wc.seo });
+                        console.log("Champ accepté et formulaire mis à jour", { field, edited: useEdited, value: useEdited ? editedValue : (wc[field] || wc.seo) });
+                        // Create an ai_approval version after field acceptance
+                        onFieldAccepted?.();
                     }
 
                     setPreviewField(null);
@@ -156,7 +164,7 @@ export const useDraftActions = ({
                 },
             }
         );
-    }, [productId, setValue, acceptDraft, userModifiedFieldsRef]);
+    }, [productId, setValue, acceptDraft, userModifiedFieldsRef, onFieldAccepted]);
 
     // -------------------------------------------------------------------------
     // REJETER un champ

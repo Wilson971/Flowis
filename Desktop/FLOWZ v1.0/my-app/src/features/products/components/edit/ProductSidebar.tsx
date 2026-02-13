@@ -12,6 +12,7 @@ import { ProductOptionsCard } from "./ProductOptionsCard";
 import { ExternalProductCard } from "./ExternalProductCard";
 import { LinkedProductsCard } from "./LinkedProductsCard";
 import { SyncHistoryCard } from "./SyncHistoryCard";
+import { ProductVersionHistoryCard } from "./ProductVersionHistoryCard";
 
 // Types pour les catégories
 interface Category {
@@ -48,6 +49,7 @@ interface ProductSidebarProps {
     totalSales?: number;
     averageRating?: number;
     reviewCount?: number;
+    onVersionRestored?: (formData: any) => void;
 }
 
 
@@ -66,6 +68,7 @@ export const ProductSidebar = ({
     totalSales = 0,
     averageRating,
     reviewCount = 0,
+    onVersionRestored,
 }: ProductSidebarProps) => {
     const { control } = useFormContext<ProductFormValues>();
     const productType = useWatch({ control, name: "product_type" });
@@ -83,6 +86,14 @@ export const ProductSidebar = ({
             {/* Sync History Card */}
             {productId && (
                 <SyncHistoryCard productId={productId} />
+            )}
+
+            {/* Version History Card */}
+            {productId && (
+                <ProductVersionHistoryCard
+                    productId={productId}
+                    onVersionRestored={onVersionRestored}
+                />
             )}
 
             {/* Performance Card (if we have stats) */}

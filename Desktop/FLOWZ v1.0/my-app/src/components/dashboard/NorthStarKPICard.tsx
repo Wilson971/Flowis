@@ -74,23 +74,44 @@ export function NorthStarKPICard({
     return (
         <div
             className={cn(
-                "relative overflow-hidden cursor-pointer group transition-all duration-300",
-                "hover:shadow-lg",
+                "relative overflow-hidden cursor-pointer group transition-all duration-500",
+                "hover:scale-[1.01]",
                 className
             )}
             onClick={onDrillDown}
             role={onDrillDown ? "button" : undefined}
             tabIndex={onDrillDown ? 0 : undefined}
         >
-            {/* Gradient background overlay */}
+            {/* Enhanced gradient background overlay */}
             <div className={cn(
-                "absolute inset-0 bg-gradient-to-br opacity-50",
+                "absolute inset-0 bg-gradient-to-br opacity-40 group-hover:opacity-60 transition-opacity duration-500",
                 getScoreBgColor(score)
             )} />
 
-            {/* Sparkle decorations */}
-            <div className="absolute top-3 right-3 opacity-20">
+            {/* Animated sparkle decorations */}
+            <motion.div
+                className="absolute top-3 right-3"
+                animate={{
+                    opacity: [0.15, 0.3, 0.15],
+                    scale: [1, 1.1, 1],
+                }}
+                transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                }}
+            >
                 <Sparkles className="h-6 w-6 text-primary" />
+            </motion.div>
+
+            {/* Radial glow effect on hover */}
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                <div className={cn(
+                    "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full blur-3xl",
+                    score >= 80 ? "bg-signal-success/20" :
+                    score >= 50 ? "bg-signal-warning/20" :
+                    "bg-destructive/20"
+                )} />
             </div>
 
             {/* Content */}

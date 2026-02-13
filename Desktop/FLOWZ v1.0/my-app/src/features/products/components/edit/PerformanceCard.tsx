@@ -4,6 +4,7 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { TrendingUp, ShoppingCart, DollarSign, BarChart3 } from "lucide-react";
+import { getProductCardTheme } from "@/lib/design-system";
 
 interface PerformanceCardProps {
     totalRevenue?: number;
@@ -60,16 +61,24 @@ export const PerformanceCard = ({
         });
     }
 
+    // Get theme from design system
+    const theme = getProductCardTheme('PerformanceCard');
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent - managed by design system */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                        <div className={theme.iconContainer}>
                             <TrendingUp className="w-5 h-5" />
                         </div>
                         <div>
@@ -82,7 +91,7 @@ export const PerformanceCard = ({
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-3">
+                <CardContent className="p-4 pt-3 relative z-10">
                     <div className="grid grid-cols-2 gap-3">
                         {stats.map((stat, index) => {
                             const Icon = stat.icon;

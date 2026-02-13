@@ -195,6 +195,12 @@ function computeDirtyFields(
     if (normArray(working.cross_sell_ids, idKey) !== normArray(snapshot.cross_sell_ids, idKey)) dirty.push('cross_sell_ids');
     if (normArray(working.related_ids, idKey) !== normArray(snapshot.related_ids, idKey)) dirty.push('related_ids');
 
+    // --- Attributes (for variable products) ---
+    const attrKey = (a: any) => `${a?.name || ''}:${(Array.isArray(a?.options) ? a.options : []).sort().join(',')}:${!!a?.variation}`;
+    if (normArray(working.attributes, attrKey) !== normArray(snapshot.attributes, attrKey)) {
+        dirty.push('attributes');
+    }
+
     return dirty;
 }
 
@@ -247,7 +253,7 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 slug: formData.slug ?? currentWorking.slug,
                 status: formData.status ?? currentWorking.status,
                 vendor: formData.vendor ?? currentWorking.vendor,
-                product_type: formData.product_type ?? currentWorking.product_type,
+                product_type: formData.product_type || currentWorking.product_type || 'simple',
                 global_unique_id: formData.global_unique_id ?? currentWorking.global_unique_id,
 
                 // Pricing
@@ -343,7 +349,7 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                     categories: formData.categories,
                     tags: formData.tags,
                     images: formData.images,
-                    product_type: formData.product_type,
+                    product_type: formData.product_type || currentWorking.product_type || 'simple',
                     brand: formData.vendor,
 
                     // Physical

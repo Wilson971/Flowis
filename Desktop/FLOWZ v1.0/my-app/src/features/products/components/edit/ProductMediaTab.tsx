@@ -5,7 +5,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
-import { Camera } from "lucide-react";
+import { Camera, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductFormValues, ProductImage as SchemaImage } from "../../schemas/product-schema";
 import {
@@ -15,22 +15,108 @@ import {
 } from "@/components/products/ProductImageGallery";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { SceneStudioDialog, type StudioProduct } from "@/features/photo-studio/components/SceneStudioDialog";
+import { ImageAltSuggestionModal, type ImageAltItem } from "@/components/products/ui/ImageAltSuggestionModal";
 
 /**
  * ProductMediaTab
- * 
+ *
  * Onglet médias avec galerie d'images complète:
  * - Upload avec compression
  * - Drag & drop
  * - Édition alt text
+ * - Approbation IA des alt texts
  */
 export const ProductMediaTab = () => {
     const { control, setValue, getValues } = useFormContext<ProductFormValues>();
-    const { productId, product } = useProductEditContext();
+    const { productId, product, remainingProposals, draftActions, contentBuffer } = useProductEditContext();
 
     const watchedImages = useWatch({ control, name: "images" }) || [];
     const [uploadingItems, setUploadingItems] = useState<UploadingItem[]>([]);
     const [studioOpen, setStudioOpen] = useState(false);
+    const [altModalOpen, setAltModalOpen] = useState(false);
+
+    const hasAltDraft = remainingProposals.includes("images");
+
+    // Build alt text comparison data for the modal
+    // IMPORTANT: Use watchedImages (reactive via useWatch) instead of getValues("images")
+    // to ensure the memo recomputes when form images are populated after initial render.
+    const altSuggestionImages: ImageAltItem[] = useMemo(() => {
+        if (!hasAltDraft || !contentBuffer?.draft_generated_content?.images) return [];
+        if (!watchedImages || watchedImages.length === 0) return [];
+
+        const draftImages = contentBuffer.draft_generated_content.images as Array<{ id?: string; src?: string; alt?: string }>;
+
+        return draftImages
+            .map((draftImg, index) => {
+                // Match by src URL first (stable across formats), fall back to index
+                const currentImg = watchedImages.find(
+                    (img) => img.src && draftImg.src && img.src === draftImg.src
+                ) || watchedImages[index];
+                if (!currentImg) return null;
+
+                const currentAlt = currentImg.alt || "";
+                const suggestedAlt = draftImg.alt || "";
+
+                // Only include images where alt text actually differs
+                if (!suggestedAlt || currentAlt === suggestedAlt) return null;
+
+                return {
+                    id: `${currentImg.id?.toString() || 'img'}-alt-${index}`,
+                    src: currentImg.src || "",
+                    currentAlt,
+                    suggestedAlt,
+                };
+            })
+            .filter((item): item is ImageAltItem => item !== null);
+    }, [hasAltDraft, contentBuffer, watchedImages]);
+
+    // Handle accepting a single image's alt text
+    const handleAcceptSingleAlt = useCallback(async (imageIndex: number, editedAlt?: string) => {
+        const currentImages = getValues("images") || [];
+        const altItem = altSuggestionImages[imageIndex];
+        if (!altItem) return;
+
+        // Find the form image matching this alt item
+        const formIndex = currentImages.findIndex(img => img.id?.toString() === altItem.id || img.src === altItem.src);
+        if (formIndex === -1) return;
+
+        const newAlt = editedAlt ?? altItem.suggestedAlt;
+        const updatedImages = [...currentImages];
+        updatedImages[formIndex] = { ...updatedImages[formIndex], alt: newAlt };
+        setValue("images", updatedImages, { shouldDirty: true });
+    }, [altSuggestionImages, getValues, setValue]);
+
+    // Handle rejecting a single image's alt text (no-op locally, just visual)
+    const handleRejectSingleAlt = useCallback(async (_imageIndex: number) => {
+        // Individual rejection is visual-only in the modal
+    }, []);
+
+    // Accept all image alt texts and clear the draft
+    const handleAcceptAllAlts = useCallback(async () => {
+        const currentImages = getValues("images") || [];
+        const draftImages = contentBuffer?.draft_generated_content?.images as Array<{ alt?: string }> | undefined;
+        if (!draftImages) return;
+
+        const updatedImages = currentImages.map((img, index) => {
+            const draftAlt = draftImages[index]?.alt;
+            if (draftAlt && draftAlt !== (img.alt || "")) {
+                return { ...img, alt: draftAlt };
+            }
+            return img;
+        });
+
+        setValue("images", updatedImages, { shouldDirty: true });
+
+        // Accept on the server to clear the draft
+        await draftActions.handleAcceptField("images");
+        toast.success("Alt texts acceptés", { description: "Tous les alt texts ont été mis à jour." });
+    }, [contentBuffer, draftActions, getValues, setValue]);
+
+    // Reject all alt texts
+    const handleRejectAllAlts = useCallback(async () => {
+        await draftActions.handleRejectField("images");
+        toast.info("Alt texts rejetés", { description: "Les suggestions ont été supprimées." });
+    }, [draftActions]);
 
     // Build StudioProduct for the dialog
     const studioProduct: StudioProduct | null = useMemo(() => {
@@ -226,6 +312,28 @@ export const ProductMediaTab = () => {
             transition={{ duration: 0.4, delay: 0.05 }}
             className="space-y-4"
         >
+            {/* AI Alt Text Suggestions Banner */}
+            {hasAltDraft && altSuggestionImages.length > 0 && (
+                <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium text-primary">
+                            {altSuggestionImages.length} suggestion{altSuggestionImages.length > 1 ? "s" : ""} alt text
+                        </span>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAltModalOpen(true)}
+                        className="gap-1.5 h-7 px-2.5 text-xs font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+                    >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Voir les suggestions
+                    </Button>
+                </div>
+            )}
+
             {/* Studio Button */}
             {studioProduct && (
                 <div className="flex justify-end">
@@ -266,6 +374,19 @@ export const ProductMediaTab = () => {
                     onSaveImage={handleStudioSaveImage}
                 />
             )}
+
+            {/* Image Alt Text Suggestion Modal */}
+            <ImageAltSuggestionModal
+                open={altModalOpen}
+                onOpenChange={setAltModalOpen}
+                productTitle={product?.title || "Sans titre"}
+                images={altSuggestionImages}
+                onAcceptImage={handleAcceptSingleAlt}
+                onRejectImage={handleRejectSingleAlt}
+                onAcceptAll={handleAcceptAllAlts}
+                onRejectAll={handleRejectAllAlts}
+                isProcessing={draftActions.isAccepting || draftActions.isRejecting}
+            />
         </motion.div>
     );
 };

@@ -174,7 +174,7 @@ export function ProductSeoForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Entrez le titre du produit"
-              className="py-6 text-base shadow-sm focus-visible:ring-primary"
+              className="py-6 text-base shadow-none focus-visible:ring-primary"
             />
           </div>
 

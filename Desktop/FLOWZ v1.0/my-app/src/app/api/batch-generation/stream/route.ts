@@ -408,39 +408,99 @@ export async function POST(request: NextRequest) {
                                 total: product_ids.length,
                             });
 
-                            const prompt = buildPromptForField(
-                                fieldType,
-                                productCtx,
-                                settings,
-                                fieldType === 'alt_text' && !!imageBase64
-                            );
-
-                            // Use vision only for alt_text when image is available
-                            const useVision = fieldType === 'alt_text' && !!imageBase64;
-                            const rawText = await callGeminiWithRetry(
-                                ai,
-                                prompt,
-                                useVision ? imageBase64 : null
-                            );
-
-                            const parsed = parseGeminiResponse(rawText, fieldType);
-
                             // Map field to draft structure
-                            if (fieldType === 'seo_title') {
-                                draft.seo = { ...(draft.seo || {}), title: parsed };
-                            } else if (fieldType === 'meta_description') {
-                                draft.seo = { ...(draft.seo || {}), description: parsed };
-                            } else if (fieldType === 'alt_text') {
-                                draft.alt_text = [parsed];
+                            if (fieldType === 'alt_text') {
+                                // Generate alt text for ALL product images
+                                // UI expects: { images: [{ id, src, alt }] }
+                                const meta = product.metadata || {};
+                                const working = product.working_content || {};
+                                const productImages: Array<{ id?: string | number; src?: string; alt?: string }> =
+                                    working.images || meta.images || [];
+
+                                if (productImages.length > 0) {
+                                    const draftImages: Array<{ id?: string | number; src: string; alt: string }> = [];
+
+                                    for (let imgIdx = 0; imgIdx < productImages.length; imgIdx++) {
+                                        if (isClosed) break;
+                                        const img = productImages[imgIdx] as any;
+                                        const imgSrc = img.src || img.url || '';
+
+                                        // Fetch each image for vision analysis if enabled
+                                        let imgBase64: { data: string; mimeType: string } | null = null;
+                                        if (settings.image_analysis && imgSrc) {
+                                            imgBase64 = await fetchImageAsBase64(imgSrc);
+                                        }
+
+                                        const imgPrompt = buildPromptForField(
+                                            'alt_text',
+                                            productCtx,
+                                            settings,
+                                            !!imgBase64
+                                        );
+                                        const rawAlt = await callGeminiWithRetry(
+                                            ai,
+                                            imgPrompt,
+                                            imgBase64
+                                        );
+                                        const parsedAlt = parseGeminiResponse(rawAlt, 'alt_text');
+
+                                        draftImages.push({
+                                            id: img.id,
+                                            src: imgSrc,
+                                            alt: parsedAlt,
+                                        });
+                                    }
+
+                                    draft.images = draftImages;
+                                } else if (productCtx.imageUrl) {
+                                    // Fallback: single image from image_url
+                                    let fallbackBase64: { data: string; mimeType: string } | null = null;
+                                    if (settings.image_analysis) {
+                                        fallbackBase64 = await fetchImageAsBase64(productCtx.imageUrl);
+                                    }
+                                    const fallbackPrompt = buildPromptForField('alt_text', productCtx, settings, !!fallbackBase64);
+                                    const rawAlt = await callGeminiWithRetry(ai, fallbackPrompt, fallbackBase64);
+                                    const parsedAlt = parseGeminiResponse(rawAlt, 'alt_text');
+                                    draft.images = [{ src: productCtx.imageUrl, alt: parsedAlt }];
+                                }
                             } else {
-                                draft[fieldType] = parsed;
+                                const prompt = buildPromptForField(
+                                    fieldType,
+                                    productCtx,
+                                    settings,
+                                    false
+                                );
+
+                                const rawText = await callGeminiWithRetry(ai, prompt, null);
+                                const parsed = parseGeminiResponse(rawText, fieldType);
+
+                                if (fieldType === 'seo_title') {
+                                    draft.seo = { ...(draft.seo || {}), title: parsed };
+                                } else if (fieldType === 'meta_description') {
+                                    draft.seo = { ...(draft.seo || {}), description: parsed };
+                                } else {
+                                    draft[fieldType] = parsed;
+                                }
+                            }
+
+                            // Build preview for the field_complete event
+                            let fieldPreview = '';
+                            if (fieldType === 'alt_text') {
+                                const altCount = draft.images?.length || 0;
+                                fieldPreview = `${altCount} alt text(s) générés`;
+                            } else if (fieldType === 'seo_title') {
+                                fieldPreview = (draft.seo?.title || '').slice(0, 100);
+                            } else if (fieldType === 'meta_description') {
+                                fieldPreview = (draft.seo?.description || '').slice(0, 100);
+                            } else {
+                                fieldPreview = (draft[fieldType] || '').slice(0, 100);
                             }
 
                             sendEvent({
                                 type: 'field_complete',
                                 product_id: productId,
                                 field: fieldType,
-                                preview: parsed.slice(0, 100),
+                                preview: fieldPreview,
                             });
                         }
 
@@ -449,6 +509,10 @@ export async function POST(request: NextRequest) {
                         const mergedDraft = { ...existingDraft, ...draft };
                         if (draft.seo) {
                             mergedDraft.seo = { ...(existingDraft.seo || {}), ...draft.seo };
+                        }
+                        // For images (alt text), replace entirely (not merge)
+                        if (draft.images) {
+                            mergedDraft.images = draft.images;
                         }
 
                         await supabase

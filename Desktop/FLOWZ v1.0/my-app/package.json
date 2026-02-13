@@ -58,6 +58,7 @@
     "framer-motion": "^12.27.5",
     "geist": "^1.5.1",
     "lucide-react": "^0.562.0",
+    "matter-js": "^0.20.0",
     "next": "^16.1.6",
     "postcss": "^8.5.6",
     "react": "^19.2.3",
@@ -77,6 +78,7 @@
   "devDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.55.2",
     "@tailwindcss/oxide-win32-x64-msvc": "^4.1.18",
+    "@types/matter-js": "^0.20.2",
     "@types/node": "^25.0.9",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",

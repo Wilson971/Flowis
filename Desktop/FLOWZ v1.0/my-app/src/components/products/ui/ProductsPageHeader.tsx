@@ -47,11 +47,13 @@ export const ProductsPageHeader = ({
       {/* Title & Description */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground relative inline-block">
             {title}
+            {/* Subtle gradient underline */}
+            <span className="absolute -bottom-1 left-0 h-0.5 w-12 bg-gradient-to-r from-primary via-violet-500 to-transparent rounded-full" />
           </h1>
           {description && (
-            <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed max-w-2xl">{description}</p>
+            <p className="text-muted-foreground mt-2 text-[13px] leading-relaxed max-w-2xl">{description}</p>
           )}
         </div>
       </div>

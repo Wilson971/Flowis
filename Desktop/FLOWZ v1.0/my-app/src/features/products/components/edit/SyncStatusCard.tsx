@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { usePushSingleProduct, useRevertToOriginal } from "@/hooks/products";
 import { toast } from "sonner";
+import { getProductCardTheme } from "@/lib/design-system";
 
 interface SyncStatusCardProps {
     productId: string;
@@ -164,6 +165,7 @@ export const SyncStatusCard = ({
 
     const isSyncing = pushMutation.isPending;
     const isReverting = revertMutation.isPending;
+    const theme = getProductCardTheme('SyncStatusCard');
 
     return (
         <motion.div
@@ -171,11 +173,16 @@ export const SyncStatusCard = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.05, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
-                <CardHeader className="pb-3 border-b border-border/10 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-3 border-b border-border/10 px-5 relative z-10">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                            <div className={theme.iconContainer}>
                                 <CloudUpload className="w-5 h-5" />
                             </div>
                             <div>
@@ -200,7 +207,7 @@ export const SyncStatusCard = ({
                     </div>
                 </CardHeader>
 
-                <CardContent className="p-5 pt-3 space-y-3">
+                <CardContent className="p-5 pt-3 space-y-3 relative z-10">
                     {/* Dirty fields list */}
                     {syncStatus === "pending" && dirtyFields.length > 0 && (
                         <div className="space-y-2">

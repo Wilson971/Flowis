@@ -8,6 +8,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { ExternalLink, MousePointerClick } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
+import { getProductCardTheme } from "@/lib/design-system";
 
 /**
  * ExternalProductCard
@@ -19,6 +20,7 @@ import { ProductFormValues } from "../../schemas/product-schema";
  * Cette carte ne s'affiche que si product_type === 'external'
  */
 export const ExternalProductCard = () => {
+    const theme = getProductCardTheme('ExternalProductCard');
     const { register, control } = useFormContext<ProductFormValues>();
 
     const productType = useWatch({ control, name: "product_type" });
@@ -34,14 +36,19 @@ export const ExternalProductCard = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated border-l-4 border-l-orange-500/50">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 shrink-0 border border-orange-500/20">
+                        <div className={theme.iconContainer}>
                             <ExternalLink className="w-5 h-5" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-orange-500/80 uppercase tracking-widest mb-0.5">
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                                 Produit Affilié
                             </p>
                             <h3 className="text-sm font-extrabold tracking-tight text-foreground">
@@ -50,7 +57,7 @@ export const ExternalProductCard = () => {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-4 p-4 pt-3">
+                <CardContent className="space-y-4 p-4 pt-3 relative z-10">
                     {/* External URL */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2">

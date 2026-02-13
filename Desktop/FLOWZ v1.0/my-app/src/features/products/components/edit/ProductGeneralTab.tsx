@@ -1,22 +1,25 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useFormContext, useWatch, Controller } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Check, X, RefreshCw, Wand2, Layout } from "lucide-react";
+import { Sparkles, Layout } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
 import { motion } from "framer-motion";
 import { ScoreBadge, SeoScoreBar, calculateScore } from "@/components/products/ProductSeoForm";
 import { TipTapEditor } from "@/components/editor/TipTapEditor";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
+import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
+import { getProductCardTheme } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
 
 export const ProductGeneralTab = () => {
-    const { register, control } = useFormContext<ProductFormValues>();
+    const theme = getProductCardTheme('ProductGeneralTab');
+    const { register, control, getValues } = useFormContext<ProductFormValues>();
     const {
         remainingProposals,
         draftActions,
@@ -24,11 +27,21 @@ export const ProductGeneralTab = () => {
         contentBuffer
     } = useProductEditContext();
 
+    // Modal state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalField, setModalField] = useState<string>("");
+
     // Helper to check if field has a draft proposal
     const hasDraft = (field: string) => remainingProposals.includes(field);
 
     // Helper to check if field is dirty (unsaved local changes)
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
+
+    // Open modal for a specific field
+    const openSuggestionModal = (field: string) => {
+        setModalField(field);
+        setModalOpen(true);
+    };
 
     // Watch values for scoring
     const title = useWatch({ control, name: "title" }) || "";
@@ -41,66 +54,21 @@ export const ProductGeneralTab = () => {
     const descriptionPlainText = description.replace(/<[^>]*>/g, '');
     const descriptionScore = calculateScore(descriptionPlainText, 500);
 
-    // Render Action Buttons for a field
+    // Render Action Button for a field (opens modal)
     const renderFieldActions = (field: string) => {
         if (!hasDraft(field)) return null;
 
         return (
-            <div className="flex items-center gap-1">
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                onClick={() => draftActions.handleAcceptField(field)}
-                                disabled={draftActions.isAccepting}
-                            >
-                                <Check className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Accepter la suggestion</TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-
-                <TooltipProvider>
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => draftActions.handleRejectField(field)}
-                                disabled={draftActions.isRejecting}
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Rejeter la suggestion</TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-            </div>
-        );
-    };
-
-    // Render Suggestion Preview (optional, simplified)
-    const renderSuggestionPreview = (field: string) => {
-        if (!hasDraft(field) || !contentBuffer?.draft_generated_content) return null;
-
-        const suggestion = contentBuffer.draft_generated_content[field as keyof typeof contentBuffer.draft_generated_content];
-        if (!suggestion) return null;
-
-        return (
-            <div className="mt-2 p-3 bg-indigo-50/50 rounded border border-indigo-100 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2 mb-1 text-indigo-700 font-medium text-xs uppercase">
-                    <Wand2 className="h-3 w-3" />
-                    Suggestion IA
-                </div>
-                <div dangerouslySetInnerHTML={{ __html: String(suggestion) }} />
-            </div>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => openSuggestionModal(field)}
+                className="gap-1.5 h-7 px-2.5 text-xs font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+            >
+                <Sparkles className="h-3.5 w-3.5" />
+                Voir la suggestion
+            </Button>
         );
     };
 
@@ -110,10 +78,15 @@ export const ProductGeneralTab = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
         >
-            <Card className="overflow-visible border-border/50 bg-card/50 backdrop-blur-sm card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-0 px-8">
+            <Card className={cn(theme.container, "overflow-visible")}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-0 px-8 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                        <div className={theme.iconContainer}>
                             <Layout className="w-5 h-5" />
                         </div>
                         <div>
@@ -126,7 +99,7 @@ export const ProductGeneralTab = () => {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-8 space-y-12">
+                <CardContent className="p-8 space-y-12 relative z-10">
 
                     {/* Product Title Section */}
                     <div className="space-y-4">
@@ -153,8 +126,7 @@ export const ProductGeneralTab = () => {
                                 className="block w-full bg-background/50 border-border/50 focus:border-primary/50 transition-all font-medium py-6 px-4 text-lg"
                                 placeholder="Entrez le titre du produit"
                             />
-                            {renderSuggestionPreview("title")}
-                            <div className="mt-4">
+                                                        <div className="mt-4">
                                 <SeoScoreBar score={titleScore} />
                             </div>
                         </div>
@@ -195,8 +167,7 @@ export const ProductGeneralTab = () => {
                                     </div>
                                 )}
                             />
-                            {renderSuggestionPreview("short_description")}
-                            <div className="mt-4">
+                                                        <div className="mt-4">
                                 <SeoScoreBar score={shortDescScore} />
                             </div>
                         </div>
@@ -237,7 +208,6 @@ export const ProductGeneralTab = () => {
                                     </div>
                                 )}
                             />
-                            {renderSuggestionPreview("description")}
                             <div className="mt-4">
                                 <SeoScoreBar score={descriptionScore} />
                             </div>
@@ -246,6 +216,30 @@ export const ProductGeneralTab = () => {
 
                 </CardContent>
             </Card>
+
+            {/* AI Suggestion Modal */}
+            {modalField && contentBuffer?.draft_generated_content && (
+                <AISuggestionModal
+                    open={modalOpen}
+                    onOpenChange={setModalOpen}
+                    productTitle={getValues("title") || "Sans titre"}
+                    field={modalField}
+                    currentValue={String(getValues(modalField as keyof ProductFormValues) || "")}
+                    suggestedValue={String(contentBuffer.draft_generated_content[modalField as keyof typeof contentBuffer.draft_generated_content] || "")}
+                    onAccept={async (editedValue) => {
+                        if (editedValue !== undefined) {
+                            // User edited the value - we'll handle this in the accept logic
+                            await draftActions.handleAcceptField(modalField, editedValue);
+                        } else {
+                            await draftActions.handleAcceptField(modalField);
+                        }
+                    }}
+                    onReject={async () => {
+                        await draftActions.handleRejectField(modalField);
+                    }}
+                    isProcessing={draftActions.isAccepting || draftActions.isRejecting}
+                />
+            )}
         </motion.div>
     );
 };

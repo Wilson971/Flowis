@@ -50,10 +50,16 @@ const StatCard = ({
 
   return (
     <div className="group h-full">
-      <Card className="relative overflow-hidden bg-card text-card-foreground border border-border h-full card-elevated">
-        <CardContent className="p-5 flex flex-col justify-center h-full">
+      <Card className="relative overflow-hidden bg-card/95 backdrop-blur-sm text-card-foreground border border-border/50 h-full hover:border-border hover:shadow-glow-sm hover:shadow-primary/5 transition-all duration-500">
+        {/* Gradient accent overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-500/[0.02] via-transparent to-blue-500/[0.02] pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
+
+        {/* Glass reflection */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent pointer-events-none" />
+
+        <CardContent className="p-5 flex flex-col justify-center h-full relative z-10">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-foreground transition-colors border border-border">
+            <div className="w-10 h-10 rounded-lg bg-muted/80 backdrop-blur-sm flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300 border border-border/50">
               <Icon className="h-5 w-5" />
             </div>
             <div className="flex flex-col w-full min-w-0">

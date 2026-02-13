@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef } from "react";
@@ -18,6 +19,8 @@ import { ContentBufferData } from "../context/ProductEditContext";
 interface UseProductFormOptions {
     product?: Product | null;
     contentBuffer?: ContentBufferData;
+    /** Ref set to true during undo/redo operations to prevent form re-sync */
+    isRestoringRef?: React.RefObject<boolean>;
 }
 
 // ============================================================================
@@ -87,6 +90,13 @@ function calculateInitialFormValues(
     const metadata = product.metadata || {};
     const wc = (contentBuffer?.working_content || product.working_content || {}) as any;
 
+    // Resolve product_type: guard ALL sources against empty strings
+    const resolvedProductType = resolveWithDefault(
+        wc.product_type || null,
+        (metadata.type || null) ?? (metadata.product_type || null) ?? (product.product_type || null),
+        "simple"
+    );
+
     return {
         // ===== INFORMATIONS DE BASE =====
         title: resolveWithDefault(wc.title, product.title, ""),
@@ -116,7 +126,7 @@ function calculateInitialFormValues(
         slug: resolveWithDefault(wc.slug, metadata.slug, ""),
 
         // ===== ORGANISATION =====
-        product_type: resolveWithDefault(wc.product_type, metadata.type ?? product.product_type, "simple"),
+        product_type: resolvedProductType,
         brand: resolveWithDefault(wc.vendor, metadata.brand, ""),
         status: resolveWithDefault(wc.status, metadata.status, "draft"),
         featured: wc.featured ?? metadata.featured ?? false,
@@ -162,6 +172,16 @@ function calculateInitialFormValues(
         upsell_ids: wc.upsell_ids ?? metadata.upsell_ids ?? [],
         cross_sell_ids: wc.cross_sell_ids ?? metadata.cross_sell_ids ?? [],
         related_ids: wc.related_ids ?? metadata.related_ids ?? [],
+
+        // ===== ATTRIBUTS (produits variables) =====
+        attributes: (wc.attributes ?? metadata.attributes ?? []).map((attr: any) => ({
+            id: attr.id ?? 0,
+            name: attr.name || '',
+            options: Array.isArray(attr.options) ? attr.options : [],
+            visible: attr.visible ?? true,
+            variation: attr.variation ?? false,
+            position: attr.position ?? 0,
+        })),
     };
 }
 
@@ -170,7 +190,7 @@ function calculateInitialFormValues(
 // ============================================================================
 
 export const useProductForm = (options?: UseProductFormOptions): UseFormReturn<ProductFormValues> => {
-    const { product, contentBuffer } = options || {};
+    const { product, contentBuffer, isRestoringRef } = options || {};
     const lastLoadedIdRef = useRef<string | null>(null);
     const lastSyncedAtRef = useRef<string | null>(null);
     const hasLoadedBufferRef = useRef<boolean>(false);
@@ -191,6 +211,9 @@ export const useProductForm = (options?: UseProductFormOptions): UseFormReturn<P
         // If contentBuffer just arrived (was not loaded, now is)
         const isBufferFresh = !!contentBuffer && !hasLoadedBufferRef.current;
 
+        // Skip during undo/redo restore operations
+        if (isRestoringRef?.current) return;
+
         // Skip only if nothing changed (same product, same sync version, buffer already loaded)
         if (!isNewProduct && !isDataUpdated && !isBufferFresh) return;
 
@@ -201,10 +224,21 @@ export const useProductForm = (options?: UseProductFormOptions): UseFormReturn<P
 
         const initialValues = calculateInitialFormValues(product, contentBuffer);
 
+        // Set restoring flag during form reset to prevent auto-save watcher
+        // from triggering on form resets caused by product refetch
+        if (isRestoringRef) {
+            isRestoringRef.current = true;
+        }
         methods.reset(initialValues, {
             keepDefaultValues: false,
             keepDirty: false,
         });
+        if (isRestoringRef) {
+            // Use requestAnimationFrame to clear the flag after React has processed the reset
+            requestAnimationFrame(() => {
+                isRestoringRef.current = false;
+            });
+        }
 
     }, [product, contentBuffer, methods]);
 

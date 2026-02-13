@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { FormProvider, useFormContext, useWatch } from "react-hook-form";
-import { ArrowLeft, Save, Loader2, AlertCircle, ExternalLink, AlertTriangle, Check, ChevronDown, RefreshCw, CheckCircle2, Clock, Undo2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, ExternalLink, AlertTriangle, Check, ChevronDown, RefreshCw, CheckCircle2, Clock, Undo2, Redo2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +31,12 @@ import { getRemainingProposals, getContentStatus } from "@/lib/productHelpers";
 import { useProductForm, ProductFormValues } from "../hooks/useProductForm";
 import { useProductActions } from "../hooks/useProductActions";
 import { useSeoAnalysis } from "../hooks/useSeoAnalysis";
+import { useFormHistory } from "../hooks/useFormHistory";
+import { useFormHistoryKeyboard } from "../hooks/useFormHistoryKeyboard";
+import { useNavigationGuard } from "../hooks/useNavigationGuard";
+import { useAutoSaveProduct } from "@/hooks/products/useProductSave";
+import { transformFormToSaveData } from "../utils/transformFormToSaveData";
+import { useProductVersionManager } from "@/hooks/products/useProductVersions";
 import {
     ProductEditContext,
     ProductEditContextType,
@@ -39,6 +46,7 @@ import { ProductEditorLayout } from "./edit/ProductEditorLayout";
 import { ProductGeneralTab } from "./edit/ProductGeneralTab";
 import { ProductMediaTab } from "./edit/ProductMediaTab";
 import { ProductSeoTab } from "./edit/ProductSeoTab";
+import { ProductVariationsTab } from "./edit/ProductVariationsTab";
 import { ProductSidebar } from "./edit/ProductSidebar";
 import { ConflictResolutionDialog } from "@/components/products/ConflictResolutionDialog";
 import { useSelectedStore } from "@/contexts/StoreContext";
@@ -341,8 +349,11 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // 1. Data fetching
     const { data: product, isLoading, error, refetch: refetchProduct } = useProduct(productId);
 
-    // 2. Form hook with Zod validation
-    const methods = useProductForm({ product });
+    // 2. Shared restoring ref (coordinates between undo/redo and form sync)
+    const isRestoringRef = useRef<boolean>(false);
+
+    // 2b. Form hook with Zod validation + restoring guard
+    const methods = useProductForm({ product, isRestoringRef });
 
     // 3. Categories fetching (avant actions pour passer les catégories disponibles)
     const { data: categories = [], isLoading: isLoadingCategories } = useCategories(selectedStore?.id);
@@ -367,13 +378,32 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     const userModifiedFieldsRef = useRef<Set<string>>(new Set());
 
     // ------------------------------------------------------------------------
+    // VERSION HISTORY: Server-side versioning
+    // ------------------------------------------------------------------------
+    const versionManager = useProductVersionManager({
+        productId,
+        enabled: !isLoading && !!product,
+    });
+
+    // Callback: version creation on AI field acceptance
+    const handleFieldAccepted = useCallback(() => {
+        const currentValues = methods.getValues();
+        versionManager.createVersion({
+            product_id: productId,
+            form_data: currentValues,
+            trigger_type: 'ai_approval',
+        }).catch(err => console.error('Failed to create ai_approval version:', err));
+    }, [methods, versionManager, productId]);
+
+    // ------------------------------------------------------------------------
     // HOOK: Draft Actions (NEW)
     // ------------------------------------------------------------------------
     const draftActions = useDraftActions({
         productId,
         storeId: selectedStore?.id,
         setValue: methods.setValue,
-        userModifiedFieldsRef
+        userModifiedFieldsRef,
+        onFieldAccepted: handleFieldAccepted,
     });
 
     // Calcul des calculs de champs dirty/draft
@@ -391,8 +421,182 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         hasConflict,
     };
 
-    // 6. Context value memo
-    // Note: We include analysisData in dependencies to trigger re-renders when score changes
+    // (contextValue useMemo moved below after all hooks are defined)
+
+    // ------------------------------------------------------------------------
+    // UNDO/REDO: Form History
+    // ------------------------------------------------------------------------
+    const history = useFormHistory({
+        methods,
+        enabled: !isLoading && !!product,
+        maxSnapshots: 50,
+        debounceMs: 500,
+        isRestoringRef,
+    });
+
+    // ------------------------------------------------------------------------
+    // AUTO-SAVE: Debounced save to Supabase (no WooCommerce sync)
+    // ------------------------------------------------------------------------
+    const autoSave = useAutoSaveProduct();
+    const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+    // Cooldown: prevent auto-save from firing shortly after a manual save
+    // (to avoid overwriting dirty_fields_content that was just cleared by push-to-store)
+    const manualSaveCooldownRef = useRef<number>(0);
+
+    // Watch form changes for auto-save
+    useEffect(() => {
+        if (!product || isLoading) return;
+
+        const subscription = methods.watch(() => {
+            if (isRestoringRef.current) return;
+            if (!methods.formState.isDirty) return;
+
+            // Skip auto-save if within cooldown period after manual save
+            if (Date.now() - manualSaveCooldownRef.current < 15_000) return;
+
+            // Cancel any previous saved-state reset timer
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+                autoSaveTimerRef.current = null;
+            }
+
+            const currentValues = methods.getValues();
+            const saveData = transformFormToSaveData(currentValues, categories);
+
+            setAutoSaveStatus('saving');
+            autoSave.debouncedSave(productId, saveData, 5000);
+        });
+
+        return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [product, isLoading, productId, categories]);
+
+    // Track auto-save completion
+    useEffect(() => {
+        if (autoSave.isSuccess && autoSaveStatus === 'saving') {
+            setAutoSaveStatus('saved');
+            // Reset to idle after 3 seconds
+            autoSaveTimerRef.current = setTimeout(() => {
+                setAutoSaveStatus('idle');
+            }, 3000);
+
+            // Rate-limited auto-save version creation (every 5 min max)
+            if (versionManager.canCreateAutoVersion()) {
+                const currentValues = methods.getValues();
+                versionManager.createVersion({
+                    product_id: productId,
+                    form_data: currentValues,
+                    trigger_type: 'auto_save',
+                }).catch(err => console.error('Failed to create auto-save version:', err));
+            }
+        }
+        if (autoSave.isError) {
+            setAutoSaveStatus('error');
+            autoSaveTimerRef.current = setTimeout(() => {
+                setAutoSaveStatus('idle');
+            }, 5000);
+        }
+
+        return () => {
+            if (autoSaveTimerRef.current) {
+                clearTimeout(autoSaveTimerRef.current);
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoSave.isSuccess, autoSave.isError, autoSaveStatus]);
+
+    // Calculate dirty state
+    const isDirty = methods.formState.isDirty;
+    const hasUnsavedChanges = isDirty || !history.isAtSavedState;
+
+    // ------------------------------------------------------------------------
+    // NAVIGATION GUARD: Prevent accidental data loss
+    // ------------------------------------------------------------------------
+    useNavigationGuard({
+        isDirty: hasUnsavedChanges,
+        enabled: true,
+    });
+
+    // ------------------------------------------------------------------------
+    // KEYBOARD SHORTCUTS: Ctrl+Z/Y/S
+    // ------------------------------------------------------------------------
+    const handleKeyboardSave = useCallback(() => {
+        if (actions.isSaving) return;
+        methods.handleSubmit(async (data) => {
+            try {
+                autoSave.cancelAutoSave();
+                manualSaveCooldownRef.current = Date.now();
+                await actions.handleSave(data);
+                methods.reset(data, { keepDefaultValues: false });
+                history.markAsSaved();
+                setAutoSaveStatus('saved');
+
+                versionManager.createVersion({
+                    product_id: productId,
+                    form_data: data,
+                    trigger_type: 'manual_save',
+                }).catch(err => console.error('Failed to create version:', err));
+            } catch (e) {
+                toast.error("Erreur de sauvegarde", {
+                    description: "Une erreur est survenue. Veuillez réessayer.",
+                });
+            }
+        })();
+    }, [actions, methods, history, autoSave, versionManager, productId]);
+
+    useFormHistoryKeyboard({
+        undo: history.undo,
+        redo: history.redo,
+        canUndo: history.canUndo,
+        canRedo: history.canRedo,
+        onSave: handleKeyboardSave,
+        enabled: !isLoading && !!product,
+    });
+
+    // Submit handler
+    const handleSubmit = async (data: ProductFormValues) => {
+        try {
+            // Cancel pending auto-save and set cooldown
+            autoSave.cancelAutoSave();
+            manualSaveCooldownRef.current = Date.now();
+
+            await actions.handleSave(data);
+            // Reset dirty state
+            methods.reset(data, { keepDefaultValues: false });
+            // Mark history as saved
+            history.markAsSaved();
+            setAutoSaveStatus('saved');
+
+            // Create a manual_save version
+            versionManager.createVersion({
+                product_id: productId,
+                form_data: data,
+                trigger_type: 'manual_save',
+            }).catch(err => console.error('Failed to create version:', err));
+        } catch (e) {
+            toast.error("Erreur de sauvegarde", {
+                description: "Une erreur est survenue. Veuillez réessayer.",
+            });
+        }
+    };
+
+    // ------------------------------------------------------------------------
+    // VERSION RESTORE: Callback when restoring from sidebar history
+    // ------------------------------------------------------------------------
+    const handleVersionRestored = useCallback((formData: ProductFormValues) => {
+        isRestoringRef.current = true;
+        methods.reset(structuredClone(formData), { keepDefaultValues: false });
+        requestAnimationFrame(() => {
+            isRestoringRef.current = false;
+        });
+        history.captureSnapshot('Version restaurée');
+    }, [methods, history]);
+
+    // ------------------------------------------------------------------------
+    // CONTEXT VALUE: Memoized context for child components
+    // (placed after all hooks to avoid TDZ issues)
+    // ------------------------------------------------------------------------
     const contextValue = useMemo<ProductEditContextType>(() => ({
         productId,
         product,
@@ -409,31 +613,14 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         refetchContentBuffer,
         selectedStore,
         seoAnalysis: analysisData,
-        runSeoAnalysis: runServerAnalysis
+        runSeoAnalysis: runServerAnalysis,
+        formHistory: history,
+        autoSaveStatus,
     }), [
         productId, product, isLoading, methods, actions.isSaving, actions.handleSave,
         refetchProduct, refetchContentBuffer, selectedStore, analysisData, runServerAnalysis,
-        contentBuffer, dirtyFieldsData, remainingProposals, draftActions
+        contentBuffer, dirtyFieldsData, remainingProposals, draftActions, history, autoSaveStatus
     ]);
-
-    // Submit handler
-    // Note: Le toast et l'invalidation des queries sont gérés par useProductSave.onSuccess
-    // Le useEffect dans useProductForm re-sync le formulaire quand le produit est refetché
-    const handleSubmit = async (data: ProductFormValues) => {
-        try {
-            await actions.handleSave(data);
-            // Reset dirty state immédiatement pour retirer le badge "Non sauvegardé"
-            // Le useEffect re-sync avec les données DB quand les queries se rafraîchissent
-            methods.reset(data, { keepDefaultValues: false });
-        } catch (e) {
-            toast.error("Erreur de sauvegarde", {
-                description: "Une erreur est survenue. Veuillez réessayer.",
-            });
-        }
-    };
-
-    // Calculate dirty state
-    const isDirty = methods.formState.isDirty;
 
     return (
         <>
@@ -474,9 +661,9 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             {!isLoading && !error && product && (
                 <FormProvider {...methods}>
                     <ProductEditContext.Provider value={contextValue}>
-                        <div className="container max-w-7xl mx-auto py-8">
+                        <div className="container max-w-7xl mx-auto pt-4">
                             {/* Page Header - Refined for "Emerald Ledger" */}
-                            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 sm:-mx-6 px-4 sm:px-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8 pb-4 pt-4 border-b border-border/20">
+                            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 sm:-mx-6 px-4 sm:px-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-6 pb-4 pt-4 border-b border-border/20">
                                 <div className="flex items-center gap-4">
                                     {/* Back Button Container - Style C */}
                                     <Button variant="ghost" size="icon" asChild className="h-10 w-10 bg-muted border border-border hover:bg-muted/80 rounded-lg shrink-0 transition-colors">
@@ -489,7 +676,24 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                                             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest truncate">
                                                 {product.platform || "Produit"} {product.platform_product_id && <span className="opacity-50 ml-1">#{product.platform_product_id}</span>}
                                             </p>
-                                            {isDirty && (
+                                            {autoSaveStatus === 'saving' && (
+                                                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-muted text-muted-foreground border-border/20 uppercase tracking-widest shrink-0">
+                                                    <Loader2 className="w-2.5 h-2.5 mr-1 animate-spin" />
+                                                    Sauvegarde...
+                                                </Badge>
+                                            )}
+                                            {autoSaveStatus === 'saved' && !isDirty && (
+                                                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 uppercase tracking-widest shrink-0">
+                                                    <Check className="w-2.5 h-2.5 mr-1" />
+                                                    Sauvegardé
+                                                </Badge>
+                                            )}
+                                            {autoSaveStatus === 'error' && (
+                                                <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-destructive/10 text-destructive border-destructive/20 uppercase tracking-widest shrink-0">
+                                                    Erreur
+                                                </Badge>
+                                            )}
+                                            {isDirty && autoSaveStatus !== 'saving' && (
                                                 <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-warning/10 text-warning border-warning/20 uppercase tracking-widest shrink-0">
                                                     Non sauvegardé
                                                 </Badge>
@@ -565,6 +769,49 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
 
                                     <div className="w-px h-6 bg-border/30 hidden sm:block" />
 
+                                    {/* Undo/Redo Controls */}
+                                    <TooltipProvider delayDuration={300}>
+                                        <div className="flex items-center gap-1">
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={history.undo}
+                                                        disabled={!history.canUndo}
+                                                        className="h-9 w-9"
+                                                    >
+                                                        <Undo2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Annuler (Ctrl+Z)</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={history.redo}
+                                                        disabled={!history.canRedo}
+                                                        className="h-9 w-9"
+                                                    >
+                                                        <Redo2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Rétablir (Ctrl+Y)</TooltipContent>
+                                            </Tooltip>
+                                            {history.historyLength > 1 && (
+                                                <span className="text-[10px] text-muted-foreground tabular-nums font-medium ml-0.5">
+                                                    {history.historyIndex + 1}/{history.historyLength}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </TooltipProvider>
+
+                                    <div className="w-px h-6 bg-border/30 hidden sm:block" />
+
                                     <Button
                                         variant="outline"
                                         onClick={() => methods.reset()}
@@ -624,11 +871,21 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                                             productId={productId}
                                             availableCategories={categories}
                                             isLoadingCategories={isLoadingCategories}
+                                            onVersionRestored={handleVersionRestored}
+                                            isVariableProduct={methods.watch("product_type") === "variable"}
+                                            variationsCount={product?.metadata?.variations_count ?? 0}
                                         />
                                     )}
                                 >
                                     <ProductGeneralTab />
                                     <ProductMediaTab />
+                                    {methods.watch("product_type") === "variable" && (
+                                        <ProductVariationsTab
+                                            productId={productId}
+                                            storeId={selectedStore?.id}
+                                            platformProductId={product?.platform_product_id}
+                                        />
+                                    )}
                                     <ProductSeoTab />
                                 </ProductEditorLayout>
                             </form>

@@ -5,6 +5,16 @@
  */
 import { z } from "zod";
 
+// Schéma pour un attribut produit (utilisé pour les produits variables)
+const ProductAttributeSchema = z.object({
+    id: z.number().optional(),
+    name: z.string().min(1, "Le nom de l'attribut est requis"),
+    options: z.array(z.string()).default([]),
+    visible: z.boolean().default(true),
+    variation: z.boolean().default(false),
+    position: z.number().optional(),
+});
+
 // Schéma pour une image produit
 const ProductImageSchema = z.object({
     id: z.union([z.string(), z.number()]),
@@ -45,7 +55,7 @@ export const ProductFormSchema = z.object({
     slug: z.string().optional().default(""),
 
     // ===== ORGANISATION =====
-    product_type: z.string().optional().default("simple"),
+    product_type: z.string().optional().default("simple").transform(v => v || "simple"),
     brand: z.string().optional().default(""),
     status: z.string().optional().default("draft"),
     featured: z.boolean().optional().default(false), // Produit mis en avant
@@ -91,6 +101,9 @@ export const ProductFormSchema = z.object({
     upsell_ids: z.array(z.number()).default([]),
     cross_sell_ids: z.array(z.number()).default([]),
     related_ids: z.array(z.number()).default([]),
+
+    // ===== ATTRIBUTS (produits variables) =====
+    attributes: z.array(ProductAttributeSchema).default([]),
 });
 
 // Type TypeScript dérivé automatiquement du schéma
@@ -98,6 +111,9 @@ export type ProductFormValues = z.infer<typeof ProductFormSchema>;
 
 // Type pour une image
 export type ProductImage = z.infer<typeof ProductImageSchema>;
+
+// Type pour un attribut produit
+export type ProductAttribute = z.infer<typeof ProductAttributeSchema>;
 
 // Liste des champs comparables (dérivée automatiquement des clés du schéma)
 // Utilisé pour la détection de changements
@@ -185,4 +201,7 @@ export const DEFAULT_FORM_VALUES: ProductFormValues = {
     upsell_ids: [],
     cross_sell_ids: [],
     related_ids: [],
+
+    // Attributs
+    attributes: [],
 };

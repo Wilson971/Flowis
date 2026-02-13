@@ -20,7 +20,7 @@ export interface DirtyFieldsData {
 }
 
 export interface DraftActions {
-    handleAcceptField: (field: string) => Promise<void>;
+    handleAcceptField: (field: string, editedValue?: string) => Promise<void>;
     handleRejectField: (field: string) => Promise<void>;
     handleRegenerateField: (field: string) => Promise<void>;
     isAccepting: boolean;
@@ -84,6 +84,22 @@ export interface ProductEditContextType {
 
     // Store context
     selectedStore?: any;
+
+    // Undo/Redo form history
+    formHistory?: {
+        undo: () => void;
+        redo: () => void;
+        canUndo: boolean;
+        canRedo: boolean;
+        historyIndex: number;
+        historyLength: number;
+        captureSnapshot: (label?: string) => void;
+        markAsSaved: () => void;
+        isAtSavedState: boolean;
+    };
+
+    // Auto-save status
+    autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 // ============================================================================

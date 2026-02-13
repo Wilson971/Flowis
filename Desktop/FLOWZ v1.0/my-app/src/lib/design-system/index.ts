@@ -14,3 +14,7 @@ export { default as designSystem } from './tokens';
 // Export style utilities
 export * from './styles';
 export { default as styles } from './styles';
+
+// Export card theme system
+export * from './card-themes';
+export { cardThemes, productCardThemes, getCardThemeClasses, getProductCardTheme } from './card-themes';

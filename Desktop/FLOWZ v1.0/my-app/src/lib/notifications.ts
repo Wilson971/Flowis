@@ -38,20 +38,29 @@ export async function createNotification({
     targetUserId = user.id;
   }
 
-  const { error } = await supabase.from('notifications').insert({
-    user_id: targetUserId,
-    title,
-    message,
-    type,
-    link,
-  });
+  try {
+    const { error } = await supabase.from('notifications').insert({
+      user_id: targetUserId,
+      title,
+      message,
+      type,
+      link,
+    });
 
-  if (error) {
-    console.error('Failed to create notification:', error);
-    return { success: false, error: error.message };
+    if (error) {
+      // Silently fail if notifications table doesn't exist yet
+      if (error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        return { success: false, error: 'Notifications table not configured' };
+      }
+      console.error('Failed to create notification:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch {
+    // Silently fail — notifications are non-critical
+    return { success: false, error: 'Notification service unavailable' };
   }
-
-  return { success: true };
 }
 
 /**

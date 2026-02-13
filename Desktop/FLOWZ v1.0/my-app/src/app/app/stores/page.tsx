@@ -94,11 +94,20 @@ function StoreCard({ store, isSelected, onSelect }: StoreCardProps) {
 
     return (
         <Card
-            className={`cursor-pointer transition-all hover:shadow-lg ${isSelected ? 'ring-2 ring-primary' : ''
+            className={`cursor-pointer transition-all duration-500 hover:shadow-glow-md hover:shadow-primary/10 bg-card/95 backdrop-blur-sm border-border/50 hover:border-border relative overflow-hidden group ${isSelected ? 'ring-2 ring-primary border-primary/40' : ''
                 }`}
             onClick={onSelect}
         >
-            <CardHeader>
+            {/* Glass reflections */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent pointer-events-none" />
+            {/* Gradient accent based on status */}
+            <div className={`absolute inset-0 bg-gradient-to-br pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity duration-500 ${
+                store.status === 'active'
+                    ? 'from-emerald-500/[0.03] via-transparent to-blue-500/[0.02]'
+                    : 'from-orange-500/[0.03] via-transparent to-red-500/[0.02]'
+            }`} />
+
+            <CardHeader className="relative z-10">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                         <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">

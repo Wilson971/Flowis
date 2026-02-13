@@ -133,6 +133,11 @@ export function useBatchGeneration() {
                                     current: event.index || p.current + 1,
                                     field: '',
                                 }));
+                                // Invalidate per-product content so draft appears immediately
+                                if (event.product_id) {
+                                    queryClient.invalidateQueries({ queryKey: ['product-content', event.product_id] });
+                                    queryClient.invalidateQueries({ queryKey: ['product', event.product_id] });
+                                }
                                 break;
 
                             case 'product_error':
@@ -145,6 +150,8 @@ export function useBatchGeneration() {
 
                             case 'batch_complete':
                                 queryClient.invalidateQueries({ queryKey: ['products'] });
+                                queryClient.invalidateQueries({ queryKey: ['product-content'] });
+                                queryClient.invalidateQueries({ queryKey: ['product'] });
                                 queryClient.invalidateQueries({ queryKey: ['batch-jobs'] });
                                 queryClient.invalidateQueries({ queryKey: ['active-batch-jobs'] });
 

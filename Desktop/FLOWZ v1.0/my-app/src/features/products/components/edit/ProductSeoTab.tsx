@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useFormContext, useWatch, Controller } from "react-hook-form";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ProductFormValues } from "../../hooks/useProductForm";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { motion } from "framer-motion";
+import { getProductCardTheme } from "@/lib/design-system";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // New SEO components
@@ -26,18 +27,46 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Lock, Unlock, Globe, Smartphone } from "lucide-react";
+import { Lock, Unlock, Globe, Smartphone, Sparkles } from "lucide-react";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
+import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
 
 export const ProductSeoTab = () => {
-    const { register, control, setValue } = useFormContext<ProductFormValues>();
+    const theme = getProductCardTheme('ProductSeoTab');
+    const { register, control, setValue, getValues } = useFormContext<ProductFormValues>();
     const { selectedStore, dirtyFieldsData } = useProductEditContext();
     const isDirtyField = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
 
     // Hybrid SEO Analysis Hook (From Context)
-    const { seoAnalysis, runSeoAnalysis, remainingProposals, draftActions } = useProductEditContext();
+    const { seoAnalysis, runSeoAnalysis, remainingProposals, draftActions, contentBuffer } = useProductEditContext();
     const { overallScore, fieldScores, issues, isAnalyzing } = seoAnalysis || {
         overallScore: 0, fieldScores: {}, issues: [], isAnalyzing: false
+    };
+
+    // Modal state for AI suggestions
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalField, setModalField] = useState<string>("");
+
+    const hasDraft = (field: string) => remainingProposals.includes(field);
+
+    const openSuggestionModal = (field: string) => {
+        setModalField(field);
+        setModalOpen(true);
+    };
+
+    // Map SEO field keys to form values and draft values
+    const getModalCurrentValue = (field: string): string => {
+        if (field === "seo.title") return getValues("meta_title") || "";
+        if (field === "seo.description") return getValues("meta_description") || "";
+        return "";
+    };
+
+    const getModalSuggestedValue = (field: string): string => {
+        const draft = contentBuffer?.draft_generated_content;
+        if (!draft) return "";
+        if (field === "seo.title") return draft.seo?.title || "";
+        if (field === "seo.description") return draft.seo?.description || "";
+        return "";
     };
 
     // Get status to handle draft logic
@@ -120,16 +149,38 @@ export const ProductSeoTab = () => {
     const previewDesc = (metaDescription || productDesc).replace(/<[^>]*>/g, '').substring(0, 160);
     const previewTitle = metaTitle || productTitle;
 
+    // Render suggestion trigger button (same pattern as ProductGeneralTab)
+    const renderFieldActions = (field: string) => {
+        if (!hasDraft(field)) return null;
+        return (
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => openSuggestionModal(field)}
+                className="gap-1.5 h-7 px-2.5 text-xs font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+            >
+                <Sparkles className="h-3.5 w-3.5" />
+                Voir la suggestion
+            </Button>
+        );
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
         >
-            <Card className="overflow-hidden border-border/50 bg-card/60 backdrop-blur-sm card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 bg-muted/20">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 bg-muted/20 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                        <div className={theme.iconContainer}>
                             <Globe className="w-5 h-5" />
                         </div>
                         <div>
@@ -142,7 +193,7 @@ export const ProductSeoTab = () => {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-0 relative z-10">
                     <Tabs defaultValue="edit" className="w-full">
                         <div className="px-6 pt-4 bg-muted/20">
                             <TabsList className="w-full justify-start h-auto p-0 bg-transparent border-b-0 rounded-none gap-6">
@@ -167,15 +218,9 @@ export const ProductSeoTab = () => {
                                     <div className="flex justify-between items-end">
                                         <Label className="flex items-center gap-1.5">
                                             Meta Titre
-                                            <FieldStatusBadge isDirty={isDirtyField("meta_title") || isDirtyField("seo.title")} />
+                                            <FieldStatusBadge hasDraft={hasDraft("seo.title")} isDirty={isDirtyField("meta_title") || isDirtyField("seo.title")} />
                                         </Label>
-                                        {remainingProposals.includes("seo.title") && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-indigo-600 font-medium animate-pulse">Suggestion IA disponible</span>
-                                                <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => draftActions.handleAcceptField("seo.title")}>Accepter</Button>
-                                                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-red-500" onClick={() => draftActions.handleRejectField("seo.title")}>Rejeter</Button>
-                                            </div>
-                                        )}
+                                        {renderFieldActions("seo.title")}
                                     </div>
                                     <Controller
                                         name="meta_title"
@@ -199,15 +244,9 @@ export const ProductSeoTab = () => {
                                     <div className="flex justify-between items-end">
                                         <Label className="flex items-center gap-1.5">
                                             Meta Description
-                                            <FieldStatusBadge isDirty={isDirtyField("meta_description") || isDirtyField("seo.description")} />
+                                            <FieldStatusBadge hasDraft={hasDraft("seo.description")} isDirty={isDirtyField("meta_description") || isDirtyField("seo.description")} />
                                         </Label>
-                                        {remainingProposals.includes("seo.description") && (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-indigo-600 font-medium animate-pulse">Suggestion IA disponible</span>
-                                                <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => draftActions.handleAcceptField("seo.description")}>Accepter</Button>
-                                                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-red-500" onClick={() => draftActions.handleRejectField("seo.description")}>Rejeter</Button>
-                                            </div>
-                                        )}
+                                        {renderFieldActions("seo.description")}
                                     </div>
                                     <Controller
                                         name="meta_description"
@@ -356,7 +395,7 @@ export const ProductSeoTab = () => {
 
                                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
                                         <h4 className="font-semibold mb-2 flex items-center gap-2">
-                                            💡 Conseils d&apos;optimisation
+                                            Conseils d&apos;optimisation
                                         </h4>
                                         <ul className="text-sm space-y-2 text-muted-foreground list-disc pl-4">
                                             <li>Incluez le mot-clé principal au début du titre.</li>
@@ -371,6 +410,29 @@ export const ProductSeoTab = () => {
                     </Tabs>
                 </CardContent>
             </Card>
+
+            {/* AI Suggestion Modal for SEO fields */}
+            {modalField && contentBuffer?.draft_generated_content && (
+                <AISuggestionModal
+                    open={modalOpen}
+                    onOpenChange={setModalOpen}
+                    productTitle={productTitle || "Sans titre"}
+                    field={modalField === "seo.title" ? "Titre SEO" : "Meta-description"}
+                    currentValue={getModalCurrentValue(modalField)}
+                    suggestedValue={getModalSuggestedValue(modalField)}
+                    onAccept={async (editedValue) => {
+                        if (editedValue !== undefined) {
+                            await draftActions.handleAcceptField(modalField, editedValue);
+                        } else {
+                            await draftActions.handleAcceptField(modalField);
+                        }
+                    }}
+                    onReject={async () => {
+                        await draftActions.handleRejectField(modalField);
+                    }}
+                    isProcessing={draftActions.isAccepting || draftActions.isRejecting}
+                />
+            )}
         </motion.div>
     );
 };

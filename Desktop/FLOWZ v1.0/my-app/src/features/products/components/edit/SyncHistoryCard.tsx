@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useSyncHistory, type SyncHistoryEntry } from "@/hooks/products";
 import { useForceStoreContent } from "@/hooks/products";
+import { getProductCardTheme } from "@/lib/design-system";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -147,6 +148,8 @@ export const SyncHistoryCard = ({ productId }: SyncHistoryCardProps) => {
     const displayedHistory = history.slice(0, 3);
     const hasMore = history.length > 3;
 
+    const theme = getProductCardTheme('SyncHistoryCard');
+
     if (isLoading) return null;
     if (history.length === 0) return null;
 
@@ -157,9 +160,13 @@ export const SyncHistoryCard = ({ productId }: SyncHistoryCardProps) => {
             transition={{ delay: 0.15, duration: 0.3 }}
         >
             <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                <div className="border border-border/50 bg-card/50 backdrop-blur-sm rounded-xl overflow-hidden card-elevated">
+                <div className={cn(theme.container, "rounded-xl")}>
+                    {/* Glass reflection */}
+                    <div className={theme.glassReflection} />
+                    {/* Gradient accent */}
+                    <div className={theme.gradientAccent} />
                     {/* Trigger header */}
-                    <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer">
+                    <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer relative z-10">
                         <div className="flex items-center gap-2.5">
                             <History className="h-4 w-4 text-muted-foreground" />
                             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -179,7 +186,7 @@ export const SyncHistoryCard = ({ productId }: SyncHistoryCardProps) => {
 
                     {/* Collapsible content */}
                     <CollapsibleContent>
-                        <div className="px-4 pb-3 space-y-2">
+                        <div className="px-4 pb-3 space-y-2 relative z-10">
                             <div className="divide-y divide-border/10">
                                 {displayedHistory.map((entry) => (
                                     <SyncHistoryItem key={entry.id} entry={entry} />

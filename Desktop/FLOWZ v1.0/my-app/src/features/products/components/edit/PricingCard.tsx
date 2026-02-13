@@ -1,18 +1,20 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { getProductCardTheme } from "@/lib/design-system";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
-import { CreditCard, CalendarDays, Percent } from "lucide-react";
+import { CreditCard, CalendarDays, Percent, Sparkles } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
+import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
 
 interface PricingCardProps {
     isVariableProduct?: boolean;
@@ -31,9 +33,16 @@ export const PricingCard = ({
     variationsCount = 0,
     onManageVariants,
 }: PricingCardProps) => {
-    const { register, setValue, control } = useFormContext<ProductFormValues>();
-    const { dirtyFieldsData } = useProductEditContext();
+    const { register, setValue, control, getValues } = useFormContext<ProductFormValues>();
+    const { dirtyFieldsData, remainingProposals, draftActions, contentBuffer } = useProductEditContext();
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
+    const hasDraft = (field: string) => remainingProposals.includes(field);
+
+    // Get theme colors from design system
+    const theme = getProductCardTheme('PricingCard');
+
+    // SKU suggestion modal state
+    const [skuModalOpen, setSkuModalOpen] = useState(false);
 
     // Utiliser useWatch au niveau du composant (pas inline dans le JSX)
     const manageStock = useWatch({ control, name: "manage_stock" });
@@ -48,10 +57,15 @@ export const PricingCard = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent - managed by design system */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                        <div className={theme.iconContainer}>
                             <CreditCard className="w-5 h-5" />
                         </div>
                         <div>
@@ -64,13 +78,40 @@ export const PricingCard = ({
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-5 p-4 pt-3">
+                <CardContent className="space-y-5 p-4 pt-3 relative z-10">
+                    {/* Variable product notice */}
+                    {isVariableProduct && (
+                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+                            <p className="font-medium text-foreground text-xs">
+                                Produit variable — {variationsCount} variation(s)
+                            </p>
+                            <p className="text-xs mt-1">
+                                Les prix et le stock sont gérés au niveau de chaque variation.
+                                Utilisez la section Variations ci-dessous pour les modifier.
+                            </p>
+                        </div>
+                    )}
+
                     {/* SKU */}
                     <div className="space-y-1.5">
-                        <Label htmlFor="sku" className="text-xs font-semibold flex items-center gap-1.5">
-                            SKU
-                            <FieldStatusBadge isDirty={isDirty("sku")} />
-                        </Label>
+                        <div className="flex items-center justify-between">
+                            <Label htmlFor="sku" className="text-xs font-semibold flex items-center gap-1.5">
+                                SKU
+                                <FieldStatusBadge hasDraft={hasDraft("sku")} isDirty={isDirty("sku")} />
+                            </Label>
+                            {hasDraft("sku") && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSkuModalOpen(true)}
+                                    className="gap-1.5 h-6 px-2 text-[10px] font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
+                                >
+                                    <Sparkles className="h-3 w-3" />
+                                    Suggestion
+                                </Button>
+                            )}
+                        </div>
                         <Input
                             id="sku"
                             {...register("sku")}
@@ -332,7 +373,7 @@ export const PricingCard = ({
                                 <select
                                     id="tax_status"
                                     {...register("tax_status")}
-                                    className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 >
                                     <option value="taxable">Taxable</option>
                                     <option value="shipping">Livraison seule</option>
@@ -358,7 +399,7 @@ export const PricingCard = ({
                             <select
                                 id="catalog_visibility"
                                 {...register("catalog_visibility")}
-                                className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
                                 <option value="visible">Visible (catalogue + recherche)</option>
                                 <option value="catalog">Catalogue uniquement</option>
@@ -393,6 +434,29 @@ export const PricingCard = ({
                     </div>
                 </CardContent>
             </Card>
+
+            {/* AI Suggestion Modal for SKU */}
+            {contentBuffer?.draft_generated_content && (
+                <AISuggestionModal
+                    open={skuModalOpen}
+                    onOpenChange={setSkuModalOpen}
+                    productTitle={getValues("title") || "Sans titre"}
+                    field="SKU"
+                    currentValue={getValues("sku") || ""}
+                    suggestedValue={String(contentBuffer.draft_generated_content.sku || "")}
+                    onAccept={async (editedValue) => {
+                        if (editedValue !== undefined) {
+                            await draftActions.handleAcceptField("sku", editedValue);
+                        } else {
+                            await draftActions.handleAcceptField("sku");
+                        }
+                    }}
+                    onReject={async () => {
+                        await draftActions.handleRejectField("sku");
+                    }}
+                    isProcessing={draftActions.isAccepting || draftActions.isRejecting}
+                />
+            )}
         </motion.div>
     );
 };

@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ProductFormValues } from "../../schemas/product-schema";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
+import { getProductCardTheme } from "@/lib/design-system";
 
 // Types for categories
 interface Category {
@@ -118,16 +119,24 @@ export const OrganizationCard = ({
         }
     };
 
+    // Get theme from design system
+    const theme = getProductCardTheme('OrganizationCard');
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.3 }}
         >
-            <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
-                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5">
+            <Card className={theme.container}>
+                {/* Glass reflection */}
+                <div className={theme.glassReflection} />
+                {/* Gradient accent - managed by design system */}
+                <div className={theme.gradientAccent} />
+
+                <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                        <div className={theme.iconContainer}>
                             <FolderTree className="w-5 h-5" />
                         </div>
                         <div>
@@ -140,7 +149,7 @@ export const OrganizationCard = ({
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-3 p-4 pt-3">
+                <CardContent className="space-y-3 p-4 pt-3 relative z-10">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label htmlFor="product_type" className="text-xs font-semibold">

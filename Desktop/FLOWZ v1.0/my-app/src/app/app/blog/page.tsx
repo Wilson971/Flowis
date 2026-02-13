@@ -76,10 +76,16 @@ function SelectionBar({
       className={cn(
         'fixed bottom-6 left-1/2 -translate-x-1/2 z-50',
         'flex items-center gap-4 px-6 py-3 rounded-xl',
-        'bg-card/95 backdrop-blur-xl border border-border shadow-2xl'
+        'bg-card/90 backdrop-blur-2xl border border-border/40 shadow-2xl relative overflow-hidden group'
       )}
     >
-      <span className="text-sm font-medium">
+      {/* Enhanced glassmorphism for selection bar */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.05] via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/3 pointer-events-none" />
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-white/10 via-transparent to-transparent pointer-events-none opacity-50" />
+
+      <div className="relative z-10 flex items-center gap-4 w-full">
+        <span className="text-sm font-medium">
         {selectedCount} article{selectedCount > 1 ? 's' : ''} sélectionné
         {selectedCount > 1 ? 's' : ''}
       </span>
@@ -117,14 +123,15 @@ function SelectionBar({
           <Trash2 className="h-4 w-4" />
           Supprimer
         </Button>
+        </div>
+
+        <div className="h-4 w-px bg-border" />
+
+        <Button variant="ghost" size="sm" onClick={onClear} className="gap-1">
+          <X className="h-4 w-4" />
+          Annuler
+        </Button>
       </div>
-
-      <div className="h-4 w-px bg-border" />
-
-      <Button variant="ghost" size="sm" onClick={onClear} className="gap-1">
-        <X className="h-4 w-4" />
-        Annuler
-      </Button>
     </motion.div>
   );
 }
@@ -447,8 +454,13 @@ export default function BlogPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <Card className="border border-border">
-          <CardContent className="p-5">
+        <Card className="border border-border/50 bg-card/95 backdrop-blur-lg relative overflow-hidden group hover:border-border transition-all duration-500">
+          {/* Glass reflection */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent pointer-events-none" />
+          {/* Gradient accent */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/[0.02] via-transparent to-blue-500/[0.02] pointer-events-none" />
+
+          <CardContent className="p-5 relative z-10">
             <BlogToolbar
               searchValue={localSearch}
               onSearchChange={setLocalSearch}
@@ -492,8 +504,11 @@ export default function BlogPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
             >
-              <Card className="border border-border">
-                <CardContent className="p-0">
+              <Card className="border border-border/50 bg-card/95 backdrop-blur-sm relative overflow-hidden group hover:border-border transition-all duration-300">
+                {/* Subtle gradient */}
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500/[0.01] via-transparent to-emerald-500/[0.01] pointer-events-none" />
+
+                <CardContent className="p-0 relative z-10">
                   <BlogPagination
                     currentPage={page}
                     totalPages={totalPages}

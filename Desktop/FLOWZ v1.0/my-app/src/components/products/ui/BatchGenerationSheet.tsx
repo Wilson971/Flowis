@@ -20,6 +20,7 @@ interface BatchGenerationSheetProps {
     altTextProgress?: AltTextProgress;
     onOpenBulkApproval?: () => void;
     sseProgressMessage?: string;
+    modelName?: string;
 }
 
 export function BatchGenerationSheet({
@@ -39,9 +40,8 @@ export function BatchGenerationSheet({
     altTextProgress,
     onOpenBulkApproval,
     sseProgressMessage,
+    modelName,
 }: BatchGenerationSheetProps) {
-    console.log('[BatchGenerationSheet] Render', { selectedCount });
-
     const isProcessingAltTexts = altTextProgress?.status === "processing";
 
     const [selectedTypes, setSelectedTypes] = useLocalStorage<string[]>(STORAGE_KEYS.BATCH_GENERATION_SELECTED_TYPES, {
@@ -86,7 +86,7 @@ export function BatchGenerationSheet({
             if (shouldUsePush) {
                 setSheetWidth(`${rightSheetWidth}px`);
             } else {
-                setSheetWidth("0px"); // Hide if not enough space and settings open
+                setSheetWidth("0px");
             }
         };
 
@@ -114,13 +114,11 @@ export function BatchGenerationSheet({
             return;
         }
 
-        // Use real SSE progress message when available
         if (sseProgressMessage) {
             setProgressMessage(sseProgressMessage);
             return;
         }
 
-        // Fallback to cycling messages
         const activeMessages = selectedTypes
             .map(type => LOADING_MESSAGES[type])
             .filter(Boolean);
@@ -174,7 +172,6 @@ export function BatchGenerationSheet({
             onForceRegenerateChange={setForceRegenerate}
             onCollapseChange={setIsCollapsed}
             onGenerate={() => {
-                console.log('[BatchGenerationSheet] onGenerate fired', { selectedTypes, forceRegenerate });
                 onGenerate(selectedTypes, false, forceRegenerate);
             }}
             onOpenSettings={onOpenSettings}
@@ -185,6 +182,7 @@ export function BatchGenerationSheet({
             onPushToStore={onPushToStore}
             onCancelSync={onCancelSync}
             onOpenBulkApproval={onOpenBulkApproval}
+            modelName={modelName}
         />,
         document.body
     );

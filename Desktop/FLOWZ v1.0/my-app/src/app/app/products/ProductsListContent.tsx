@@ -19,6 +19,8 @@ import { BatchProgressPanel } from '@/components/products/BatchProgressPanel';
 import { useBatchGeneration } from '@/hooks/products/useBatchGeneration';
 import { useAcceptDraft, useRejectDraft } from '@/hooks/products/useProductContent';
 import { ModularGenerationSettings } from '@/types/imageGeneration';
+import { getRemainingProposals } from '@/lib/productHelpers';
+import type { ContentData } from '@/types/productContent';
 import { useTableFilters } from '@/hooks/useTableFilters';
 import { ProductsPagination } from '@/components/products/ProductsPagination';
 import { ProductsFilter } from '@/components/products/ProductsFilter';
@@ -90,6 +92,17 @@ export function ProductsListContent() {
     // Approval hooks
     const acceptDraft = useAcceptDraft();
     const rejectDraft = useRejectDraft();
+
+    // Count selected products with pending AI drafts for bulk actions
+    const pendingApprovalsCount = useMemo(() => {
+        return products.filter((p) => {
+            if (!selectedProducts.includes(p.id)) return false;
+            const draft = p.draft_generated_content as ContentData | null;
+            const working = p.working_content as ContentData;
+            if (!draft) return false;
+            return getRemainingProposals(draft, working).length > 0;
+        }).length;
+    }, [products, selectedProducts]);
 
     const handleGenerate = useCallback(async (types: string[], _enableSerpAnalysis: boolean, _forceRegenerate?: boolean) => {
         console.log('[handleGenerate] Called with:', { types, selectedProducts, storeId: selectedStore?.id });
@@ -211,11 +224,17 @@ export function ProductsListContent() {
     const statusFilter = params.status || 'all';
     const typeFilter = params.type || 'all';
     const categoryFilter = params.category || 'all';
+    const aiStatusFilter = params.ai_status || 'all';
+    const syncStatusFilter = params.sync_status || 'all';
+    const stockFilter = params.stock || 'all';
 
     const handleReset = () => {
         setFilter('status', null);
         setFilter('type', null);
         setFilter('category', null);
+        setFilter('ai_status', null);
+        setFilter('sync_status', null);
+        setFilter('stock', null);
         setFilter('search', null);
         setLocalSearch('');
     };
@@ -244,9 +263,63 @@ export function ProductsListContent() {
                 if (type !== typeFilter) return false;
             }
 
+            // AI Status filter
+            if (aiStatusFilter !== 'all') {
+                switch (aiStatusFilter) {
+                    case 'optimized':
+                        if (!product.ai_enhanced) return false;
+                        break;
+                    case 'not_optimized':
+                        if (product.ai_enhanced) return false;
+                        break;
+                    case 'has_draft':
+                        if (!product.draft_generated_content) return false;
+                        break;
+                }
+            }
+
+            // Sync Status filter
+            if (syncStatusFilter !== 'all') {
+                const hasDirtyFields = product.dirty_fields_content && product.dirty_fields_content.length > 0;
+                const hasBeenSynced = product.last_synced_at !== null && product.last_synced_at !== undefined;
+
+                switch (syncStatusFilter) {
+                    case 'synced':
+                        // Synchronisé = a été sync + pas de modifs en attente
+                        if (!hasBeenSynced || hasDirtyFields) return false;
+                        break;
+                    case 'pending':
+                        // Modif. en attente = a des dirty_fields
+                        if (!hasDirtyFields) return false;
+                        break;
+                    case 'never':
+                        // Jamais synchronisé = last_synced_at null
+                        if (hasBeenSynced) return false;
+                        break;
+                }
+            }
+
+            // Stock filter
+            if (stockFilter !== 'all') {
+                const stock = product.stock ?? 0;
+
+                switch (stockFilter) {
+                    case 'in_stock':
+                        if (stock <= 0) return false;
+                        break;
+                    case 'low_stock':
+                        // Stock faible = entre 1 et 10
+                        if (stock <= 0 || stock > 10) return false;
+                        break;
+                    case 'out_of_stock':
+                        if (stock > 0) return false;
+                        break;
+                }
+            }
+
             return true;
         });
-    }, [products, localSearch, search, statusFilter, typeFilter]);
+    }, [products, localSearch, search, statusFilter, typeFilter, aiStatusFilter, syncStatusFilter, stockFilter]);
 
     // Pagination logic
     const totalItems = filteredProducts.length;
@@ -340,8 +413,13 @@ export function ProductsListContent() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
             >
-                <Card className="border border-border">
-                    <CardContent className="p-5">
+                <Card className="border border-border/50 bg-card/95 backdrop-blur-lg relative overflow-hidden group hover:border-border transition-all duration-500">
+                    {/* Glass reflection */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent pointer-events-none" />
+                    {/* Subtle gradient accent */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.02] via-transparent to-violet-500/[0.02] pointer-events-none" />
+
+                    <CardContent className="p-5 relative z-10">
                         <ProductsToolbar
                             searchValue={localSearch}
                             onSearchChange={(value) => setLocalSearch(value)}
@@ -351,9 +429,15 @@ export function ProductsListContent() {
                                     typeFilter={typeFilter}
                                     categoryFilter={categoryFilter}
                                     categories={[]}
+                                    aiStatusFilter={aiStatusFilter}
+                                    syncStatusFilter={syncStatusFilter}
+                                    stockFilter={stockFilter}
                                     onStatusChange={(val) => setFilter('status', val)}
                                     onTypeChange={(val) => setFilter('type', val)}
                                     onCategoryChange={(val) => setFilter('category', val)}
+                                    onAiStatusChange={(val) => setFilter('ai_status', val)}
+                                    onSyncStatusChange={(val) => setFilter('sync_status', val)}
+                                    onStockChange={(val) => setFilter('stock', val)}
                                     onReset={handleReset}
                                 />
                             }
@@ -373,10 +457,11 @@ export function ProductsListContent() {
                             onRejectAll={handleRejectAll}
                             onPushToStore={handlePushToStore}
                             onCancelSync={() => cancelGeneration()}
-                            pendingApprovalsCount={0}
+                            pendingApprovalsCount={pendingApprovalsCount}
                             syncableProductsCount={selectedProducts.length}
                             isProcessingBulkAction={isQueuing || acceptDraft.isPending || rejectDraft.isPending}
                             sseProgressMessage={sseProgressMessage}
+                            modelName={generationSettings.model === 'gemini-2.5-flash-preview-05-20' ? 'Gemini 2.5 Flash' : 'Gemini 2.0 Flash'}
                         />
 
                         <BatchGenerationSettings
@@ -406,8 +491,12 @@ export function ProductsListContent() {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.4 }}
                 >
-                    <Card className="border border-border">
-                        <CardContent className="p-12 text-center">
+                    <Card className="border border-border/50 bg-card/90 backdrop-blur-xl relative overflow-hidden">
+                        {/* Glass effect for empty state */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-violet-500/[0.02] pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-transparent pointer-events-none" />
+
+                        <CardContent className="p-12 text-center relative z-10">
                             <div className="flex flex-col items-center justify-center max-md mx-auto">
                                 <motion.div
                                     initial={{ scale: 0 }}
@@ -454,8 +543,11 @@ export function ProductsListContent() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, delay: 0.3 }}
                     >
-                        <Card className="border border-border">
-                            <CardContent className="p-0">
+                        <Card className="border border-border/50 bg-card/95 backdrop-blur-sm relative overflow-hidden group hover:border-border transition-all duration-300">
+                            {/* Subtle gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/[0.01] via-transparent to-blue-500/[0.01] pointer-events-none" />
+
+                            <CardContent className="p-0 relative z-10">
                                 <ProductsPagination
                                     currentPage={page}
                                     totalPages={totalPages}

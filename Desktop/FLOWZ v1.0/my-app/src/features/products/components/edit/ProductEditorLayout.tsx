@@ -37,7 +37,9 @@ export const ProductEditorLayout = ({
 
             {/* Sidebar */}
             <div>
-                {sidebar}
+                <div className="xl:sticky xl:top-24">
+                    {sidebar}
+                </div>
             </div>
         </motion.div>
     );
