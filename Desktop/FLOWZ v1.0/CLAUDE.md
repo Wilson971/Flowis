@@ -346,3 +346,55 @@ Additional documentation is in `docs/`:
 - `docs/05-design-system/FLOWZ_DESIGN_MASTER.md` - Design system reference
 - `docs/06-specs/CDC-BlogEditor-AI-Sync.md` - Article Editor specifications
 - `my-app/src/lib/design-system/CONVENTIONS.md` - **UI/UX/Motion Design Conventions**
+
+## Quality & Reports
+
+All technical reports, audits, and code reviews are centralized in `docs/reports/`:
+
+### 📊 Reports Structure
+
+```
+docs/reports/
+├── audits/          # Code audits (security, performance, quality)
+├── code-reviews/    # Feature/PR reviews
+├── performance/     # Performance optimization reports
+├── security/        # Security audits & pentests
+└── templates/       # Report templates for consistency
+```
+
+### 🔍 Recent Audits
+
+**[2026-02-14 - Flow Édition de Produit](docs/reports/audits/2026-02/2026-02-14-audit-flow-edition-produit.md)**
+- **Périmètre:** ProductEditorContainer + 9 critical hooks
+- **Problèmes:** 47 total (12 🔴 CRITICAL, 18 🟠 IMPORTANT, 17 🟡 MODERATE)
+- **Top Issues:** Race conditions, memory leaks, XSS, type safety
+- **Status:** ⚠️ Critical fixes required before production
+
+### 📝 Creating New Reports
+
+```bash
+# Audit complet avec agents FLOWZ
+cp docs/reports/templates/audit-template.md docs/reports/audits/YYYY-MM/YYYY-MM-DD-nom.md
+claude /flowz-review
+claude /flowz-perf
+claude /flowz-frontend
+
+# Code review rapide
+cp docs/reports/templates/code-review-template.md docs/reports/code-reviews/YYYY-MM-DD-feature.md
+claude /flowz-review --type=quick
+
+# Rapport performance
+cp docs/reports/templates/performance-report-template.md docs/reports/performance/YYYY-MM-DD-component.md
+claude /flowz-perf
+```
+
+### 📈 Quality Metrics
+
+| Metric | Current | Target | Status |
+|--------|---------|--------|--------|
+| Test Coverage | 0% | 80%+ | 🔴 |
+| OWASP Score | 4/10 | 9/10 | 🔴 |
+| Bundle Size | ~250KB | <150KB | 🟡 |
+| Auto-save Latency | 1.2s | <300ms | 🔴 |
+
+**See [docs/reports/README.md](docs/reports/README.md) for full documentation.**

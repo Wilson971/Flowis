@@ -1,0 +1,89 @@
+📊 STRUCTURE DES RAPPORTS FLOWZ
+=====================================
+
+reports/
+│
+├── 📄 README.md ...................... Index principal des rapports
+│
+├── 🔍 audits/
+│   ├── 📄 README.md .................. Guide des audits
+│   ├── 📁 2026-02/
+│   │   └── 📄 2026-02-14-audit-flow-edition-produit.md
+│   └── 📁 [YYYY-MM]/
+│       └── 📄 [rapports futurs]
+│
+├── 👁️ code-reviews/
+│   ├── 📄 README.md .................. Guide des code reviews
+│   └── 📄 [reviews futures]
+│
+├── ⚡ performance/
+│   ├── 📄 README.md .................. Guide performance
+│   └── 📄 [rapports futurs]
+│
+├── 🔒 security/
+│   ├── 📄 README.md .................. Guide sécurité
+│   └── 📄 [rapports futurs]
+│
+└── 📝 templates/
+    ├── 📄 audit-template.md .......... Template audit complet
+    ├── 📄 code-review-template.md .... Template code review
+    └── 📄 performance-report-template.md . Template performance
+
+
+UTILISATION RAPIDE
+==================
+
+🆕 Nouvel Audit
+---------------
+1. cp templates/audit-template.md audits/YYYY-MM/YYYY-MM-DD-nom.md
+2. claude /flowz-review
+3. Compléter le rapport
+4. Mettre à jour audits/README.md
+
+🆕 Code Review
+--------------
+1. cp templates/code-review-template.md code-reviews/YYYY-MM-DD-feature.md
+2. claude /flowz-review --type=quick
+3. Compléter la review
+4. Communiquer à l'auteur
+
+🆕 Rapport Performance
+----------------------
+1. cp templates/performance-report-template.md performance/YYYY-MM-DD-component.md
+2. claude /flowz-perf
+3. Analyser les métriques
+4. Prioriser les optimisations
+
+
+MÉTRIQUES GLOBALES
+==================
+
+Total Rapports: 1
+├── Audits: 1
+├── Code Reviews: 0
+├── Performance: 0
+└── Sécurité: 0
+
+Problèmes Actifs: 47
+├── 🔴 Critiques: 12
+├── 🟠 Importants: 18
+└── 🟡 Modérés: 17
+
+
+NAVIGATION
+==========
+
+📖 Lire le README principal:
+   docs/reports/README.md
+
+🔍 Voir tous les audits:
+   docs/reports/audits/README.md
+
+⚡ Métriques performance:
+   docs/reports/performance/README.md
+
+🔒 Rapports sécurité:
+   docs/reports/security/README.md
+
+📝 Templates disponibles:
+   docs/reports/templates/
