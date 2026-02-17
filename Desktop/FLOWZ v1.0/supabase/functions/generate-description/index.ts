@@ -10,7 +10,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import {
     buildDescriptionPrompt,
     callOpenAI,
@@ -22,7 +22,7 @@ import {
 serve(async (req: Request) => {
     // Handle CORS
     if (req.method === "OPTIONS") {
-        return new Response("ok", { headers: corsHeaders });
+        return new Response("ok", { headers: getCorsHeaders(req) });
     }
 
     try {
@@ -31,7 +31,7 @@ serve(async (req: Request) => {
         if (!authHeader) {
             return new Response(
                 JSON.stringify({ error: "Missing authorization header" }),
-                { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                { status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
             );
         }
 
@@ -47,7 +47,7 @@ serve(async (req: Request) => {
         if (userError || !user) {
             return new Response(
                 JSON.stringify({ error: "Unauthorized" }),
-                { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                { status: 401, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
             );
         }
 
@@ -57,7 +57,7 @@ serve(async (req: Request) => {
         if (!product_id) {
             return new Response(
                 JSON.stringify({ error: "product_id is required" }),
-                { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                { status: 400, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
             );
         }
 
@@ -87,7 +87,7 @@ serve(async (req: Request) => {
             console.error("[generate-description] Product not found:", productError);
             return new Response(
                 JSON.stringify({ error: "Product not found" }),
-                { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                { status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
             );
         }
 
@@ -115,7 +115,7 @@ serve(async (req: Request) => {
         if (!openaiKey) {
             return new Response(
                 JSON.stringify({ error: "OpenAI API key not configured" }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
             );
         }
 
@@ -129,7 +129,7 @@ serve(async (req: Request) => {
             console.error("[generate-description] Generation failed:", result.error);
             return new Response(
                 JSON.stringify({ error: result.error }),
-                { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
             );
         }
 
@@ -163,14 +163,14 @@ serve(async (req: Request) => {
                 tokens_used: result.tokens_used,
                 saved: !updateError,
             }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
         );
 
     } catch (error) {
         console.error("[generate-description] Exception:", error);
         return new Response(
             JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
         );
     }
 });

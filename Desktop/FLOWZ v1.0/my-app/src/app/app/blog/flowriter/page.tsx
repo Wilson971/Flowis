@@ -1,8 +1,21 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { FlowriterAssistant } from '@/components/blog-ai/FlowriterAssistant';
 import { useSelectedStore } from '@/contexts/StoreContext';
+import { Loader2 } from 'lucide-react';
+
+const FlowriterAssistant = dynamic(
+    () => import('@/components/blog-ai/FlowriterAssistant').then(m => m.FlowriterAssistant),
+    {
+        loading: () => (
+            <div className="flex items-center justify-center h-[60vh]">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        ),
+        ssr: false,
+    }
+);
 
 export default function FlowriterPage() {
     const router = useRouter();

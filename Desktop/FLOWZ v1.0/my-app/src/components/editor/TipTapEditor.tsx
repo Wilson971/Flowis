@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -104,6 +104,11 @@ export const TipTapEditor = ({
     className,
     autoFixSpacing = true,
 }: TipTapEditorProps) => {
+    // Guard: suppress onChange during editor initialization to prevent false isDirty.
+    // TipTap may normalize HTML (e.g. "" → "<p></p>", add paragraph wrappers)
+    // which would trigger field.onChange and mark the form dirty immediately.
+    const isInitializingRef = useRef(true);
+
     // Sanitize initial value if requested
     const initialContent = autoFixSpacing ? fixSpacing(value) : value;
 
@@ -127,7 +132,14 @@ export const TipTapEditor = ({
         ],
         content: initialContent,
         editable: !disabled,
+        onCreate: () => {
+            // Allow onChange after editor is fully initialized + first render cycle
+            requestAnimationFrame(() => {
+                isInitializingRef.current = false;
+            });
+        },
         onUpdate: ({ editor }) => {
+            if (isInitializingRef.current) return;
             onChange(editor.getHTML());
         },
         editorProps: {
@@ -142,20 +154,16 @@ export const TipTapEditor = ({
         },
     });
 
-    // Sync content when value changes externally
+    // Sync content when value changes externally (e.g. form reset, undo/redo, draft accept)
     useEffect(() => {
-        if (editor && value && value !== editor.getHTML()) {
-            // Only update if content is significantly different to avoid cursor jumps
-            // If the only difference is the spacing fix we just applied, we might loop.
-            // So we check against the fixed version too.
-            // But 'value' comes from parent (react-hook-form).
+        if (!editor) return;
+        // Skip sync during initialization — editor already has the correct initial content
+        if (isInitializingRef.current) return;
 
-            // If we corrected the spacing, onChange was called, so value should be updated.
-            // So this useEffect handles external resets.
-
-            if (editor.getHTML() !== value) {
-                editor.commands.setContent(value, { emitUpdate: false });
-            }
+        const editorHtml = editor.getHTML();
+        // Compare against both raw value and fixed version to avoid unnecessary updates
+        if (editorHtml !== value) {
+            editor.commands.setContent(value, { emitUpdate: false });
         }
     }, [value, editor]);
 

@@ -74,6 +74,8 @@ export function useProduct(productId: string) {
       return data as Product;
     },
     enabled: !!productId,
+    staleTime: 5 * 60 * 1000, // 5 minutes — avoid re-fetching during edit session
+    refetchOnWindowFocus: false, // Don't refetch on tab switch during editing
   });
 }
 
@@ -288,6 +290,7 @@ export function useBatchJobStatus(batchJobId: string | null, enabled: boolean = 
       return data as BatchJob;
     },
     enabled: enabled && !!batchJobId,
+    staleTime: 1000, // Deduplicate concurrent poll requests
     refetchInterval: (query) => {
       // Stop polling if job is complete
       const data = query.state.data;
@@ -323,6 +326,7 @@ export function useBatchJobItems(batchJobId: string | null, enabled: boolean = t
       return (data || []) as BatchJobItem[];
     },
     enabled: enabled && !!batchJobId,
+    staleTime: 1000, // Deduplicate concurrent poll requests
     refetchInterval: 2000, // Poll every 2 seconds
   });
 }

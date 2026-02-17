@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Sparkles, Layout } from "lucide-react";
+import { Layout } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
 import { motion } from "framer-motion";
 import { ScoreBadge, SeoScoreBar, calculateScore } from "@/components/products/ProductSeoForm";
@@ -14,6 +14,7 @@ import { TipTapEditor } from "@/components/editor/TipTapEditor";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
+import { DraftSuggestionButton } from "@/components/products/ui/DraftSuggestionButton";
 import { getProductCardTheme } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -54,23 +55,10 @@ export const ProductGeneralTab = () => {
     const descriptionPlainText = description.replace(/<[^>]*>/g, '');
     const descriptionScore = calculateScore(descriptionPlainText, 500);
 
-    // Render Action Button for a field (opens modal)
-    const renderFieldActions = (field: string) => {
-        if (!hasDraft(field)) return null;
-
-        return (
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openSuggestionModal(field)}
-                className="gap-1.5 h-7 px-2.5 text-xs font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
-            >
-                <Sparkles className="h-3.5 w-3.5" />
-                Voir la suggestion
-            </Button>
-        );
-    };
+    // Render AI suggestion button for a field
+    const renderFieldActions = (field: string) => (
+        <DraftSuggestionButton field={field} hasDraft={hasDraft(field)} onOpen={openSuggestionModal} />
+    );
 
     return (
         <motion.div

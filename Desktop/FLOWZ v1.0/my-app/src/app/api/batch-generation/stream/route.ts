@@ -71,10 +71,33 @@ function classifyError(error: any): { retryable: boolean; code: string; message:
 }
 
 // ============================================================================
-// IMAGE FETCHING (from Photo Studio pattern)
+// IMAGE FETCHING + SSRF PROTECTION
 // ============================================================================
 
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+const BLOCKED_IP_PATTERNS = [
+    /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./, /^169\.254\./, /^0\./, /^::1$/, /^fc00:/i, /^fe80:/i,
+];
+const BLOCKED_HOSTNAMES = ['localhost', 'metadata.google.internal', 'metadata.google', 'instance-data'];
+
+function validateImageUrl(urlString: string): boolean {
+    try {
+        const parsed = new URL(urlString);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+        const hostname = parsed.hostname.toLowerCase();
+        if (BLOCKED_HOSTNAMES.some(h => hostname === h || hostname.endsWith('.' + h))) return false;
+        if (BLOCKED_IP_PATTERNS.some(p => p.test(hostname))) return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 async function fetchImageAsBase64(imageUrl: string): Promise<{ data: string; mimeType: string } | null> {
+    if (!validateImageUrl(imageUrl)) return null;
+
     try {
         const response = await fetch(imageUrl, {
             headers: { Accept: 'image/*' },
@@ -83,6 +106,8 @@ async function fetchImageAsBase64(imageUrl: string): Promise<{ data: string; mim
         if (!response.ok) return null;
 
         const buffer = await response.arrayBuffer();
+        if (buffer.byteLength > MAX_IMAGE_SIZE) return null;
+
         const data = Buffer.from(buffer).toString('base64');
         const mimeType = response.headers.get('content-type') || 'image/jpeg';
         return { data, mimeType };

@@ -223,6 +223,7 @@ export function transformWooCommerceProduct(
         // Core Identifiers
         id: v.id,
         sku: v.sku || null,
+        global_unique_id: (v as any).global_unique_id || null,
         permalink: v.permalink || null,
 
         // Pricing & Sales
@@ -548,6 +549,9 @@ export function transformWooCommerceProduct(
         // SEO fields at root level for easy access
         seo_title: seoTitle || wooProduct.name,
         seo_description: seoDescription,
-        last_synced_at: new Date().toISOString()
+        last_synced_at: new Date().toISOString(),
+
+        // Reset dirty fields after sync - both buffers are identical
+        dirty_fields_content: []
     };
 }

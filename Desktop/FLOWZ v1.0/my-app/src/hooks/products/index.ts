@@ -17,7 +17,7 @@ export {
     useProductSave,
     useAutoSaveProduct,
     useQuickUpdateProduct,
-    type ProductFormData,
+    type ProductSavePayload,
 } from './useProductSave';
 
 // ============================================================================
@@ -27,6 +27,7 @@ export {
     useProductVariations,
     useUpdateVariation,
     useSyncProductVariations,
+    useDirtyVariationsCount,
     type ProductVariation,
     type AppVariation,
     type VariationAttribute,

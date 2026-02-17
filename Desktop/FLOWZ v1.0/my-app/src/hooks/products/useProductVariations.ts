@@ -29,8 +29,30 @@ export interface ProductVariation {
     image: VariationImage | null;
     weight: string | null;
     dimensions: { length: string; width: string; height: string } | null;
+    description: string | null;
+    virtual: boolean;
+    downloadable: boolean;
     status: string;
-    synced_at: string;
+    // Phase 1: Editable fields
+    global_unique_id: string | null;
+    backorders: string | null;
+    tax_status: string | null;
+    tax_class: string | null;
+    date_on_sale_from: string | null;
+    date_on_sale_to: string | null;
+    // Phase 2: Sync-only fields
+    shipping_class: string | null;
+    download_limit: number | null;
+    download_expiry: number | null;
+    downloads: unknown[] | null;
+    menu_order: number | null;
+    variation_meta_data: unknown[] | null;
+    low_stock_amount: number | null;
+    // System fields
+    is_dirty: boolean;
+    dirty_action: string | null;
+    original_data: Record<string, unknown> | null;
+    synced_at: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -63,6 +85,17 @@ export interface AppVariation {
     image?: VariationImage;
     weight?: string;
     dimensions?: { length: string; width: string; height: string };
+    description?: string;
+    status?: string;
+    virtual?: boolean;
+    downloadable?: boolean;
+    // Phase 1 extended fields
+    global_unique_id?: string;
+    backorders?: string;
+    tax_status?: string;
+    tax_class?: string;
+    date_on_sale_from?: string | null;
+    date_on_sale_to?: string | null;
 }
 
 // ============================================================================
@@ -98,6 +131,16 @@ function dbToAppVariation(dbVar: ProductVariation): AppVariation {
         image: dbVar.image || undefined,
         weight: dbVar.weight || undefined,
         dimensions: dbVar.dimensions || undefined,
+        description: dbVar.description || undefined,
+        status: dbVar.status || undefined,
+        virtual: dbVar.virtual,
+        downloadable: dbVar.downloadable,
+        global_unique_id: dbVar.global_unique_id || undefined,
+        backorders: dbVar.backorders || undefined,
+        tax_status: dbVar.tax_status || undefined,
+        tax_class: dbVar.tax_class || undefined,
+        date_on_sale_from: dbVar.date_on_sale_from,
+        date_on_sale_to: dbVar.date_on_sale_to,
     };
 }
 
@@ -169,6 +212,16 @@ export function useProductVariations({
                 image: variant.image as VariationImage | undefined,
                 weight: variant.weight as string | undefined,
                 dimensions: variant.dimensions as { length: string; width: string; height: string } | undefined,
+                description: variant.description as string | undefined,
+                status: variant.status as string | undefined,
+                virtual: variant.virtual as boolean | undefined,
+                downloadable: variant.downloadable as boolean | undefined,
+                global_unique_id: variant.global_unique_id as string | undefined,
+                backorders: variant.backorders as string | undefined,
+                tax_status: variant.tax_status as string | undefined,
+                tax_class: variant.tax_class as string | undefined,
+                date_on_sale_from: (variant.date_on_sale_from as string | null) ?? null,
+                date_on_sale_to: (variant.date_on_sale_to as string | null) ?? null,
             };
         });
     }
@@ -220,6 +273,32 @@ export function useUpdateVariation() {
         onError: (error: Error) => {
             toast.error('Erreur', { description: error.message });
         },
+    });
+}
+
+/**
+ * Hook pour compter les variations dirty (non synchronisées)
+ * Utilisé par ProductEditorContainer pour alimenter le SyncPill
+ */
+export function useDirtyVariationsCount(productId?: string, storeId?: string) {
+    const supabase = createClient();
+
+    return useQuery({
+        queryKey: ['dirty-variations-count', productId, storeId],
+        queryFn: async () => {
+            if (!productId || !storeId) return 0;
+
+            const { count, error } = await supabase
+                .from('product_variations')
+                .select('*', { count: 'exact', head: true })
+                .eq('product_id', productId)
+                .eq('is_dirty', true);
+
+            if (error) throw error;
+            return count ?? 0;
+        },
+        enabled: !!productId && !!storeId,
+        staleTime: 10_000, // 10 seconds — refresh often enough for sync UX
     });
 }
 

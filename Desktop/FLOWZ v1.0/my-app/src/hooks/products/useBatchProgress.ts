@@ -67,6 +67,7 @@ export function useBatchJobStatus(jobId?: string) {
             return data as BatchJob;
         },
         enabled: !!jobId,
+        staleTime: 1000, // Deduplicate concurrent requests from multiple components
         refetchInterval: (query) => {
             const data = query.state.data as BatchJob | null;
             // Polling tant que le job est en cours
@@ -149,6 +150,7 @@ export function useActiveJobs(storeId?: string) {
             if (error) throw error;
             return (data || []) as BatchJob[];
         },
+        staleTime: 2000, // Deduplicate across multiple components
         refetchInterval: 5000, // Refresh toutes les 5s
     });
 }

@@ -10,12 +10,17 @@ import {
   ChevronDown,
   Sparkles,
   Camera,
+  Layers,
+  Maximize2,
+  LayoutGrid,
+  Palette,
 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
 import { useSidebarPreference } from "../../contexts/SidebarContext";
 import { useSettingsModal } from "@/contexts/SettingsModalContext";
 import { motion } from "framer-motion";
+import { useMemo } from "react";
 import { StoreSelector } from "./StoreSelector";
 
 /**
@@ -26,8 +31,14 @@ import { StoreSelector } from "./StoreSelector";
  */
 
 // Logo component
+const logoTransition = { duration: 0.2 };
+
 const Logo = () => {
   const { open } = useSidebar();
+  const logoAnimate = useMemo(
+    () => ({ display: open ? ("flex" as const) : ("none" as const), opacity: open ? 1 : 0 }),
+    [open]
+  );
 
   return (
     <div className="flex items-center gap-3 py-4 px-4 border-b border-white/5 mb-2">
@@ -35,11 +46,8 @@ const Logo = () => {
         <span className="text-white font-bold text-lg">F</span>
       </div>
       <motion.div
-        animate={{
-          display: open ? "flex" : "none",
-          opacity: open ? 1 : 0,
-        }}
-        transition={{ duration: 0.2 }}
+        animate={logoAnimate}
+        transition={logoTransition}
         className="flex flex-col"
       >
         <span className="text-sm font-semibold leading-none tracking-tight text-white whitespace-pre">
@@ -149,6 +157,32 @@ const navItems = [
     label: "Stores",
     href: "/app/stores",
     icon: Store,
+  },
+  {
+    id: "demo",
+    label: "Demo",
+    href: "/app/design-demo",
+    icon: Layers,
+    children: [
+      {
+        id: "design-system",
+        label: "Design System 2026",
+        href: "/app/design-demo",
+        icon: Palette,
+      },
+      {
+        id: "variation-studio",
+        label: "Variation Studio",
+        href: "/app/design-demo/variation-studio",
+        icon: LayoutGrid,
+      },
+      {
+        id: "proposal-d",
+        label: "D. Fullscreen",
+        href: "/app/design-demo/variation-studio/d",
+        icon: Maximize2,
+      },
+    ]
   },
   {
     id: "settings",

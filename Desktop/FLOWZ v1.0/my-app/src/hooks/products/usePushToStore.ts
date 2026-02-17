@@ -39,9 +39,7 @@ export function usePushToStore() {
     const supabase = createClient();
 
     return useMutation({
-        mutationFn: async ({ product_ids }: { product_ids: string[] }): Promise<PushResponse> => {
-            console.log('[usePushToStore] 🚀 Pushing products to store:', product_ids);
-
+        mutationFn: async ({ product_ids, force = true }: { product_ids: string[]; force?: boolean }): Promise<PushResponse> => {
             const { data: session } = await supabase.auth.getSession();
             if (!session.session?.user) {
                 throw new Error('Utilisateur non authentifié');
@@ -49,27 +47,28 @@ export function usePushToStore() {
 
             // Appeler l'Edge Function push-to-store
             // Format attendu par l'edge function v110: { type, ids, force? }
+            // force=true bypasses the timestamp conflict check (user explicitly requested sync)
             const { data, error } = await supabase.functions.invoke('push-to-store', {
-                body: { type: 'product', ids: product_ids },
+                body: { type: 'product', ids: product_ids, force },
             });
 
             if (error) {
-                console.error('[usePushToStore] Error:', error);
+                console.error('[usePushToStore] Edge function error:', error);
                 throw new Error(`Échec de la synchronisation: ${error.message}`);
             }
 
-            return data || {
-                success: true,
-                total: product_ids.length,
-                pushed: 0,
-                failed: 0,
-                skipped: product_ids.length,
-                results: product_ids.map(id => ({
-                    product_id: id,
-                    status: 'pending' as const,
-                    reason: 'queued_background',
-                })),
-            };
+            // Validate response: if edge function returned an error payload, surface it
+            if (data && data.success === false) {
+                const errMsg = data.error || data.message || 'La synchronisation a échoué côté serveur.';
+                throw new Error(errMsg);
+            }
+
+            // If data is null (e.g. edge function returned nothing), throw instead of faking success
+            if (!data) {
+                throw new Error('Aucune réponse de la fonction de synchronisation.');
+            }
+
+            return data;
         },
         onSuccess: (data) => {
             // L'edge function retourne { success, total, successful, skipped, failed, results }
@@ -100,6 +99,8 @@ export function usePushToStore() {
             queryClient.invalidateQueries({ queryKey: ['product-stats'] });
             queryClient.invalidateQueries({ queryKey: ['sync-history'] });
             queryClient.invalidateQueries({ queryKey: ['product-conflicts'] });
+            queryClient.invalidateQueries({ queryKey: ['dirty-variations-count'] });
+            queryClient.invalidateQueries({ queryKey: ['product-versions'] });
         },
         onError: (error: Error) => {
             console.error('[usePushToStore] onError:', error);

@@ -3,14 +3,14 @@
 import React from "react";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Product } from "@/types/product";
 import {
     ProductFormSchema,
     ProductFormValues,
-    DEFAULT_FORM_VALUES
+    DEFAULT_FORM_VALUES,
+    PRODUCT_TYPE_DEFAULT,
 } from "../schemas/product-schema";
-import { ContentBufferData } from "../context/ProductEditContext";
 
 // ============================================================================
 // TYPES
@@ -18,55 +18,34 @@ import { ContentBufferData } from "../context/ProductEditContext";
 
 interface UseProductFormOptions {
     product?: Product | null;
-    contentBuffer?: ContentBufferData;
     /** Ref set to true during undo/redo operations to prevent form re-sync */
     isRestoringRef?: React.RefObject<boolean>;
 }
 
 // ============================================================================
-// HELPER: Calculate initial form values from product + content buffer
-// Priority: workingContent (user edits) → metadata (sync data) → default
-// Uses ?? (nullish) not || (falsy) to preserve 0, false, "" values
+// HELPERS
+// working_content is the canonical source (populated by WC sync, updated by saves).
+// Fallback to product.* columns only for top-level fields that may not be in wc.
 // ============================================================================
 
-/**
- * Resolve a value from multiple sources with nullish coalescing.
- * Treats undefined and null as "missing", preserves 0, false, "".
- */
-function resolve<T>(primary: T | undefined | null, ...fallbacks: (T | undefined | null)[]): T | null {
-    if (primary !== undefined && primary !== null) return primary;
-    for (const fb of fallbacks) {
-        if (fb !== undefined && fb !== null) return fb;
-    }
-    return null;
-}
-
-/** Same as resolve but with a guaranteed non-null default */
-function resolveWithDefault<T>(primary: T | undefined | null, fallback1: T | undefined | null, defaultVal: T): T {
-    if (primary !== undefined && primary !== null) return primary;
-    if (fallback1 !== undefined && fallback1 !== null) return fallback1;
-    return defaultVal;
-}
-
 /** Map category/tag objects to string names */
-function mapToNames(items: any[] | undefined | null): string[] {
+function mapToNames(items: unknown[] | undefined | null): string[] {
     if (!items || !Array.isArray(items)) return [];
-    return items.map((item: any) => {
+    return items.map((item) => {
         if (typeof item === 'string') return item;
-        if (item?.name) return item.name;
+        if (item && typeof item === 'object' && 'name' in item) return (item as { name: string }).name;
         return String(item);
     }).filter(Boolean);
 }
 
-/** Convert images from any source format to form format */
+/** Convert images from any source to form format */
 function mapToFormImages(
-    wcImages: any[] | undefined | null,
-    metaImages: any[] | undefined | null,
+    images: unknown[] | undefined | null,
     fallbackUrl: string | null | undefined
-): any[] {
-    const source = wcImages?.length ? wcImages : metaImages?.length ? metaImages : null;
-    if (source) {
-        return source.map((img: any, idx: number) => ({
+): { id: string | number; src: string; name: string; alt: string; order: number; isPrimary: boolean }[] {
+    const source = images as any[] | null;
+    if (source?.length) {
+        return source.map((img, idx) => ({
             id: img.id ?? `img-${idx}`,
             src: img.src || '',
             name: img.name || '',
@@ -83,101 +62,94 @@ function mapToFormImages(
 
 function calculateInitialFormValues(
     product: Product | null | undefined,
-    contentBuffer?: ContentBufferData
 ): ProductFormValues {
     if (!product) return DEFAULT_FORM_VALUES;
 
-    const metadata = product.metadata || {};
-    const wc = (contentBuffer?.working_content || product.working_content || {}) as any;
-
-    // Resolve product_type: guard ALL sources against empty strings
-    const resolvedProductType = resolveWithDefault(
-        wc.product_type || null,
-        (metadata.type || null) ?? (metadata.product_type || null) ?? (product.product_type || null),
-        "simple"
-    );
+    // working_content = single source of truth (populated by sync, updated by saves)
+    const wc = (product.working_content || {}) as Record<string, any>;
 
     return {
-        // ===== INFORMATIONS DE BASE =====
-        title: resolveWithDefault(wc.title, product.title, ""),
-        sku: resolve(wc.sku, product.sku, metadata.sku),
-        global_unique_id: resolve(wc.global_unique_id, metadata.global_unique_id),
-        short_description: resolveWithDefault(wc.short_description, metadata.short_description, ""),
-        description: resolveWithDefault(wc.description, metadata.description, ""),
-        permalink: resolve(metadata.permalink),
+        // Basic info — fallback to product.* columns for top-level fields
+        title: wc.title ?? product.title ?? "",
+        sku: wc.sku ?? product.sku ?? "",
+        global_unique_id: wc.global_unique_id ?? "",
+        short_description: wc.short_description ?? "",
+        description: wc.description ?? "",
+        permalink: wc.permalink ?? (product.metadata as any)?.permalink ?? null,
 
-        // ===== TARIFICATION & PROMOTIONS =====
-        regular_price: resolve(wc.regular_price, product.regular_price, metadata.regular_price, product.price),
-        sale_price: resolve(wc.sale_price, product.sale_price, metadata.sale_price),
-        on_sale: wc.on_sale ?? metadata.on_sale ?? false,
-        date_on_sale_from: resolve(wc.date_on_sale_from, metadata.date_on_sale_from),
-        date_on_sale_to: resolve(wc.date_on_sale_to, metadata.date_on_sale_to),
+        // Pricing
+        regular_price: wc.regular_price ?? product.regular_price ?? product.price ?? "",
+        sale_price: wc.sale_price ?? product.sale_price ?? "",
+        on_sale: wc.on_sale ?? false,
+        date_on_sale_from: wc.date_on_sale_from ?? "",
+        date_on_sale_to: wc.date_on_sale_to ?? "",
 
-        // ===== INVENTAIRE =====
-        stock: resolve(wc.stock, product.stock, metadata.stock_quantity),
-        stock_status: resolveWithDefault(wc.stock_status, metadata.stock_status, "instock") as "instock" | "outofstock" | "onbackorder",
-        manage_stock: wc.manage_stock ?? metadata.manage_stock ?? false,
-        backorders: resolveWithDefault(wc.backorders, metadata.backorders, "no") as "no" | "notify" | "yes",
-        low_stock_amount: resolve(wc.low_stock_amount, metadata.low_stock_amount),
+        // Stock
+        stock: wc.stock ?? product.stock ?? "",
+        stock_status: (wc.stock_status ?? "instock") as "instock" | "outofstock" | "onbackorder",
+        manage_stock: wc.manage_stock ?? false,
+        backorders: (wc.backorders ?? "no") as "no" | "notify" | "yes",
+        low_stock_amount: wc.low_stock_amount ?? "",
 
-        // ===== SEO (normalized: wc.seo.title → flat meta_title) =====
-        meta_title: resolveWithDefault(wc.seo?.title, metadata.seo?.title, ""),
-        meta_description: resolveWithDefault(wc.seo?.description, metadata.seo?.description, ""),
-        slug: resolveWithDefault(wc.slug, metadata.slug, ""),
+        // SEO
+        meta_title: wc.seo?.title ?? "",
+        meta_description: wc.seo?.description ?? "",
+        focus_keyword: wc.seo?.focus_keyword ?? "",
+        slug: wc.slug ?? "",
 
-        // ===== ORGANISATION =====
-        product_type: resolvedProductType,
-        brand: resolveWithDefault(wc.vendor, metadata.brand, ""),
-        status: resolveWithDefault(wc.status, metadata.status, "draft"),
-        featured: wc.featured ?? metadata.featured ?? false,
-        categories: mapToNames(wc.categories) .length > 0 ? mapToNames(wc.categories) : mapToNames(metadata.categories),
-        tags: mapToNames(wc.tags).length > 0 ? mapToNames(wc.tags) : mapToNames(metadata.tags),
+        // Organisation — check both "product_type" and "type" keys (WC uses "type")
+        product_type: wc.product_type || wc.type || (product.product_type as string) || PRODUCT_TYPE_DEFAULT,
+        brand: wc.vendor ?? "",
+        status: (wc.status ?? "draft"),
+        featured: wc.featured ?? false,
+        categories: mapToNames(wc.categories),
+        tags: mapToNames(wc.tags),
 
-        // ===== MÉDIAS =====
-        images: mapToFormImages(wc.images, metadata.images, product.image_url),
+        // Media
+        images: mapToFormImages(wc.images, product.image_url),
 
-        // ===== LOGISTIQUE =====
-        weight: resolveWithDefault(wc.weight != null ? String(wc.weight) : undefined, metadata.weight != null ? String(metadata.weight) : undefined, ""),
-        dimensions_length: resolveWithDefault(wc.dimensions?.length, metadata.dimensions?.length, ""),
-        dimensions_width: resolveWithDefault(wc.dimensions?.width, metadata.dimensions?.width, ""),
-        dimensions_height: resolveWithDefault(wc.dimensions?.height, metadata.dimensions?.height, ""),
-        shipping_class: resolveWithDefault(wc.shipping_class, metadata.shipping_class, ""),
+        // Logistics
+        weight: wc.weight != null ? String(wc.weight) : "",
+        dimensions_length: wc.dimensions?.length ?? "",
+        dimensions_width: wc.dimensions?.width ?? "",
+        dimensions_height: wc.dimensions?.height ?? "",
+        shipping_class: wc.shipping_class ?? "",
 
-        // ===== FISCALITÉ =====
-        tax_status: resolveWithDefault(wc.tax_status, metadata.tax_status, "taxable") as "taxable" | "shipping" | "none",
-        tax_class: resolveWithDefault(wc.tax_class, metadata.tax_class, ""),
+        // Tax
+        tax_status: (wc.tax_status ?? "taxable") as "taxable" | "shipping" | "none",
+        tax_class: wc.tax_class ?? "",
 
-        // ===== VISIBILITÉ =====
-        catalog_visibility: resolveWithDefault(wc.catalog_visibility, metadata.catalog_visibility, "visible"),
-        virtual: wc.virtual ?? metadata.virtual ?? false,
-        downloadable: wc.downloadable ?? metadata.downloadable ?? false,
-        purchasable: wc.purchasable ?? metadata.purchasable ?? true,
+        // Visibility
+        catalog_visibility: wc.catalog_visibility ?? "visible",
+        virtual: wc.virtual ?? false,
+        downloadable: wc.downloadable ?? false,
+        purchasable: wc.purchasable ?? true,
 
-        // ===== PRODUITS EXTERNES =====
-        external_url: resolve(wc.external_url, metadata.external_url),
-        button_text: resolve(wc.button_text, metadata.button_text),
+        // External
+        external_url: wc.external_url ?? "",
+        button_text: wc.button_text ?? "",
 
-        // ===== AUTRES OPTIONS =====
-        sold_individually: wc.sold_individually ?? metadata.sold_individually ?? false,
-        purchase_note: resolveWithDefault(wc.purchase_note, metadata.purchase_note, ""),
-        menu_order: wc.menu_order ?? metadata.menu_order ?? 0,
-        reviews_allowed: wc.reviews_allowed ?? metadata.reviews_allowed ?? true,
+        // Options
+        sold_individually: wc.sold_individually ?? false,
+        purchase_note: wc.purchase_note ?? "",
+        menu_order: wc.menu_order ?? 0,
+        reviews_allowed: wc.reviews_allowed ?? true,
 
-        // ===== AVIS (Readonly from sync) =====
-        average_rating: resolve(wc.average_rating, metadata.average_rating),
-        rating_count: resolve(wc.rating_count, metadata.rating_count),
-        total_sales: resolve(wc.total_sales, metadata.total_sales),
+        // Reviews (readonly)
+        average_rating: wc.average_rating ?? null,
+        rating_count: wc.rating_count ?? null,
+        total_sales: wc.total_sales ?? null,
 
-        // ===== PRODUITS LIÉS =====
-        upsell_ids: wc.upsell_ids ?? metadata.upsell_ids ?? [],
-        cross_sell_ids: wc.cross_sell_ids ?? metadata.cross_sell_ids ?? [],
-        related_ids: wc.related_ids ?? metadata.related_ids ?? [],
+        // Linked products
+        upsell_ids: wc.upsell_ids ?? [],
+        cross_sell_ids: wc.cross_sell_ids ?? [],
+        related_ids: wc.related_ids ?? [],
 
-        // ===== ATTRIBUTS (produits variables) =====
-        attributes: (wc.attributes ?? metadata.attributes ?? []).map((attr: any) => ({
+        // Attributes
+        attributes: (wc.attributes ?? []).map((attr: any) => ({
             id: attr.id ?? 0,
             name: attr.name || '',
-            options: Array.isArray(attr.options) ? attr.options : [],
+            options: Array.isArray(attr.options) ? [...new Set(attr.options)] : [],
             visible: attr.visible ?? true,
             variation: attr.variation ?? false,
             position: attr.position ?? 0,
@@ -190,57 +162,83 @@ function calculateInitialFormValues(
 // ============================================================================
 
 export const useProductForm = (options?: UseProductFormOptions): UseFormReturn<ProductFormValues> => {
-    const { product, contentBuffer, isRestoringRef } = options || {};
-    const lastLoadedIdRef = useRef<string | null>(null);
-    const lastSyncedAtRef = useRef<string | null>(null);
-    const hasLoadedBufferRef = useRef<boolean>(false);
+    const { product, isRestoringRef } = options || {};
+
+    // Compute form values from product data.
+    // Returns DEFAULT_FORM_VALUES when product is not yet loaded.
+    const computedValues = useMemo(() => {
+        if (!product) return DEFAULT_FORM_VALUES;
+        return calculateInitialFormValues(product);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [product?.id, product?.last_synced_at]);
 
     const methods = useForm<ProductFormValues>({
         resolver: zodResolver(ProductFormSchema) as any,
         defaultValues: DEFAULT_FORM_VALUES,
-        mode: "onChange",
+        // IMPORTANT: "onTouched" prevents zodResolver from running async validation
+        // on reset(). With "onChange", Zod v4's .optional().default() fields get
+        // corrupted to "" by the resolver's async result overwriting reset values.
+        // "onTouched" only validates after user interaction, preserving reset data.
+        mode: "onTouched",
     });
 
-    // Sync form from loaded product
+    // Sync product data → form via reset().
+    // reset() updates BOTH form values AND defaultValues, so isDirty
+    // correctly reflects only user changes (not loaded data vs empty defaults).
+    // Uses a stable key to detect when product data actually changes:
+    //   - First load: key goes from "|" to "productId|syncedAt"
+    //   - Re-sync from WooCommerce: last_synced_at changes → key changes
+    //   - Normal refetch (no data change): key stays same → no reset
+    const productKey = `${product?.id ?? ""}|${product?.last_synced_at ?? ""}`;
+    const prevKeyRef = useRef<string>("|");
+    const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
         if (!product) return;
-
-        const isNewProduct = lastLoadedIdRef.current !== product.id;
-        // Detect if product data was re-synced (critical for fixing stale data after sync)
-        const isDataUpdated = product.last_synced_at && lastSyncedAtRef.current !== product.last_synced_at;
-        // If contentBuffer just arrived (was not loaded, now is)
-        const isBufferFresh = !!contentBuffer && !hasLoadedBufferRef.current;
-
-        // Skip during undo/redo restore operations
         if (isRestoringRef?.current) return;
+        if (productKey === prevKeyRef.current) return;
 
-        // Skip only if nothing changed (same product, same sync version, buffer already loaded)
-        if (!isNewProduct && !isDataUpdated && !isBufferFresh) return;
+        prevKeyRef.current = productKey;
+        methods.reset(computedValues);
 
-        // Update refs
-        lastLoadedIdRef.current = product.id;
-        lastSyncedAtRef.current = product.last_synced_at || null;
-        hasLoadedBufferRef.current = !!contentBuffer;
+        // FIX: Controlled components (TipTap editors) normalize values after reset
+        // (e.g. "" → "<p></p>", whitespace normalization, HTML wrapping).
+        // This makes formState.isDirty true even though the user hasn't changed anything.
+        // After a short delay for editors to stabilize, re-sync defaultValues with
+        // the current (normalized) values to clear false dirty state.
+        if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
+        stabilizeTimerRef.current = setTimeout(() => {
+            const currentValues = methods.getValues();
+            let wasCorrupted = false;
 
-        const initialValues = calculateInitialFormValues(product, contentBuffer);
+            // FIX: product_type gets asynchronously corrupted to "" after reset().
+            // This happens because zodResolver's async validation overwrites form values.
+            // Restore the correct value from computed source before re-resetting.
+            if (!currentValues.product_type && computedValues.product_type) {
+                currentValues.product_type = computedValues.product_type;
+                wasCorrupted = true;
+            }
 
-        // Set restoring flag during form reset to prevent auto-save watcher
-        // from triggering on form resets caused by product refetch
-        if (isRestoringRef) {
-            isRestoringRef.current = true;
-        }
-        methods.reset(initialValues, {
-            keepDefaultValues: false,
-            keepDirty: false,
-        });
-        if (isRestoringRef) {
-            // Use requestAnimationFrame to clear the flag after React has processed the reset
-            requestAnimationFrame(() => {
-                isRestoringRef.current = false;
-            });
-        }
+            const { isDirty, touchedFields } = methods.formState;
+            const userHasTouched = Object.keys(touchedFields).length > 0;
+            if ((isDirty || wasCorrupted) && !userHasTouched) {
+                // No user interaction — isDirty is from component normalization
+                // or product_type was corrupted. Re-reset to align defaultValues.
+                methods.reset(currentValues);
+            }
+        }, 500);
 
-    }, [product, contentBuffer, methods]);
+        return () => {
+            if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
+        };
+    }, [productKey, computedValues, product, methods, isRestoringRef]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
+        };
+    }, []);
 
     return methods;
 };

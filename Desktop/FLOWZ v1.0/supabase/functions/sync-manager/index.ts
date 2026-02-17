@@ -10,7 +10,7 @@
  */
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 import {
     transformWooCommerceProduct,
     transformWooCommerceCategory,
@@ -441,7 +441,7 @@ async function detectSeoPlugin(
 
 Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
-        return new Response(null, { headers: corsHeaders });
+        return new Response(null, { headers: getCorsHeaders(req) });
     }
 
     const startTime = Date.now();
@@ -464,12 +464,12 @@ Deno.serve(async (req) => {
         const token = authHeader?.replace("Bearer ", "");
 
         if (!token) {
-            return errorResponse(401, "Unauthorized - No token provided");
+            return errorResponse(401, "Unauthorized - No token provided", req);
         }
 
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) {
-            return errorResponse(401, "Unauthorized - Invalid token");
+            return errorResponse(401, "Unauthorized - Invalid token", req);
         }
 
         console.log(`[sync-manager] User authenticated: ${user.id}`);
@@ -499,7 +499,7 @@ Deno.serve(async (req) => {
         }
 
         if (!store_id) {
-            return errorResponse(400, "Missing required field: storeId");
+            return errorResponse(400, "Missing required field: storeId", req);
         }
 
         console.log(`[sync-manager] Starting ${sync_type} sync for store ${store_id}`);
@@ -538,16 +538,16 @@ Deno.serve(async (req) => {
             .single();
 
         if (storeError || !store) {
-            return errorResponse(404, "Store not found or access denied");
+            return errorResponse(404, "Store not found or access denied", req);
         }
 
         if (store.platform !== "woocommerce") {
-            return errorResponse(400, "Only WooCommerce stores are supported");
+            return errorResponse(400, "Only WooCommerce stores are supported", req);
         }
 
         const connection = store.platform_connections;
         if (!connection) {
-            return errorResponse(400, "No platform connection found for store");
+            return errorResponse(400, "No platform connection found for store", req);
         }
 
         const shop_url = connection.shop_url;
@@ -573,7 +573,7 @@ Deno.serve(async (req) => {
         if (!consumer_secret) consumer_secret = connection.api_secret;
 
         if (!shop_url || !consumer_key) {
-            return errorResponse(400, "Missing WooCommerce credentials");
+            return errorResponse(400, "Missing WooCommerce credentials", req);
         }
 
         // Check if we can sync posts (need WordPress credentials)
@@ -1125,7 +1125,7 @@ Deno.serve(async (req) => {
                             // Get the product from DB
                             const { data: existingProduct } = await supabase
                                 .from('products')
-                                .select('id, metadata, working_content')
+                                .select('id, metadata, working_content, store_snapshot_content')
                                 .eq('store_id', store_id)
                                 .eq('platform_product_id', String(wooProductId))
                                 .single();
@@ -1138,20 +1138,50 @@ Deno.serve(async (req) => {
                                     variations_synced_at: new Date().toISOString()
                                 };
 
-                                // Also update working_content with variation data
+                                // Build the normalized variation data
+                                const normalizedVariations = allVariations.map((v: any) => ({
+                                    id: v.id,
+                                    sku: v.sku,
+                                    global_unique_id: v.global_unique_id || null,
+                                    price: v.price,
+                                    regular_price: v.regular_price,
+                                    sale_price: v.sale_price,
+                                    date_on_sale_from: v.date_on_sale_from || null,
+                                    date_on_sale_to: v.date_on_sale_to || null,
+                                    on_sale: v.on_sale ?? false,
+                                    stock_quantity: v.stock_quantity,
+                                    stock_status: v.stock_status,
+                                    manage_stock: v.manage_stock ?? false,
+                                    backorders: v.backorders || 'no',
+                                    low_stock_amount: v.low_stock_amount || null,
+                                    weight: v.weight || null,
+                                    dimensions: v.dimensions || null,
+                                    shipping_class: v.shipping_class || null,
+                                    tax_status: v.tax_status || 'taxable',
+                                    tax_class: v.tax_class || '',
+                                    virtual: v.virtual ?? false,
+                                    downloadable: v.downloadable ?? false,
+                                    downloads: v.downloads || [],
+                                    download_limit: v.download_limit ?? -1,
+                                    download_expiry: v.download_expiry ?? -1,
+                                    description: v.description || null,
+                                    status: v.status || 'publish',
+                                    menu_order: v.menu_order ?? 0,
+                                    attributes: v.attributes,
+                                    image: v.image,
+                                    meta_data: v.meta_data || [],
+                                }));
+
+                                // Update BOTH working_content AND store_snapshot_content
+                                // so that dirty_fields_content doesn't show false positives
                                 const updatedWorkingContent = {
                                     ...(existingProduct.working_content || {}),
-                                    variations: allVariations.map((v: any) => ({
-                                        id: v.id,
-                                        sku: v.sku,
-                                        price: v.price,
-                                        regular_price: v.regular_price,
-                                        sale_price: v.sale_price,
-                                        stock_quantity: v.stock_quantity,
-                                        stock_status: v.stock_status,
-                                        attributes: v.attributes,
-                                        image: v.image
-                                    }))
+                                    variations: normalizedVariations
+                                };
+
+                                const updatedSnapshotContent = {
+                                    ...(existingProduct.store_snapshot_content || {}),
+                                    variations: normalizedVariations
                                 };
 
                                 const { error: updateError } = await supabase
@@ -1159,6 +1189,8 @@ Deno.serve(async (req) => {
                                     .update({
                                         metadata: updatedMetadata,
                                         working_content: updatedWorkingContent,
+                                        store_snapshot_content: updatedSnapshotContent,
+                                        dirty_fields_content: [],
                                         updated_at: new Date().toISOString()
                                     })
                                     .eq('id', existingProduct.id);
@@ -1225,7 +1257,7 @@ Deno.serve(async (req) => {
                         products_synced: productsUpserted,
                         job_id: jobId
                     }),
-                    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                    { status: 200, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
                 );
             }
 
@@ -1511,7 +1543,7 @@ Deno.serve(async (req) => {
 
         return new Response(
             JSON.stringify(result),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 200, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
         );
 
     } catch (error: any) {
@@ -1525,13 +1557,14 @@ Deno.serve(async (req) => {
             }).eq('id', jobId);
         }
 
-        return errorResponse(500, error.message || "Internal server error");
+        return errorResponse(500, error.message || "Internal server error", req);
     }
 });
 
-function errorResponse(status: number, message: string): Response {
+function errorResponse(status: number, message: string, req?: Request): Response {
+    const headers = req ? getCorsHeaders(req) : corsHeaders;
     return new Response(
         JSON.stringify({ success: false, error: message }),
-        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status, headers: { ...headers, "Content-Type": "application/json" } }
     );
 }
