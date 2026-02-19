@@ -1,8 +1,19 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
     try {
+        // ---- Authentication: verify user session ----
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            return NextResponse.json({
+                status: 'error',
+                message: 'Non authentifié. Veuillez vous connecter.'
+            }, { status: 401 });
+        }
+
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
@@ -49,8 +60,7 @@ export async function GET() {
         return NextResponse.json({
             status: 'error',
             message: error.message || 'Unknown error occurred',
-            stack: error.stack,
-            details: error
+            ...(process.env.NODE_ENV === 'development' ? { details: error.message } : {}),
         }, { status: 500 });
     }
 }

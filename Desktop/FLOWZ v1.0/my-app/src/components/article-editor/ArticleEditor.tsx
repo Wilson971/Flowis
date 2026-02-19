@@ -24,6 +24,7 @@ import {
   Cloud,
   CloudOff,
   FileText,
+  Store,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,10 @@ import { NewArticleBanner, type ArticleSource } from './banners/NewArticleBanner
 // Preview
 import { LivePreviewPanel } from './preview/LivePreviewPanel';
 import { useLivePreview, type PreviewContent } from '@/hooks/blog/useLivePreview';
+
+// WooCommerce Publish
+import { SyncStatusBadge } from './SyncStatusBadge';
+import { PublishToWCPanel } from './PublishToWCPanel';
 
 // Context
 import { ArticleEditProvider, useArticleEditContext } from './context';
@@ -213,6 +218,27 @@ function ArticleEditorInner({ className }: { className?: string }) {
   // Banner state for FloWriter-created articles
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
+  // WooCommerce publish panel state
+  const [wcPanelOpen, setWcPanelOpen] = useState(false);
+
+  // Derive WC sync status from articleSync
+  const wcSyncStatus = useMemo(() => {
+    if (!articleSync) return 'not_synced' as const;
+    const status = articleSync.syncStatus;
+    if (status === 'synced') return 'synced' as const;
+    if (status === 'syncing' || status === 'pending') return 'pending' as const;
+    if (status === 'failed') return 'failed' as const;
+    return 'not_synced' as const;
+  }, [articleSync]);
+
+  // Check if WC store is connected via articleSync
+  const hasWCConnection = useMemo(() => {
+    if (!articleSync?.connectedPlatforms) return false;
+    return articleSync.connectedPlatforms.some(
+      (p: { platform: string }) => p.platform === 'woocommerce' || p.platform === 'wordpress'
+    );
+  }, [articleSync]);
+
   // Live Preview state
   const livePreview = useLivePreview({
     initialOpen: false,
@@ -350,6 +376,14 @@ function ArticleEditorInner({ className }: { className?: string }) {
                 </h1>
                 <div className="flex items-center gap-2 mt-0.5">
                   <AutoSaveStatus status={autoSaveStatus} lastSavedAt={lastSavedAt} />
+                  {!isNew && hasWCConnection && (
+                    <SyncStatusBadge
+                      status={wcSyncStatus}
+                      onRetry={wcSyncStatus === 'failed' && articleSync
+                        ? () => articleSync.retrySync?.('woocommerce')
+                        : undefined}
+                    />
+                  )}
                   {isDirty && (
                     <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-600 border-amber-200">
                       Non sauvegardé
@@ -375,6 +409,18 @@ function ArticleEditorInner({ className }: { className?: string }) {
                 <Eye className="h-4 w-4 mr-2" />
                 Apercu
               </Button>
+
+              {/* WC Publish Button (only when store connected & article saved) */}
+              {hasWCConnection && !isNew && (
+                <Button
+                  variant="outline"
+                  onClick={() => setWcPanelOpen(true)}
+                  className="h-10 px-4 font-bold text-xs uppercase tracking-widest border-border/50 hover:bg-muted/50"
+                >
+                  <Store className="h-4 w-4 mr-2" />
+                  WooCommerce
+                </Button>
+              )}
 
               <Button
                 variant="outline"
@@ -507,6 +553,21 @@ function ArticleEditorInner({ className }: { className?: string }) {
         device={livePreview.device}
         onDeviceChange={livePreview.setDevice}
       />
+
+      {/* WooCommerce Publish Panel */}
+      {articleId && (
+        <PublishToWCPanel
+          open={wcPanelOpen}
+          onOpenChange={setWcPanelOpen}
+          articleId={articleId}
+          title={form.watch('title') || ''}
+          excerpt={form.watch('excerpt') || ''}
+          content={form.watch('content') || ''}
+          featuredImageUrl={form.watch('featured_image_url') || undefined}
+          category={form.watch('category') || undefined}
+          tags={form.watch('tags') || []}
+        />
+      )}
     </motion.div>
   );
 }
@@ -553,6 +614,7 @@ export function ArticleEditor({ articleId, className }: ArticleEditorProps) {
       connectedPlatforms: syncHook.connectedPlatforms,
       publishNow: syncHook.publishNow,
       schedulePublish: syncHook.schedulePublish,
+      retrySync: syncHook.retrySync,
       isPublishing: syncHook.isPublishing,
       isScheduling: syncHook.isScheduling,
     },

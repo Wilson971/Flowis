@@ -53,9 +53,10 @@ interface UseArticleEditProviderOptions {
     isPublished: boolean;
     isScheduled: boolean;
     scheduledAt: string | null;
-    connectedPlatforms?: Array<{ platform: string; connected: boolean }>;
+    connectedPlatforms?: Array<{ platform: string; connected?: boolean }>;
     publishNow: (platforms: string[]) => Promise<boolean>;
     schedulePublish: (options: any) => Promise<boolean>;
+    retrySync?: (platform: string) => Promise<boolean | void>;
     isPublishing: boolean;
     isScheduling: boolean;
   };
@@ -400,8 +401,10 @@ export function useArticleEditProvider(
             isPublished: syncHook.isPublished,
             isScheduled: syncHook.isScheduled,
             scheduledAt: syncHook.scheduledAt,
+            connectedPlatforms: syncHook.connectedPlatforms,
             publishNow: syncHook.publishNow,
             schedulePublish: syncHook.schedulePublish,
+            retrySync: syncHook.retrySync,
             isPublishing: syncHook.isPublishing,
             isScheduling: syncHook.isScheduling,
           }

@@ -51,14 +51,31 @@ interface UpdateArticleParams {
   updates: Partial<BlogFormData>;
 }
 
+// Valid blog_articles DB columns (excludes id, created_at which are immutable)
+const BLOG_ARTICLE_COLUMNS = new Set([
+  'title', 'slug', 'content', 'excerpt', 'status', 'author', 'category',
+  'tags', 'seo_score', 'featured_image_url', 'metadata', 'published_at',
+  'updated_at', 'editorial_lock', 'external_updated_at', 'archived',
+  'blog_id', 'wordpress_post_id', 'date_gmt', 'modified_gmt',
+  'comment_status', 'ping_status', 'format', 'sticky', 'parent_id',
+  'menu_order', 'seo_title', 'seo_description', 'seo_keywords',
+  'seo_canonical_url', 'seo_og_image', 'seo_schema_type', 'post_type',
+  'blog_external_id', 'link',
+]);
+
 export function useUpdateBlogArticle() {
   const queryClient = useQueryClient();
   const supabase = createClient();
 
   return useMutation({
     mutationFn: async ({ id, updates }: UpdateArticleParams) => {
-      // Generate slug if title changed
-      const updateData: Record<string, unknown> = { ...updates };
+      // Filter to valid DB columns only (form may have extra UI-only fields)
+      const updateData: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(updates)) {
+        if (BLOG_ARTICLE_COLUMNS.has(key)) {
+          updateData[key] = value;
+        }
+      }
 
       if (updates.title && !updates.slug) {
         updateData.slug = updates.title
@@ -109,14 +126,15 @@ export function useUpdateBlogArticle() {
 
       return { previousArticle };
     },
-    onError: (error, { id }, context) => {
+    onError: (error: unknown, { id }, context) => {
       // Rollback on error
       if (context?.previousArticle) {
         queryClient.setQueryData(blogArticlesKeys.detail(id), context.previousArticle);
       }
-      toast.error('Erreur de sauvegarde', {
-        description: error.message || 'Impossible de sauvegarder l\'article.',
-      });
+      const message = error instanceof Error
+        ? error.message
+        : (error as { message?: string })?.message || 'Impossible de sauvegarder l\'article.';
+      toast.error('Erreur de sauvegarde', { description: message });
     },
     onSuccess: (data) => {
       // Update cache with server response

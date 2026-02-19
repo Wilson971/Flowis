@@ -371,18 +371,24 @@ function validateRequest(body: unknown): PushRequest | null {
 // ============================================================================
 
 /**
- * Extract user ID from JWT token
- * @param authHeader - Authorization header
- * @returns User ID or null
+ * Verify user identity via Supabase Auth (server-side JWT validation)
+ * @param supabaseUrl - Supabase project URL
+ * @param anonKey - Supabase anon key
+ * @param authHeader - Authorization header from request
+ * @returns Verified user ID or null
  */
-function extractUserIdFromJwt(authHeader: string): string | null {
+async function verifyUserId(
+    supabaseUrl: string,
+    anonKey: string,
+    authHeader: string
+): Promise<string | null> {
     try {
-        const token = authHeader.replace('Bearer ', '');
-        const parts = token.split('.');
-        if (parts.length !== 3) return null;
-
-        const payload = JSON.parse(atob(parts[1]));
-        return typeof payload.sub === 'string' ? payload.sub : null;
+        const authClient = createClient(supabaseUrl, anonKey, {
+            global: { headers: { Authorization: authHeader } },
+        });
+        const { data: { user }, error } = await authClient.auth.getUser();
+        if (error || !user) return null;
+        return user.id;
     } catch {
         return null;
     }
@@ -813,6 +819,21 @@ function buildVariationPayload(v: Record<string, unknown>): Record<string, unkno
     if (v.status) payload.status = String(v.status);
     if (v.description) payload.description = String(v.description);
 
+    // Phase 1: Extended editable fields
+    if (v.global_unique_id) payload.global_unique_id = String(v.global_unique_id);
+    if (v.backorders) payload.backorders = String(v.backorders);
+    if (v.tax_status) payload.tax_status = String(v.tax_status);
+    if (v.tax_class != null) payload.tax_class = String(v.tax_class);
+    if (v.date_on_sale_from) payload.date_on_sale_from = String(v.date_on_sale_from);
+    if (v.date_on_sale_to) payload.date_on_sale_to = String(v.date_on_sale_to);
+
+    // Phase 2: Sync-only fields (round-trip preservation)
+    if (v.shipping_class) payload.shipping_class = String(v.shipping_class);
+    if (v.download_limit != null && v.download_limit !== -1) payload.download_limit = Number(v.download_limit);
+    if (v.download_expiry != null && v.download_expiry !== -1) payload.download_expiry = Number(v.download_expiry);
+    if (Array.isArray(v.downloads) && v.downloads.length > 0) payload.downloads = v.downloads;
+    if (v.menu_order != null) payload.menu_order = Number(v.menu_order);
+
     // Dimensions
     if (v.dimensions && typeof v.dimensions === 'object') {
         const dims = v.dimensions as Record<string, string>;
@@ -1054,13 +1075,22 @@ function checkTimestampConflict(
     if (!remoteModifiedAt) return { shouldPush: true };
 
     const localDate = new Date(localUpdatedAt);
+    // WooCommerce returns date_modified without timezone offset (e.g. "2026-02-15T12:32:34").
+    // This is the server's LOCAL time, not UTC. Appending "Z" would be wrong.
+    // Since we can't know the remote server's timezone, add a generous tolerance
+    // to avoid false "remote is newer" rejections caused by timezone mismatch.
     const remoteDate = new Date(remoteModifiedAt);
 
     if (isNaN(localDate.getTime()) || isNaN(remoteDate.getTime())) {
         return { shouldPush: true }; // Can't compare invalid dates, allow push
     }
 
-    if (localDate > remoteDate) return { shouldPush: true };
+    // Add 2-hour tolerance to account for timezone differences between
+    // WooCommerce server time and our UTC timestamps
+    const TIMEZONE_TOLERANCE_MS = 2 * 60 * 60 * 1000; // 2 hours
+    if (localDate.getTime() + TIMEZONE_TOLERANCE_MS > remoteDate.getTime()) {
+        return { shouldPush: true };
+    }
 
     return {
         shouldPush: false,
@@ -1292,7 +1322,9 @@ async function handleProductPush(
                         metadata: {
                             ...metadata,
                             last_pushed_at: now,
-                            date_modified: (pushResult.response as Record<string, unknown>)?.date_modified || now,
+                            // Store date_modified as proper UTC ISO string to avoid timezone
+                            // comparison issues (WooCommerce returns local time without offset)
+                            date_modified: now,
                         },
                     })
                     .eq('id', product.id)
@@ -1555,9 +1587,22 @@ serve(async (req: Request) => {
     }
 
     try {
-        // Extract and validate user from JWT
+        // Validate environment variables early
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+        if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
+            console.error('[push-to-store] Missing environment variables');
+            return new Response(
+                JSON.stringify({ error: ERROR_MESSAGES.INTERNAL_ERROR }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+        }
+
+        // Verify user identity via Supabase Auth (server-side JWT validation)
         const authHeader = req.headers.get('Authorization') || '';
-        const userId = extractUserIdFromJwt(authHeader);
+        const userId = await verifyUserId(supabaseUrl, supabaseAnonKey, authHeader);
 
         if (!userId) {
             return new Response(
@@ -1597,18 +1642,7 @@ serve(async (req: Request) => {
 
         console.log(`[push-to-store] User ${userId}: ${type} push for ${ids.length} items (force: ${force})`);
 
-        // Create Supabase client with SERVICE_ROLE_KEY
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-        if (!supabaseUrl || !supabaseServiceKey) {
-            console.error('[push-to-store] Missing environment variables');
-            return new Response(
-                JSON.stringify({ error: ERROR_MESSAGES.INTERNAL_ERROR }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-        }
-
+        // Create Supabase client with SERVICE_ROLE_KEY for DB operations
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
         // Process request

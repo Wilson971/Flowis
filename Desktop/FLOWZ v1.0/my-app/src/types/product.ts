@@ -22,26 +22,26 @@ export interface ProductCategory {
 // WOOCOMMERCE JSONB STRUCTURE (from WOOCOMMERCE_SYNC_DATA_STRUCTURE.md)
 // ============================================================================
 
-export interface WooVariantImage {
+interface WooVariantImage {
   id: number;
   src: string;
   name?: string;
   alt?: string;
 }
 
-export interface WooDimensions {
+interface WooDimensions {
   length?: string;
   width?: string;
   height?: string;
 }
 
-export interface WooVariantAttribute {
+interface WooVariantAttribute {
   id: number;
   name: string;
   option: string;
 }
 
-export interface WooVariantMetaData {
+interface WooVariantMetaData {
   id?: number;
   key: string;
   value: any;
@@ -104,7 +104,7 @@ export interface WooVariant {
   meta_data?: WooVariantMetaData[];
 }
 
-export interface WooProductImage {
+interface WooProductImage {
   id: number;
   src: string;
   name?: string;
@@ -113,7 +113,7 @@ export interface WooProductImage {
   date_modified?: string;
 }
 
-export interface WooProductAttribute {
+interface WooProductAttribute {
   id: number;
   name: string;
   options: string[];
@@ -122,7 +122,7 @@ export interface WooProductAttribute {
   position?: number;
 }
 
-export interface WooProductMetaData {
+interface WooProductMetaData {
   id?: number;
   key: string;
   value: any;
@@ -249,25 +249,9 @@ export interface ProductSerpAnalysis {
   competition?: string;
 }
 
-export interface ContentData {
-  title?: string;
-  short_description?: string;
-  description?: string;
-  seo_title?: string;
-  meta_description?: string;
-  alt_text?: string[];
-  [key: string]: any;
-}
-
-export interface CommercialStats {
-  total_sales?: number;
-  revenue?: number;
-  average_order_value?: number;
-}
-
-export interface WorkingContent extends ContentData {
-  commercial_stats?: CommercialStats;
-}
+// ContentData is defined in types/productContent.ts (single source of truth)
+import type { ContentData } from './productContent';
+export type { ContentData };
 
 export interface Product {
   id: string;
@@ -288,7 +272,7 @@ export interface Product {
 
   // AI Generated Content
   draft_generated_content?: ContentData | null;
-  working_content?: WorkingContent;
+  working_content?: ContentData;
 
   // Content Management
   dirty_fields_content?: string[];

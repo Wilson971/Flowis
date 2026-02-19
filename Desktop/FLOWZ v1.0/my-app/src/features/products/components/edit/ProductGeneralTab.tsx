@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Sparkles, Layout } from "lucide-react";
+import { Layout } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
 import { motion } from "framer-motion";
 import { ScoreBadge, SeoScoreBar, calculateScore } from "@/components/products/ProductSeoForm";
@@ -14,6 +14,7 @@ import { TipTapEditor } from "@/components/editor/TipTapEditor";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
+import { DraftSuggestionButton } from "@/components/products/ui/DraftSuggestionButton";
 import { getProductCardTheme } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -48,29 +49,19 @@ export const ProductGeneralTab = () => {
     const shortDesc = useWatch({ control, name: "short_description" }) || "";
     const description = useWatch({ control, name: "description" }) || "";
 
+    // Strip HTML tags for accurate character counts (raw HTML like <strong>, <p> etc. should not be counted)
+    const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').trim();
+
     const titleScore = calculateScore(title, 60);
-    const shortDescScore = calculateScore(shortDesc, 160);
-    // Remove HTML tags for character count
-    const descriptionPlainText = description.replace(/<[^>]*>/g, '');
+    const shortDescPlainText = stripHtml(shortDesc);
+    const shortDescScore = calculateScore(shortDescPlainText, 160);
+    const descriptionPlainText = stripHtml(description);
     const descriptionScore = calculateScore(descriptionPlainText, 500);
 
-    // Render Action Button for a field (opens modal)
-    const renderFieldActions = (field: string) => {
-        if (!hasDraft(field)) return null;
-
-        return (
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openSuggestionModal(field)}
-                className="gap-1.5 h-7 px-2.5 text-xs font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
-            >
-                <Sparkles className="h-3.5 w-3.5" />
-                Voir la suggestion
-            </Button>
-        );
-    };
+    // Render AI suggestion button for a field
+    const renderFieldActions = (field: string) => (
+        <DraftSuggestionButton field={field} hasDraft={hasDraft(field)} onOpen={openSuggestionModal} />
+    );
 
     return (
         <motion.div
@@ -145,7 +136,7 @@ export const ProductGeneralTab = () => {
                             <div className="flex items-center gap-3">
                                 {renderFieldActions("short_description")}
                                 <div className="flex flex-col items-end gap-1">
-                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{shortDesc.length} chars</span>
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">{shortDescPlainText.length} chars</span>
                                     <ScoreBadge score={shortDescScore} />
                                 </div>
                             </div>

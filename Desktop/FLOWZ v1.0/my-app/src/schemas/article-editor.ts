@@ -335,6 +335,22 @@ export const createArticleSchema = articleFormSchema.omit({
 export const updateArticleSchema = articleFormSchema.partial();
 
 // ============================================================================
+// WOOCOMMERCE PUBLISH OPTIONS
+// ============================================================================
+
+/**
+ * Options de publication vers WooCommerce
+ */
+export const wcPublishOptionsSchema = z.object({
+  status: z.enum(['draft', 'publish', 'pending']).default('draft'),
+  categoryIds: z.array(z.number()).default([]),
+  tagIds: z.array(z.number()).default([]),
+  featuredImageUrl: z.string().url().optional().nullable(),
+});
+
+export type WCPublishOptionsForm = z.infer<typeof wcPublishOptionsSchema>;
+
+// ============================================================================
 // SYNC LOG
 // ============================================================================
 

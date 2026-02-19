@@ -1,6 +1,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { type NextRequest } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 // ============================================================================
 // FLOWRITER v2.0 - Node.js Runtime for Extended Timeout Support
@@ -469,6 +470,33 @@ async function generateWithRetry(
 }
 
 export async function POST(req: NextRequest) {
+    // ---- Authentication: verify user session ----
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        return new Response(JSON.stringify({
+            error: 'Non authentifié. Veuillez vous connecter.',
+            code: 'UNAUTHORIZED'
+        }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    // ---- Rate limiting: check token usage ----
+    const tokenCheck = await checkTokenLimit(user.id);
+    if (!tokenCheck.allowed) {
+        return new Response(JSON.stringify({
+            error: ERROR_CODES.QUOTA_EXCEEDED.message,
+            code: ERROR_CODES.QUOTA_EXCEEDED.code,
+            remaining: tokenCheck.remaining,
+            resetAt: tokenCheck.resetAt.toISOString(),
+        }), {
+            status: 429,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         return new Response(JSON.stringify({

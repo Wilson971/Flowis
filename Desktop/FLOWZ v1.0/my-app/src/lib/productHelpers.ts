@@ -1,39 +1,11 @@
 /**
  * Helpers pour le système triple-buffer de contenu produit
- * Ported from legacy project
- * 
- * Améliorations robustesse:
- * - Nettoyage automatique des champs orphelins (slug, vendor, categories, tags)
+ *
+ * - Comparaison de champs entre working_content et snapshot_content
  * - Détection des propositions fictives (déjà appliquées dans working_content)
- * - Fonction cleanDraftContent pour retirer les champs non gérés
  */
 
 import { ContentData, ContentStatus } from "../types/productContent";
-
-/**
- * Liste des champs gérés par le workflow d'approbation IA
- * Ces champs peuvent être acceptés/rejetés dans l'interface
- */
-export const MANAGED_DRAFT_FIELDS = [
-  'title',
-  'description',
-  'short_description',
-  'sku',
-  'seo',  // Contient seo.title et seo.description
-  'images' // Pour les alt texts générés
-] as const;
-
-/**
- * Liste des champs NON gérés (orphelins) qui doivent être nettoyés
- */
-export const ORPHAN_DRAFT_FIELDS = [
-  'slug',
-  'vendor',
-  'product_type',
-  'image_url',
-  'tags',
-  'categories'
-] as const;
 
 /**
  * Normalise une valeur pour la comparaison (gère null, undefined, chaînes vides)
@@ -147,52 +119,6 @@ export function computeDirtyFieldsContent(
 }
 
 /**
- * Nettoie un draft en retirant les champs orphelins (non gérés par l'UI)
- * Retourne null si le draft est vide après nettoyage
- * 
- * Amélioration robustesse v2
- */
-export function cleanDraftContent(draft: ContentData | null | undefined): ContentData | null {
-  if (!draft) return null;
-
-  // Créer une copie sans les champs orphelins
-  const cleaned: Partial<ContentData> = {};
-
-  // Copier uniquement les champs gérés
-  if (draft.title !== undefined) cleaned.title = draft.title;
-  if (draft.description !== undefined) cleaned.description = draft.description;
-  if (draft.short_description !== undefined) cleaned.short_description = draft.short_description;
-  if (draft.sku !== undefined) cleaned.sku = draft.sku;
-
-  // SEO - nettoyer aussi les sous-champs non gérés
-  if (draft.seo) {
-    const seo = draft.seo as any;
-    const cleanedSeo: any = {};
-    if (seo.title) cleanedSeo.title = seo.title;
-    if (seo.description) cleanedSeo.description = seo.description;
-
-    if (Object.keys(cleanedSeo).length > 0) {
-      cleaned.seo = cleanedSeo;
-    }
-  }
-
-  // Images - garder seulement si elles ont des alt texts
-  if (draft.images && Array.isArray(draft.images)) {
-    const imagesWithAlt = draft.images.filter((img: any) => img.alt && img.alt.trim() !== '');
-    if (imagesWithAlt.length > 0) {
-      cleaned.images = imagesWithAlt;
-    }
-  }
-
-  // Si le draft nettoyé est vide, retourner null
-  if (Object.keys(cleaned).length === 0) {
-    return null;
-  }
-
-  return cleaned as ContentData;
-}
-
-/**
  * Vérifie si un draft contient encore des champs valides GÉRÉS par l'UI
  * Amélioration robustesse v2: ignore les champs orphelins
  */
@@ -285,11 +211,20 @@ export const FIELD_LABELS: Record<string, string> = {
   product_type: 'Type de produit',
   tags: 'Tags',
   image_url: 'Image principale',
-  images: 'Alt text images',
+  images: 'Images',
   seo: 'SEO',
   'seo.title': 'Titre SEO',
   'seo.description': 'Méta-description',
-  categories: 'Catégories'
+  meta_title: 'Titre SEO',
+  meta_description: 'Méta-description',
+  categories: 'Catégories',
+  regular_price: 'Prix',
+  sale_price: 'Prix promo',
+  stock: 'Stock',
+  status: 'Statut',
+  variations: 'Variations',
+  weight: 'Poids',
+  dimensions: 'Dimensions',
 };
 
 /**

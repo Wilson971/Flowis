@@ -154,7 +154,7 @@ import { styles, motionTokens, typographyTokens } from '@/lib/design-system'
 2. **NO arbitrary text sizes** - Use `styles.text.*` or `typographyTokens.scale.*`
 3. **NO local Framer Motion variants** - Use `motionTokens.variants.*`
 4. **NO hardcoded durations** - Use `motionTokens.transitions.*`
-5. **NO import from `@/lib/motion`** - Legacy file, use `@/lib/design-system`
+5. **NO `@/lib/motion`** - File deleted, use `@/lib/design-system`
 6. **NO `p-5`** - Use `p-4` (compact) or `p-6` (standard)
 7. **NO `rounded-md`** - Use `rounded-lg` (buttons/inputs) or `rounded-xl` (cards)
 8. **ALWAYS use `cn()`** for combining classes
@@ -234,6 +234,46 @@ router.push(`/app/blog/editor/${articleId}`)
 - Use conditional toolbars instead of floating menus
 - Import extensions from their packages
 
+#### TipTap + React Hook Form Sync (Known Pitfall)
+
+The `TipTapEditor` component (`components/editor/TipTapEditor.tsx`) syncs external `value` changes via a `useEffect`. **Do NOT add an `isInitializingRef` guard** in the sync effect — when product data is cached by TanStack Query, it arrives in the same render cycle as editor creation, and the RAF-based init flag hasn't cleared yet, permanently skipping the sync.
+
+```typescript
+// CORRECT — emitUpdate:false is sufficient to prevent false dirty state
+useEffect(() => {
+    if (!editor) return;
+    if (editor.getHTML() !== value) {
+        editor.commands.setContent(value, { emitUpdate: false });
+    }
+}, [value, editor]);
+```
+
+The `isInitializingRef` guard is still required in `onUpdate` (to suppress onChange during HTML normalization on mount).
+
+#### HTML Content Char Counting
+
+Product descriptions contain HTML (`<strong>`, `<p>`, etc.). **Always strip HTML** before counting characters or calculating SEO scores:
+
+```typescript
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').trim();
+const plainText = stripHtml(rawHtml);
+const score = calculateScore(plainText, idealLength);
+```
+
+Some `working_content.short_description` values contain orphan tags (e.g. `"</p>\n"`) from WooCommerce sync — stripping + trim handles this correctly (→ 0 chars).
+
+### Product Form Data Resolution
+
+`useProductForm.ts` resolves field values with a fallback chain. **All text fields must fallback to `metadata`** (raw WooCommerce JSONB) when `working_content` is null/empty:
+
+```typescript
+// Pattern: working_content → metadata → default
+title:             wc.title             ?? product.title                    ?? ""
+short_description: wc.short_description ?? metadata.short_description      ?? ""
+description:       wc.description       ?? metadata.description            ?? ""
+permalink:         wc.permalink          ?? metadata.permalink              ?? null
+```
+
 ## Environment Variables
 
 Required in `.env.local` (within `my-app/`):
@@ -275,15 +315,22 @@ To apply migrations: `supabase db push`
 ## Hooks Organization
 
 Hooks are organized by domain in `my-app/src/hooks/`:
-- `blog/` - useBlogArticle, useFlowriterState, useAIEditorActions, useArticleSync
-- `products/` - useProduct, useProductContent, useBatchGeneration, useSeoAnalysis
-- `stores/` - useStores, useStoreHeartbeat, useStoreSyncSettings
-- `sync/` - useSyncManager, useSyncProgress, useUnifiedSync
-- `analytics/` - useDashboardStats, useRecentActivity
+- `products/` - useProducts, useProduct, useProductContent, useProductSave, useProductVariations, useBatchGeneration, useSeoAnalysis, usePushToStore, useTableFilters, useSerpAnalysis, useProductSerpStatus, useProductSeoStatus, useSeoGlobalScore
+- `stores/` - useStores, useStoreHeartbeat, useStoreSyncSettings, useStoreKPIs
+- `sync/` - useUnifiedSync, useSyncStore, useSyncJob, useSyncProgress, useCancelSync
+- `dashboard/` - useDashboardKPIs
+- `blog/` - useBlogPost, useBlogGeneration
+- `analytics/` - useSeoStats, useRecentActivity
+- `auth/` - useRequireAuth
+
+Root-level utility hooks (generic, reusable everywhere):
+- `useDebounce`, `useLocalStorage`, `useCounterAnimation`, `useMinLoadTime`
 
 Feature-scoped hooks in `my-app/src/features/`:
 - `photo-studio/hooks/` - useStudioJobs (per-product polling), useBatchStudioJobs (batch creation + progress)
-- `products/hooks/` - useProductEditor, useProductForm
+- `products/hooks/` - useProductForm, useProductActions, useSeoAnalysis, useVariationManager
+
+**Note:** Legacy TanStack Router (`src/routes/`) has been deleted. The app uses Next.js App Router exclusively.
 
 ## Article Editor Workflow
 
@@ -341,7 +388,25 @@ TRANSITIONS:
 
 ## Documentation
 
-Additional documentation is in `docs/`:
+```
+docs/
+├── 01-product/          # Vision produit, comparaisons
+├── 02-architecture/     # Architecture, ADRs, diagrammes
+├── 03-development/      # Guides dev, agents, redirections
+├── 04-integrations/     # WooCommerce/WordPress API reference
+├── 05-design-system/    # Design master, patterns, cheat sheet
+│   └── ux-improvements/ # Historique des améliorations UX
+├── 06-specs/            # Spécifications détaillées (CDC, dashboard)
+├── reports/             # Audits, code reviews, performance
+│   ├── audits/
+│   ├── code-reviews/
+│   ├── performance/
+│   └── templates/
+└── archive/sessions/    # Artefacts de sessions de dev archivés
+```
+
+Key docs:
+- `docs/02-architecture/README.md` - Architecture overview + ADRs
 - `docs/03-development/GETTING_STARTED.md` - Setup guide
 - `docs/05-design-system/FLOWZ_DESIGN_MASTER.md` - Design system reference
 - `docs/06-specs/CDC-BlogEditor-AI-Sync.md` - Article Editor specifications

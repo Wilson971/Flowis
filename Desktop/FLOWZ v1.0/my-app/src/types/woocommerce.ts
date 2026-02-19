@@ -1,35 +1,35 @@
-export interface WooCommerceImage {
+interface WooCommerceImage {
     id: number;
     src: string;
     name: string;
     alt: string;
 }
 
-export interface WooCommerceDimensions {
+interface WooCommerceDimensions {
     length: string;
     width: string;
     height: string;
 }
 
-export interface WooCommerceAttribute {
+interface WooCommerceAttribute {
     id: number;
     name: string;
     option: string;
 }
 
-export interface WooCommerceSEOMetadata {
+interface WooCommerceSEOMetadata {
     title: string | null;
     description: string | null;
     focuskw?: string | null;
     score?: number | string | null;
 }
 
-export interface DeepDataSEO {
+interface DeepDataSEO {
     yoast: WooCommerceSEOMetadata | null;
     rankmath: WooCommerceSEOMetadata | null;
 }
 
-export interface DeepDataCommercial {
+interface DeepDataCommercial {
     total_sales: number;
     revenue: number;
     net_revenue: number;
@@ -99,7 +99,7 @@ export interface WooVariation {
     date_modified_gmt: string;
 }
 
-export type DeepDataVariation = WooVariation;
+type DeepDataVariation = WooVariation;
 
 /**
  * The complete shape of a Product object received from EcoCombo Connector.

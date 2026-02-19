@@ -14,7 +14,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // ============================================================================
 // CONFIGURATION
@@ -57,6 +57,7 @@ interface StoreConnection {
 interface SyncResult {
   success: boolean;
   error?: string;
+  retryable?: boolean; // false = permanent failure (e.g. duplicate SKU), skip retries
   updatedProduct?: Record<string, unknown>;
 }
 
@@ -138,8 +139,17 @@ function createWooCommerceAdapter(
         if (!response.ok) {
           const errorText = await response.text();
           const retryable = response.status >= 500 || response.status === 429;
+
+          // Detect permanent failures that should not be retried
+          let errorCode = '';
+          try {
+            const errJson = JSON.parse(errorText);
+            errorCode = errJson?.code || '';
+          } catch { /* not JSON */ }
+
           return {
             success: false,
+            retryable: errorCode === 'product_invalid_sku' ? false : retryable,
             error: `WooCommerce API error ${response.status}: ${errorText.slice(0, 200)}`,
           };
         }
@@ -310,6 +320,20 @@ function buildWooPayload(
       case 'manage_stock':
         updateData.manage_stock = value;
         break;
+      case 'seo':
+        // Handle nested seo object from payload
+        if (typeof value === 'object' && value !== null) {
+          const seo = value as Record<string, string>;
+          if (seo.title) {
+            metaData.push({ key: '_yoast_wpseo_title', value: seo.title });
+            metaData.push({ key: 'rank_math_title', value: seo.title });
+          }
+          if (seo.description) {
+            metaData.push({ key: '_yoast_wpseo_metadesc', value: seo.description });
+            metaData.push({ key: 'rank_math_description', value: seo.description });
+          }
+        }
+        break;
       case 'seo_title':
         metaData.push({ key: '_yoast_wpseo_title', value: String(value) });
         metaData.push({ key: 'rank_math_title', value: String(value) });
@@ -448,34 +472,39 @@ async function getStoreConnection(
   supabase: SupabaseClient,
   storeId: string
 ): Promise<{ platform: string; connection: StoreConnection } | null> {
-  const { data, error } = await supabase
+  // Step 1: Get store with connection_id
+  const { data: store, error: storeError } = await supabase
     .from('stores')
-    .select(`
-      platform,
-      platform_connections (
-        shop_url,
-        credentials_encrypted,
-        api_key,
-        api_secret
-      )
-    `)
+    .select('platform, connection_id')
     .eq('id', storeId)
     .single();
 
-  if (error || !data) {
-    console.error(`[sync-queue-worker] Failed to get store ${storeId}:`, error);
+  if (storeError || !store) {
+    console.error(`[sync-queue-worker] Failed to get store ${storeId}:`, storeError);
     return null;
   }
 
-  const connection = (data as unknown as { platform_connections: StoreConnection }).platform_connections;
-  if (!connection) {
-    console.error(`[sync-queue-worker] No connection for store ${storeId}`);
+  const connectionId = (store as { connection_id: string }).connection_id;
+  if (!connectionId) {
+    console.error(`[sync-queue-worker] No connection_id for store ${storeId}`);
+    return null;
+  }
+
+  // Step 2: Get platform_connections credentials
+  const { data: conn, error: connError } = await supabase
+    .from('platform_connections')
+    .select('shop_url, credentials_encrypted')
+    .eq('id', connectionId)
+    .single();
+
+  if (connError || !conn) {
+    console.error(`[sync-queue-worker] Failed to get connection ${connectionId}:`, connError);
     return null;
   }
 
   return {
-    platform: (data as { platform: string }).platform,
-    connection,
+    platform: (store as { platform: string }).platform,
+    connection: conn as unknown as StoreConnection,
   };
 }
 
@@ -575,29 +604,55 @@ async function processQueue(supabase: SupabaseClient): Promise<WorkerResult> {
 
         console.log(`[sync-queue-worker] Job ${job.id} completed successfully`);
       } else {
-        // Handle failure with retry logic
-        const newStatus = await failJob(supabase, job.id, syncResult.error || 'Unknown error');
-        result.failed++;
-
-        if (newStatus === 'dead_letter') {
+        // Permanent failure (e.g. duplicate SKU): dead-letter immediately, no retry
+        if (syncResult.retryable === false) {
+          console.log(
+            `[sync-queue-worker] Job ${job.id} permanently failed (non-retryable): ${syncResult.error}`
+          );
+          const newStatus = await failJob(supabase, job.id, `[PERMANENT] ${syncResult.error}`);
+          result.failed++;
           result.deadLettered++;
-          console.log(
-            `[sync-queue-worker] Job ${job.id} moved to dead letter queue after ${job.attempt_count + 1} attempts`
-          );
-        } else {
-          result.retried++;
-          console.log(
-            `[sync-queue-worker] Job ${job.id} scheduled for retry (attempt ${job.attempt_count + 1})`
-          );
-        }
 
-        result.results.push({
-          jobId: job.id,
-          productId: job.product_id,
-          success: false,
-          error: syncResult.error,
-          newStatus,
-        });
+          // Force dead_letter status via direct update if failJob didn't do it
+          if (newStatus !== 'dead_letter') {
+            await supabase
+              .from('sync_queue')
+              .update({ status: 'dead_letter', last_error: `[PERMANENT] ${syncResult.error}` })
+              .eq('id', job.id);
+          }
+
+          result.results.push({
+            jobId: job.id,
+            productId: job.product_id,
+            success: false,
+            error: syncResult.error,
+            newStatus: 'dead_letter',
+          });
+        } else {
+          // Retryable failure
+          const newStatus = await failJob(supabase, job.id, syncResult.error || 'Unknown error');
+          result.failed++;
+
+          if (newStatus === 'dead_letter') {
+            result.deadLettered++;
+            console.log(
+              `[sync-queue-worker] Job ${job.id} moved to dead letter queue after ${job.attempt_count + 1} attempts`
+            );
+          } else {
+            result.retried++;
+            console.log(
+              `[sync-queue-worker] Job ${job.id} scheduled for retry (attempt ${job.attempt_count + 1})`
+            );
+          }
+
+          result.results.push({
+            jobId: job.id,
+            productId: job.product_id,
+            success: false,
+            error: syncResult.error,
+            newStatus,
+          });
+        }
       }
     } catch (error) {
       // Unexpected error - still try to fail the job properly
@@ -639,7 +694,7 @@ async function processQueue(supabase: SupabaseClient): Promise<WorkerResult> {
 serve(async (req: Request) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: getCorsHeaders(req) });
   }
 
   try {
@@ -659,7 +714,7 @@ serve(async (req: Request) => {
     const result = await processQueue(supabase);
 
     return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('[sync-queue-worker] Fatal error:', error);
@@ -670,7 +725,7 @@ serve(async (req: Request) => {
       }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       }
     );
   }

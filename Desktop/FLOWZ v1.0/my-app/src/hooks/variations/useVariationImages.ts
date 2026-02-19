@@ -1,58 +1,94 @@
 /**
- * useVariationImages - Hook pour la gestion des images de variations
+ * useVariationImages - Hook pour l'upload et la gestion des images de variations
+ *
+ * Fixes:
+ * - Writes to `image` column (JSONB) instead of non-existent `image_url`
+ * - Adds client-side compression via browser-image-compression
+ * - Returns VariationImage object compatible with WooCommerce format
  */
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@/lib/supabase/client';
-import { toast } from 'sonner';
+import { useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
+import imageCompression from "browser-image-compression";
+import type { VariationImage } from "@/hooks/products/useProductVariations";
 
-export interface AssignImageParams {
-    variationId: string;
-    imageId: string; // ID from product_images table or similar
-    imageUrl: string;
+interface UseVariationImageUploadOptions {
+    productId: string;
 }
 
-export function useVariationImages() {
+export function useVariationImageUpload({ productId }: UseVariationImageUploadOptions) {
     const supabase = createClient();
-    const queryClient = useQueryClient();
+    const [uploadingVariationId, setUploadingVariationId] = useState<string | null>(null);
 
-    const uploadImage = useMutation({
-        mutationFn: async ({ file, productId }: { file: File, productId: string }) => {
-            const fileName = `${productId}/${Date.now()}-${file.name}`;
-            const { data, error } = await supabase.storage
-                .from('product-images') // Bucket name
-                .upload(fileName, file);
+    const uploadImage = useCallback(
+        async (file: File): Promise<VariationImage | null> => {
+            try {
+                // Compress the image before upload
+                const compressed = await imageCompression(file, {
+                    maxSizeMB: 1,
+                    maxWidthOrHeight: 1200,
+                    useWebWorker: true,
+                });
 
-            if (error) throw error;
+                const ext = file.name.split(".").pop() || "jpg";
+                const fileName = `${productId}/variations/${Date.now()}.${ext}`;
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('product-images')
-                .getPublicUrl(fileName);
+                const { data, error } = await supabase.storage
+                    .from("product-images")
+                    .upload(fileName, compressed, {
+                        cacheControl: "3600",
+                        upsert: false,
+                    });
 
-            return { path: data.path, publicUrl };
-        }
-    });
+                if (error) throw error;
 
-    const assignImageToVariation = useMutation({
-        mutationFn: async ({ variationId, imageUrl }: AssignImageParams) => {
-            const { error } = await supabase
-                .from('product_variations')
-                .update({ image_url: imageUrl }) // Assuming column exists
-                .eq('id', variationId);
+                const {
+                    data: { publicUrl },
+                } = supabase.storage.from("product-images").getPublicUrl(data.path);
 
-            if (error) throw error;
+                const variationImage: VariationImage = {
+                    id: Date.now(),
+                    src: publicUrl,
+                    name: file.name,
+                    alt: "",
+                };
+
+                return variationImage;
+            } catch (err) {
+                console.error("Variation image upload error:", err);
+                toast.error("Erreur lors de l'upload de l'image");
+                return null;
+            }
         },
-        onSuccess: () => {
-            toast.success('Image assignée');
-            // Invalidate queries would go here
+        [productId, supabase]
+    );
+
+    /**
+     * Upload an image for a specific variation and update the local state.
+     * Returns the VariationImage object to be set via updateVariationField.
+     */
+    const handleUpload = useCallback(
+        async (
+            localId: string,
+            file: File,
+            onSuccess: (localId: string, image: VariationImage) => void
+        ) => {
+            setUploadingVariationId(localId);
+            try {
+                const result = await uploadImage(file);
+                if (result) {
+                    onSuccess(localId, result);
+                    toast.success("Image de variation mise à jour");
+                }
+            } finally {
+                setUploadingVariationId(null);
+            }
         },
-        onError: (error) => {
-            toast.error("Erreur lors de l'assignation");
-            console.error(error);
-        }
-    });
+        [uploadImage]
+    );
 
     return {
-        uploadImage,
-        assignImageToVariation
+        handleUpload,
+        uploadingVariationId,
     };
 }

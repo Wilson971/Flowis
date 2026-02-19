@@ -27,13 +27,14 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Lock, Unlock, Globe, Smartphone, Sparkles } from "lucide-react";
+import { Lock, Unlock, Globe, Smartphone } from "lucide-react";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
+import { DraftSuggestionButton } from "@/components/products/ui/DraftSuggestionButton";
 
 export const ProductSeoTab = () => {
     const theme = getProductCardTheme('ProductSeoTab');
-    const { register, control, setValue, getValues } = useFormContext<ProductFormValues>();
+    const { register, control, setValue, getValues, resetField } = useFormContext<ProductFormValues>();
     const { selectedStore, dirtyFieldsData } = useProductEditContext();
     const isDirtyField = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
 
@@ -74,29 +75,19 @@ export const ProductSeoTab = () => {
     const isDraft = status === 'draft';
     const isPublished = status === 'publish' || status === 'active';
 
-    // Slug lock state
-    const [isSlugLocked, setIsSlugLocked] = React.useState(false);
+    // Slug lock: locked by default for published products, user can unlock via warning dialog
+    const [isSlugLocked, setIsSlugLocked] = React.useState(isPublished);
     const [showSlugWarning, setShowSlugWarning] = React.useState(false);
 
-
-    // Initial lock state effect
+    // Re-lock when publish status changes (e.g. draft → published)
     React.useEffect(() => {
-        if (isPublished) {
-            setIsSlugLocked(true);
-        } else {
-            setIsSlugLocked(false);
-        }
+        setIsSlugLocked(isPublished);
     }, [isPublished]);
 
     // Auto-clean slug if it contains a full URL (from initial import or paste)
     // Only runs once per product load to avoid interfering with user edits
     const currentSlug = useWatch({ control, name: "slug" });
     const slugCleanedRef = React.useRef(false);
-
-    React.useEffect(() => {
-        // Reset the ref when the slug changes externally (product reload)
-        slugCleanedRef.current = false;
-    }, []);
 
     React.useEffect(() => {
         if (!currentSlug || slugCleanedRef.current) return;
@@ -115,12 +106,15 @@ export const ProductSeoTab = () => {
             );
 
             if (pathSegments.length > 0) {
-                setValue("slug", pathSegments[pathSegments.length - 1], { shouldDirty: false });
+                // FIX: Use resetField to update both value AND defaultValue.
+                // setValue with shouldDirty:false still changes the value, causing
+                // isDirty deep comparison to detect a mismatch.
+                resetField("slug", { defaultValue: pathSegments[pathSegments.length - 1] });
             }
         } catch {
             // Not a valid URL, leave as-is
         }
-    }, [currentSlug, setValue]);
+    }, [currentSlug, resetField]);
 
     // Extract domain from store URL
     const shopUrl = selectedStore?.platform_connections?.shop_url || "www.votre-boutique.com";
@@ -149,22 +143,10 @@ export const ProductSeoTab = () => {
     const previewDesc = (metaDescription || productDesc).replace(/<[^>]*>/g, '').substring(0, 160);
     const previewTitle = metaTitle || productTitle;
 
-    // Render suggestion trigger button (same pattern as ProductGeneralTab)
-    const renderFieldActions = (field: string) => {
-        if (!hasDraft(field)) return null;
-        return (
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => openSuggestionModal(field)}
-                className="gap-1.5 h-7 px-2.5 text-xs font-semibold border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/50"
-            >
-                <Sparkles className="h-3.5 w-3.5" />
-                Voir la suggestion
-            </Button>
-        );
-    };
+    // Render AI suggestion button for a field
+    const renderFieldActions = (field: string) => (
+        <DraftSuggestionButton field={field} hasDraft={hasDraft(field)} onOpen={openSuggestionModal} />
+    );
 
     return (
         <motion.div

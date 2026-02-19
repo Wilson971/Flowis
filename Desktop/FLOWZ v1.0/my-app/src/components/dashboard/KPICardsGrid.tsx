@@ -8,7 +8,7 @@ import { BlogContentCard } from "./BlogContentCard";
 import { TimeSavedCard } from "./TimeSavedCard";
 import { ActivityTimeline, ActivityItem } from "./ActivityTimeline";
 import { NorthStarKPICard } from "./NorthStarKPICard";
-import { useSeoGlobalScore } from "../../hooks/useSeoGlobalScore";
+import { useSeoGlobalScore } from "../../hooks/products/useSeoGlobalScore";
 import { BentoGrid, BentoCell } from "../ui/bento-grid";
 
 type KPICardsGridProps = {

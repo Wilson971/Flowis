@@ -16,16 +16,6 @@ export interface ImageItem {
     position?: number;
 }
 
-/**
- * Type pour les images dans le formulaire d'édition
- */
-export interface FormImageItem {
-    id: number | string;
-    src: string;
-    name: string;
-    alt: string;
-}
-
 export interface SeoData {
     title?: string;
     description?: string;
@@ -174,14 +164,3 @@ export type ContentStatus =
     | 'READY_TO_SYNC'       // Modifications locales prêtes à publier
     | 'CONFLICT';           // Conflit entre boutique et local
 
-/**
- * Révision pour l'undo
- */
-export interface ProductRevision {
-    id: string;
-    product_id: string;
-    scope: string; // 'content' | 'variant:<variant_id>'
-    before_data: ContentData | null;
-    after_data: ContentData | null;
-    created_at: string;
-}

@@ -5,6 +5,10 @@
  */
 import { z } from "zod";
 
+// Constante centralisée — seule source de vérité pour le type produit par défaut.
+// Utilisée dans le schema, les defaults, la résolution form et la sauvegarde.
+export const PRODUCT_TYPE_DEFAULT = "simple" as const;
+
 // Schéma pour un attribut produit (utilisé pour les produits variables)
 const ProductAttributeSchema = z.object({
     id: z.number().optional(),
@@ -52,10 +56,14 @@ export const ProductFormSchema = z.object({
     // ===== SEO =====
     meta_title: z.string().optional().default(""),
     meta_description: z.string().optional().default(""),
+    focus_keyword: z.string().optional().default(""),
     slug: z.string().optional().default(""),
 
     // ===== ORGANISATION =====
-    product_type: z.string().optional().default("simple").transform(v => v || "simple"),
+    // FIX: No .optional() or .default() — zodResolver corrupts .default() fields
+    // to "" asynchronously after reset(), overwriting the correct value.
+    // Default is handled by DEFAULT_FORM_VALUES and calculateInitialFormValues().
+    product_type: z.string(),
     brand: z.string().optional().default(""),
     status: z.string().optional().default("draft"),
     featured: z.boolean().optional().default(false), // Produit mis en avant
@@ -129,33 +137,36 @@ export const NUMERIC_FIELDS: (keyof ProductFormValues)[] = ["regular_price", "sa
 export const DEFAULT_FORM_VALUES: ProductFormValues = {
     // Informations de base
     title: "",
-    sku: null,
-    global_unique_id: null,
+    // FIX: Use "" instead of null for fields registered via register() on <Input>.
+    // Prevents isDirty false positive from null→"" DOM conversion.
+    sku: "",
+    global_unique_id: "",
     short_description: "",
     description: "",
-    permalink: null,
+    permalink: null, // readonly — not registered on <Input>
 
     // Tarification & Promotions
-    regular_price: null,
-    sale_price: null,
+    regular_price: "",
+    sale_price: "",
     on_sale: false,
-    date_on_sale_from: null,
-    date_on_sale_to: null,
+    date_on_sale_from: "",
+    date_on_sale_to: "",
 
     // Inventaire
-    stock: null,
+    stock: "",
     stock_status: "instock",
     manage_stock: false,
     backorders: "no",
-    low_stock_amount: null,
+    low_stock_amount: "",
 
     // SEO
     meta_title: "",
     meta_description: "",
+    focus_keyword: "",
     slug: "",
 
     // Organisation
-    product_type: "simple",
+    product_type: PRODUCT_TYPE_DEFAULT,
     brand: "",
     status: "draft",
     featured: false,
@@ -183,8 +194,8 @@ export const DEFAULT_FORM_VALUES: ProductFormValues = {
     purchasable: true,
 
     // Produits externes
-    external_url: null,
-    button_text: null,
+    external_url: "",
+    button_text: "",
 
     // Autres options
     sold_individually: false,

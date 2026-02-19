@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useFormContext } from "react-hook-form";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +27,10 @@ import {
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { usePushSingleProduct, useRevertToOriginal } from "@/hooks/products";
+import { FIELD_LABELS } from "@/lib/productHelpers";
 import { toast } from "sonner";
 import { getProductCardTheme } from "@/lib/design-system";
+import type { ProductFormValues } from "../../schemas/product-schema";
 
 interface SyncStatusCardProps {
     productId: string;
@@ -91,28 +94,6 @@ const STATUS_CONFIG: Record<SyncStatus, {
     },
 };
 
-// Mapping des noms de champs techniques vers des labels lisibles
-const FIELD_LABELS: Record<string, string> = {
-    title: "Titre",
-    description: "Description",
-    short_description: "Description courte",
-    regular_price: "Prix",
-    sale_price: "Prix promo",
-    stock: "Stock",
-    sku: "SKU",
-    slug: "Slug URL",
-    "seo.title": "Meta titre",
-    meta_title: "Meta titre",
-    "seo.description": "Meta description",
-    meta_description: "Meta description",
-    categories: "Catégories",
-    tags: "Tags",
-    status: "Statut",
-    images: "Images",
-    weight: "Poids",
-    dimensions: "Dimensions",
-};
-
 export const SyncStatusCard = ({
     productId,
     lastSyncedAt,
@@ -121,6 +102,7 @@ export const SyncStatusCard = ({
     onResolveConflicts,
 }: SyncStatusCardProps) => {
     const [showRevertDialog, setShowRevertDialog] = useState(false);
+    const { getValues } = useFormContext<ProductFormValues>();
 
     const pushMutation = usePushSingleProduct();
     const revertMutation = useRevertToOriginal();
@@ -130,19 +112,15 @@ export const SyncStatusCard = ({
     const StatusIcon = config.icon;
 
     const handleSync = () => {
-        pushMutation.mutate(
-            { product_ids: [productId] },
-            {
-                onSuccess: () => {
-                    toast.success("Synchronisation lancée vers la boutique");
-                },
-                onError: (error: any) => {
-                    toast.error(
-                        error?.message || "Erreur lors de la synchronisation"
-                    );
-                },
-            }
-        );
+        const title = getValues("title");
+        if (!title?.trim()) {
+            toast.warning("Titre requis", {
+                description: "Le produit doit avoir un titre avant d'\u00eatre synchronis\u00e9 avec la boutique.",
+            });
+            return;
+        }
+
+        pushMutation.mutate({ product_ids: [productId] });
     };
 
     const handleRevert = () => {

@@ -1,4 +1,4 @@
-import type { ProductFormData } from "@/hooks/products/useProductSave";
+import type { ProductSavePayload } from "@/hooks/products/useProductSave";
 import type { ProductFormValues } from "../schemas/product-schema";
 
 // ============================================================================
@@ -13,55 +13,65 @@ export interface AvailableCategory {
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Convert form string/number to number, preserving 0. Returns fallback for null/undefined/"". */
+function coerceNumber(v: string | number | null | undefined, fallback: undefined): number | undefined;
+function coerceNumber(v: string | number | null | undefined, fallback: null): number | null;
+function coerceNumber(v: string | number | null | undefined, fallback: null | undefined): number | null | undefined {
+    if (v == null || v === "") return fallback;
+    return Number(v);
+}
+
+/** Return non-empty string or undefined */
+function nonEmpty(v: string | null | undefined): string | undefined {
+    return v || undefined;
+}
+
+// ============================================================================
 // TRANSFORM
 // ============================================================================
 
 /**
- * Transform ProductFormValues (react-hook-form) to ProductFormData (save payload).
+ * Transform ProductFormValues (react-hook-form) to ProductSavePayload (save payload).
  *
- * This mapping is shared between:
- * - Manual save (useProductActions.handleSave)
- * - Auto-save (useAutoSaveProduct)
- *
+ * Shared between manual save and auto-save.
  * Resolves category external_ids from availableCategories when provided.
  */
 export function transformFormToSaveData(
     data: ProductFormValues,
     availableCategories?: AvailableCategory[]
-): ProductFormData {
+): ProductSavePayload {
     return {
         // Basic info
         title: data.title,
         description: data.description,
         short_description: data.short_description,
-        sku: data.sku ?? undefined,
+        sku: nonEmpty(data.sku),
         slug: data.slug,
-        status: data.status as any,
-        global_unique_id: data.global_unique_id ?? undefined,
+        status: data.status as ProductSavePayload['status'],
+        global_unique_id: nonEmpty(data.global_unique_id),
 
         // Pricing
-        regular_price: data.regular_price ? Number(data.regular_price) : undefined,
-        sale_price: data.sale_price ? Number(data.sale_price) : undefined,
+        regular_price: coerceNumber(data.regular_price, undefined),
+        sale_price: coerceNumber(data.sale_price, undefined),
         on_sale: data.on_sale,
-        date_on_sale_from: data.date_on_sale_from,
-        date_on_sale_to: data.date_on_sale_to,
+        date_on_sale_from: data.date_on_sale_from || null,
+        date_on_sale_to: data.date_on_sale_to || null,
 
         // Stock
-        stock: data.stock ? Number(data.stock) : undefined,
+        stock: coerceNumber(data.stock, undefined),
         manage_stock: data.manage_stock,
         stock_status: data.stock_status,
         backorders: data.backorders,
-        low_stock_amount: data.low_stock_amount ? Number(data.low_stock_amount) : null,
+        low_stock_amount: coerceNumber(data.low_stock_amount, null),
 
         // Physical
-        weight: data.weight ? Number(data.weight) : undefined,
+        weight: coerceNumber(data.weight, undefined),
         dimensions:
             data.dimensions_length || data.dimensions_width || data.dimensions_height
-                ? {
-                      length: data.dimensions_length || "",
-                      width: data.dimensions_width || "",
-                      height: data.dimensions_height || "",
-                  }
+                ? { length: data.dimensions_length || "", width: data.dimensions_width || "", height: data.dimensions_height || "" }
                 : undefined,
 
         // Tax & Shipping
@@ -70,26 +80,28 @@ export function transformFormToSaveData(
         shipping_class: data.shipping_class,
 
         // SEO
-        seo: {
-            title: data.meta_title,
-            description: data.meta_description,
-        },
+        seo: { title: data.meta_title, description: data.meta_description, focus_keyword: data.focus_keyword },
 
         // Taxonomies
         categories: data.categories?.map((cat) => {
-            const name = typeof cat === "string" ? cat : ((cat as any)?.name ?? String(cat));
-            const found = availableCategories?.find((ac) => ac.name === name);
-            if (found) {
-                return { id: String(Number(found.external_id)), name: found.name, slug: found.slug };
-            }
-            return { name };
+            const name = typeof cat === "string" ? cat : (cat?.name ?? String(cat));
+            const trimmedName = name.trim();
+            // Match by ID first (stable), then fall back to trimmed name
+            const found = availableCategories?.find((ac) =>
+                (ac.id && ac.id === (cat as any)?.id) ||
+                (ac.external_id && ac.external_id === (cat as any)?.external_id) ||
+                ac.name.trim() === trimmedName
+            );
+            return found
+                ? { id: String(Number(found.external_id)), name: found.name, slug: found.slug }
+                : { name: trimmedName };
         }),
         tags: data.tags,
         images: data.images,
 
         // Type & Visibility
         vendor: data.brand,
-        product_type: data.product_type || "simple",
+        product_type: nonEmpty(data.product_type),
         catalog_visibility: data.catalog_visibility,
         virtual: data.virtual,
         downloadable: data.downloadable,
@@ -103,19 +115,19 @@ export function transformFormToSaveData(
         purchase_note: data.purchase_note,
 
         // External products
-        external_url: data.external_url,
-        button_text: data.button_text,
+        external_url: nonEmpty(data.external_url),
+        button_text: nonEmpty(data.button_text),
 
         // Linked products
         upsell_ids: data.upsell_ids,
         cross_sell_ids: data.cross_sell_ids,
         related_ids: data.related_ids,
 
-        // Attributes (for variable products)
+        // Attributes
         attributes: data.attributes?.map((attr) => ({
             ...(attr.id ? { id: attr.id } : {}),
             name: attr.name,
-            options: attr.options,
+            options: [...new Set(attr.options)],
             visible: attr.visible,
             variation: attr.variation,
         })),

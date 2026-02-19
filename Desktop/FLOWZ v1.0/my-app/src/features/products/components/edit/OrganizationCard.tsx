@@ -14,29 +14,74 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { motion, AnimatePresence } from "framer-motion";
-import { ProductFormValues } from "../../schemas/product-schema";
+import { ProductFormValues, PRODUCT_TYPE_DEFAULT } from "../../schemas/product-schema";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { getProductCardTheme } from "@/lib/design-system";
 
-// Types for categories
-interface Category {
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface ChipItem {
     id: string | number;
     name: string;
     slug?: string;
 }
 
-// Types for tags
-interface ProductTag {
-    id: string | number;
-    name: string;
-    slug?: string;
+// ============================================================================
+// REUSABLE HOOK: manage a string[] form field (add/remove/toggle)
+// ============================================================================
+
+function useChipField(fieldName: 'categories' | 'tags') {
+    const { setValue, getValues } = useFormContext<ProductFormValues>();
+
+    const add = (name: string) => {
+        const current = getValues(fieldName) || [];
+        if (!current.includes(name)) {
+            setValue(fieldName, [...current, name], { shouldDirty: true, shouldValidate: true });
+        }
+    };
+
+    const remove = (name: string) => {
+        const current = getValues(fieldName) || [];
+        setValue(fieldName, current.filter(c => c !== name), { shouldDirty: true, shouldValidate: true });
+    };
+
+    const toggle = (name: string, selected: string[]) => {
+        selected.includes(name) ? remove(name) : add(name);
+    };
+
+    return { add, remove, toggle };
 }
+
+// ============================================================================
+// REUSABLE: Command item with checkbox indicator
+// ============================================================================
+
+const CheckableCommandItem = ({ item, isSelected, onToggle }: {
+    item: ChipItem; isSelected: boolean; onToggle: () => void;
+}) => (
+    <CommandItem
+        key={item.id}
+        value={item.name}
+        onSelect={onToggle}
+        className="flex items-center gap-2 py-2 px-2 cursor-pointer rounded-md mb-1 hover:bg-muted/50 transition-colors"
+    >
+        <div className={cn(
+            "flex h-3.5 w-3.5 items-center justify-center rounded-sm border",
+            isSelected ? "bg-primary border-primary" : "border-border"
+        )}>
+            {isSelected && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+        </div>
+        <span className="text-xs">{item.name}</span>
+    </CommandItem>
+);
 
 interface OrganizationCardProps {
-    availableCategories?: Category[];
+    availableCategories?: ChipItem[];
     isLoadingCategories?: boolean;
-    availableTags?: ProductTag[];
+    availableTags?: ChipItem[];
     isLoadingTags?: boolean;
 }
 
@@ -52,7 +97,7 @@ export const OrganizationCard = ({
     availableTags = [],
     isLoadingTags = false,
 }: OrganizationCardProps) => {
-    const { register, setValue, getValues, control } = useFormContext<ProductFormValues>();
+    const { register, setValue, control } = useFormContext<ProductFormValues>();
     const { dirtyFieldsData } = useProductEditContext();
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
     const [categoryOpen, setCategoryOpen] = useState(false);
@@ -64,60 +109,8 @@ export const OrganizationCard = ({
     const watchedTags = useWatch({ control, name: "tags", defaultValue: [] });
     const productType = useWatch({ control, name: "product_type" });
 
-    const handleAddCategory = (categoryName: string) => {
-        const currentCategories = getValues("categories") || [];
-        if (!currentCategories.includes(categoryName)) {
-            setValue("categories", [...currentCategories, categoryName], {
-                shouldDirty: true,
-                shouldValidate: true,
-            });
-        }
-    };
-
-    const handleRemoveCategory = (categoryName: string) => {
-        const currentCategories = getValues("categories") || [];
-        setValue(
-            "categories",
-            currentCategories.filter((c: string) => c !== categoryName),
-            { shouldDirty: true, shouldValidate: true }
-        );
-    };
-
-    const handleToggleCategory = (categoryName: string) => {
-        if (watchedCategories.includes(categoryName)) {
-            handleRemoveCategory(categoryName);
-        } else {
-            handleAddCategory(categoryName);
-        }
-    };
-
-    // Tag handlers
-    const handleAddTag = (tagName: string) => {
-        const currentTags = getValues("tags") || [];
-        if (!currentTags.includes(tagName)) {
-            setValue("tags", [...currentTags, tagName], {
-                shouldDirty: true,
-                shouldValidate: true,
-            });
-        }
-    };
-
-    const handleRemoveTag = (tagName: string) => {
-        const currentTags = getValues("tags") || [];
-        setValue(
-            "tags",
-            currentTags.filter((t: string) => t !== tagName),
-            { shouldDirty: true, shouldValidate: true }
-        );
-    };
-
-    const handleToggleTag = (tagName: string) => {
-        if (watchedTags.includes(tagName)) {
-            handleRemoveTag(tagName);
-        } else {
-            handleAddTag(tagName);
-        }
-    };
+    const categoryChip = useChipField('categories');
+    const tagChip = useChipField('tags');
 
     // Get theme from design system
     const theme = getProductCardTheme('OrganizationCard');
@@ -156,7 +149,7 @@ export const OrganizationCard = ({
                                 Type de produit
                             </Label>
                             <Select
-                                value={productType || "simple"}
+                                value={productType && productType.length > 0 ? productType : PRODUCT_TYPE_DEFAULT}
                                 onValueChange={(v) => setValue("product_type", v, { shouldDirty: true })}
                             >
                                 <SelectTrigger className="bg-background/50 border border-border/50 h-8 text-xs">
@@ -258,7 +251,7 @@ export const OrganizationCard = ({
                                                         size="sm"
                                                         className="mt-2 w-full justify-start text-primary h-8 px-2"
                                                         onClick={() => {
-                                                            handleAddCategory(searchValue);
+                                                            categoryChip.add(searchValue);
                                                             setSearchValue("");
                                                         }}
                                                     >
@@ -269,24 +262,12 @@ export const OrganizationCard = ({
                                             </CommandEmpty>
                                             <CommandGroup heading="Toutes les catégories">
                                                 {availableCategories.map((category) => (
-                                                    <CommandItem
+                                                    <CheckableCommandItem
                                                         key={category.id}
-                                                        value={category.name}
-                                                        onSelect={() => handleToggleCategory(category.name)}
-                                                        className="flex items-center gap-2 py-2 px-2 cursor-pointer rounded-md mb-1 hover:bg-muted/50 transition-colors"
-                                                    >
-                                                        <div className={cn(
-                                                            "flex h-3.5 w-3.5 items-center justify-center rounded-sm border",
-                                                            watchedCategories.includes(category.name)
-                                                                ? "bg-primary border-primary"
-                                                                : "border-border"
-                                                        )}>
-                                                            {watchedCategories.includes(category.name) && (
-                                                                <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xs">{category.name}</span>
-                                                    </CommandItem>
+                                                        item={category}
+                                                        isSelected={watchedCategories.includes(category.name)}
+                                                        onToggle={() => categoryChip.toggle(category.name, watchedCategories)}
+                                                    />
                                                 ))}
                                             </CommandGroup>
                                         </CommandList>
@@ -333,7 +314,7 @@ export const OrganizationCard = ({
                                                 {tag}
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleRemoveTag(tag)}
+                                                    onClick={() => tagChip.remove(tag)}
                                                     className="ml-0.5 h-3.5 w-3.5 rounded-full hover:bg-destructive/20 flex items-center justify-center transition-colors"
                                                 >
                                                     <X className="h-2 w-2" />
@@ -375,7 +356,7 @@ export const OrganizationCard = ({
                                                         size="sm"
                                                         className="mt-2 w-full justify-start text-primary h-8 px-2"
                                                         onClick={() => {
-                                                            handleAddTag(tagSearchValue);
+                                                            tagChip.add(tagSearchValue);
                                                             setTagSearchValue("");
                                                         }}
                                                     >
@@ -386,26 +367,12 @@ export const OrganizationCard = ({
                                             </CommandEmpty>
                                             <CommandGroup heading="Tags disponibles">
                                                 {availableTags.map((tag) => (
-                                                    <CommandItem
+                                                    <CheckableCommandItem
                                                         key={tag.id}
-                                                        value={tag.name}
-                                                        onSelect={() => handleToggleTag(tag.name)}
-                                                        className="flex items-center gap-2 py-2 px-2 cursor-pointer rounded-md mb-1 hover:bg-muted/50 transition-colors"
-                                                    >
-                                                        <div
-                                                            className={cn(
-                                                                "flex h-3.5 w-3.5 items-center justify-center rounded-sm border",
-                                                                watchedTags.includes(tag.name)
-                                                                    ? "bg-primary border-primary"
-                                                                    : "border-border"
-                                                            )}
-                                                        >
-                                                            {watchedTags.includes(tag.name) && (
-                                                                <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <span className="text-xs">{tag.name}</span>
-                                                    </CommandItem>
+                                                        item={tag}
+                                                        isSelected={watchedTags.includes(tag.name)}
+                                                        onToggle={() => tagChip.toggle(tag.name, watchedTags)}
+                                                    />
                                                 ))}
                                             </CommandGroup>
                                         </CommandList>
@@ -422,7 +389,7 @@ export const OrganizationCard = ({
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && tagSearchValue.trim()) {
                                             e.preventDefault();
-                                            handleAddTag(tagSearchValue.trim());
+                                            tagChip.add(tagSearchValue.trim());
                                             setTagSearchValue("");
                                         }
                                     }}
@@ -434,7 +401,7 @@ export const OrganizationCard = ({
                                     className="h-8 px-2"
                                     onClick={() => {
                                         if (tagSearchValue.trim()) {
-                                            handleAddTag(tagSearchValue.trim());
+                                            tagChip.add(tagSearchValue.trim());
                                             setTagSearchValue("");
                                         }
                                     }}

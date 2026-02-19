@@ -34,7 +34,7 @@ import { ProductsPageHeader } from "@/components/products/ui";
 
 // Contexts & hooks
 import { useSelectedStore } from "@/contexts/StoreContext";
-import { useProducts } from "@/hooks/useProducts";
+import { useProducts } from "@/hooks/products/useProducts";
 import { useSaveGeneratedImage } from "@/features/photo-studio/hooks/useSaveGeneratedImage";
 
 // Studio context & dialog

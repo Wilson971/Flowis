@@ -22,6 +22,8 @@ import {
     Tag,
     CheckCircle2,
     X,
+    ShieldCheck,
+    Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EditableVariation } from "../../hooks/useVariationManager";
@@ -70,6 +72,16 @@ export function BulkVariationToolbar({
                 <BulkStatusAction
                     onApply={(value) =>
                         onBulkUpdate("status", value as "publish" | "private" | "draft")
+                    }
+                />
+                <BulkBackordersAction
+                    onApply={(value) =>
+                        onBulkUpdate("backorders", value as "no" | "notify" | "yes")
+                    }
+                />
+                <BulkTaxStatusAction
+                    onApply={(value) =>
+                        onBulkUpdate("taxStatus", value as "taxable" | "shipping" | "none")
                     }
                 />
 
@@ -227,6 +239,46 @@ function BulkStatusAction({
                 <SelectItem value="publish">Publié</SelectItem>
                 <SelectItem value="private">Privé</SelectItem>
                 <SelectItem value="draft">Brouillon</SelectItem>
+            </SelectContent>
+        </Select>
+    );
+}
+
+function BulkBackordersAction({
+    onApply,
+}: {
+    onApply: (value: string) => void;
+}) {
+    return (
+        <Select onValueChange={onApply}>
+            <SelectTrigger className="h-7 w-auto text-xs border">
+                <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                <SelectValue placeholder="Préco." />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="no">Non</SelectItem>
+                <SelectItem value="notify">Notifier</SelectItem>
+                <SelectItem value="yes">Oui</SelectItem>
+            </SelectContent>
+        </Select>
+    );
+}
+
+function BulkTaxStatusAction({
+    onApply,
+}: {
+    onApply: (value: string) => void;
+}) {
+    return (
+        <Select onValueChange={onApply}>
+            <SelectTrigger className="h-7 w-auto text-xs border">
+                <Receipt className="h-3.5 w-3.5 mr-1" />
+                <SelectValue placeholder="Taxe" />
+            </SelectTrigger>
+            <SelectContent>
+                <SelectItem value="taxable">Taxable</SelectItem>
+                <SelectItem value="shipping">Livraison</SelectItem>
+                <SelectItem value="none">Aucun</SelectItem>
             </SelectContent>
         </Select>
     );

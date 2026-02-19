@@ -274,16 +274,9 @@ export function useAutoSync(type: PushType) {
 
             return result;
         } catch (error) {
+            // The mutation's onError already shows a toast — only log here.
+            // Auto-sync failure is non-fatal: data is saved locally.
             console.error(`[useAutoSync] Auto-sync failed for ${type} ${id}:`, error);
-            const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-            toast.error('Synchronisation automatique échouée', {
-                description: `Les données sont sauvegardées localement. ${errorMessage}`,
-                action: {
-                    label: 'Réessayer',
-                    onClick: () => triggerAutoSync(id),
-                },
-            });
-            // Don't throw - auto-sync failure shouldn't break the save flow
             return null;
         }
     }, [pushMutation, type]);

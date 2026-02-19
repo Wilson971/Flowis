@@ -11,14 +11,41 @@ import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { z } from 'zod';
 import type { ContentData } from '@/types/productContent';
+import { PRODUCT_TYPE_DEFAULT } from '@/features/products/schemas/product-schema';
 import { useAutoSync } from '@/hooks/sync/usePushToStore';
+import { computeDirtyFields } from './computeDirtyFields';
+
+// ============================================================================
+// ERRORS
+// ============================================================================
+
+/** Thrown when the product was modified by another source between read and write */
+export class StaleDataError extends Error {
+    constructor() {
+        super('Le produit a été modifié par une autre source. Veuillez rafraîchir et réessayer.');
+        this.name = 'StaleDataError';
+    }
+}
+
+/** Thrown when a SKU already exists in the same store (product or variation) */
+export class DuplicateSkuError extends Error {
+    public readonly sku: string;
+    public readonly conflictTitle: string;
+    constructor(sku: string, conflictTitle: string) {
+        super(`Le SKU "${sku}" est déjà utilisé par "${conflictTitle}". Veuillez choisir un SKU unique.`);
+        this.name = 'DuplicateSkuError';
+        this.sku = sku;
+        this.conflictTitle = conflictTitle;
+    }
+}
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export interface ProductFormData {
+export interface ProductSavePayload {
     // Basic info
     title?: string;
     description?: string;
@@ -94,114 +121,106 @@ export interface ProductFormData {
     related_ids?: number[];
 }
 
+/**
+ * Lightweight Zod schema for save payload validation.
+ * Guards against malformed data reaching the DB (e.g. from auto-save or programmatic calls).
+ * Only validates structural integrity — field-level business rules live in ProductFormSchema.
+ */
+const SavePayloadSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    short_description: z.string().optional(),
+    regular_price: z.number().optional(),
+    sale_price: z.number().optional(),
+    price: z.number().optional(),
+    stock: z.number().optional(),
+    sku: z.string().optional(),
+    slug: z.string().optional(),
+    status: z.enum(['publish', 'draft', 'pending', 'private']).optional(),
+    product_type: z.string().optional(),
+    global_unique_id: z.string().optional(),
+    on_sale: z.boolean().optional(),
+    date_on_sale_from: z.string().nullable().optional(),
+    date_on_sale_to: z.string().nullable().optional(),
+    manage_stock: z.boolean().optional(),
+    stock_status: z.enum(['instock', 'outofstock', 'onbackorder']).optional(),
+    backorders: z.enum(['no', 'notify', 'yes']).optional(),
+    low_stock_amount: z.number().nullable().optional(),
+    weight: z.number().optional(),
+    dimensions: z.object({
+        length: z.string(),
+        width: z.string(),
+        height: z.string(),
+    }).optional(),
+    tax_status: z.enum(['taxable', 'shipping', 'none']).optional(),
+    tax_class: z.string().optional(),
+    shipping_class: z.string().optional(),
+    seo: z.object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        focus_keyword: z.string().optional(),
+    }).optional(),
+    categories: z.array(z.any()).optional(),
+    tags: z.array(z.string()).optional(),
+    images: z.array(z.any()).optional(),
+    vendor: z.string().optional(),
+    catalog_visibility: z.enum(['visible', 'catalog', 'search', 'hidden']).optional(),
+    virtual: z.boolean().optional(),
+    downloadable: z.boolean().optional(),
+    purchasable: z.boolean().optional(),
+    featured: z.boolean().optional(),
+    attributes: z.array(z.any()).optional(),
+    sold_individually: z.boolean().optional(),
+    reviews_allowed: z.boolean().optional(),
+    menu_order: z.number().optional(),
+    purchase_note: z.string().optional(),
+    external_url: z.string().nullable().optional(),
+    button_text: z.string().nullable().optional(),
+    upsell_ids: z.array(z.number()).optional(),
+    cross_sell_ids: z.array(z.number()).optional(),
+    related_ids: z.array(z.number()).optional(),
+}).strict(); // Reject unknown fields to prevent injection
+
 // ============================================================================
-// HELPERS - Simplified dirty fields computation (v3)
+// SKU UNIQUENESS CHECK
 // ============================================================================
-
-/** Normalize any value to a comparable string. Treats null/undefined/empty as '' */
-function norm(v: unknown): string {
-    if (v === null || v === undefined) return '';
-    if (typeof v === 'boolean') return v ? '1' : '0';
-    if (typeof v === 'number') return isNaN(v) ? '' : String(v);
-    if (typeof v === 'string') return v.trim();
-    return JSON.stringify(v);
-}
-
-/** Normalize an array by extracting a key from each item, then sort for stable comparison */
-function normArray(arr: unknown[] | null | undefined, extract: (item: any) => string): string {
-    if (!arr || !Array.isArray(arr) || arr.length === 0) return '';
-    return arr.map(extract).filter(Boolean).sort().join('|');
-}
-
-/** Compare two numeric values (handles string "10" vs number 10, null vs undefined) */
-function sameNum(a: unknown, b: unknown): boolean {
-    if (a == null && b == null) return true;
-    if (a == null || b == null) return false;
-    return Number(a) === Number(b);
-}
 
 /**
- * Compute dirty fields between working_content and store_snapshot_content.
- * Simplified v3: normalized comparison, no false positives from format differences.
+ * Check if a SKU is already used by another product or variation in the same store.
+ * Throws DuplicateSkuError with the conflicting item's title if a duplicate is found.
  */
-function computeDirtyFields(
-    working: ContentData | null,
-    snapshot: ContentData | null
-): string[] {
-    if (!working || !snapshot) return [];
+async function checkSkuUniqueness(
+    supabase: ReturnType<typeof createClient>,
+    storeId: string,
+    sku: string,
+    excludeProductId: string
+): Promise<void> {
+    // Check products table (exclude current product)
+    const { data: conflictProduct } = await supabase
+        .from('products')
+        .select('id, title')
+        .eq('store_id', storeId)
+        .eq('sku', sku)
+        .neq('id', excludeProductId)
+        .limit(1)
+        .maybeSingle();
 
-    const dirty: string[] = [];
-
-    // --- Text fields: normalize then compare ---
-    const textFields = [
-        'title', 'description', 'short_description', 'sku', 'slug',
-        'status', 'stock_status', 'vendor', 'product_type',
-        'catalog_visibility', 'backorders', 'tax_status', 'tax_class',
-        'shipping_class', 'global_unique_id', 'purchase_note',
-        'external_url', 'button_text', 'date_on_sale_from', 'date_on_sale_to',
-    ] as const;
-    for (const f of textFields) {
-        if (norm(working[f]) !== norm(snapshot[f])) dirty.push(f);
+    if (conflictProduct) {
+        throw new DuplicateSkuError(sku, conflictProduct.title || `Produit #${conflictProduct.id.slice(0, 8)}`);
     }
 
-    // --- Numeric fields: compare as numbers ---
-    const numFields = [
-        'price', 'regular_price', 'sale_price', 'stock',
-        'weight', 'low_stock_amount', 'menu_order',
-    ] as const;
-    for (const f of numFields) {
-        if (!sameNum(working[f], snapshot[f])) dirty.push(f);
+    // Check product_variations table (any variation in the same store)
+    const { data: conflictVariation } = await supabase
+        .from('product_variations')
+        .select('id, sku, parent_product_external_id')
+        .eq('store_id', storeId)
+        .eq('sku', sku)
+        .limit(1)
+        .maybeSingle();
+
+    if (conflictVariation) {
+        throw new DuplicateSkuError(sku, `Variation (parent #${conflictVariation.parent_product_external_id})`);
     }
-
-    // --- Boolean fields ---
-    const boolFields = [
-        'manage_stock', 'virtual', 'downloadable', 'purchasable',
-        'featured', 'sold_individually', 'reviews_allowed', 'on_sale',
-    ] as const;
-    for (const f of boolFields) {
-        if (Boolean(working[f]) !== Boolean(snapshot[f])) dirty.push(f);
-    }
-
-    // --- SEO (nested, compare individual subfields) ---
-    if (norm(working.seo?.title) !== norm(snapshot.seo?.title)) dirty.push('seo.title');
-    if (norm(working.seo?.description) !== norm(snapshot.seo?.description)) dirty.push('seo.description');
-
-    // --- Dimensions (handle both nested object and flat fields) ---
-    const wDim = `${norm(working.dimensions?.length)}|${norm(working.dimensions?.width)}|${norm(working.dimensions?.height)}`;
-    const sDim = `${norm(snapshot.dimensions?.length)}|${norm(snapshot.dimensions?.width)}|${norm(snapshot.dimensions?.height)}`;
-    if (wDim !== sDim) dirty.push('dimensions');
-
-    // --- Categories: compare by name only (ignore id/slug format differences) ---
-    const catKey = (c: any) => typeof c === 'string' ? c : (c?.name || '');
-    if (normArray(working.categories, catKey) !== normArray(snapshot.categories, catKey)) {
-        dirty.push('categories');
-    }
-
-    // --- Tags: compare by name only ---
-    const tagKey = (t: any) => typeof t === 'string' ? t : (t?.name || '');
-    if (normArray(working.tags, tagKey) !== normArray(snapshot.tags, tagKey)) {
-        dirty.push('tags');
-    }
-
-    // --- Images: compare by src only (ignore id format, position, alt differences) ---
-    const imgKey = (i: any) => i?.src || '';
-    if (normArray(working.images, imgKey) !== normArray(snapshot.images, imgKey)) {
-        dirty.push('images');
-    }
-
-    // --- Linked products ---
-    const idKey = (x: any) => String(x);
-    if (normArray(working.upsell_ids, idKey) !== normArray(snapshot.upsell_ids, idKey)) dirty.push('upsell_ids');
-    if (normArray(working.cross_sell_ids, idKey) !== normArray(snapshot.cross_sell_ids, idKey)) dirty.push('cross_sell_ids');
-    if (normArray(working.related_ids, idKey) !== normArray(snapshot.related_ids, idKey)) dirty.push('related_ids');
-
-    // --- Attributes (for variable products) ---
-    const attrKey = (a: any) => `${a?.name || ''}:${(Array.isArray(a?.options) ? a.options : []).sort().join(',')}:${!!a?.variation}`;
-    if (normArray(working.attributes, attrKey) !== normArray(snapshot.attributes, attrKey)) {
-        dirty.push('attributes');
-    }
-
-    return dirty;
 }
 
 // ============================================================================
@@ -228,12 +247,19 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
             data: formData,
         }: {
             productId: string;
-            data: ProductFormData;
+            data: ProductSavePayload;
         }) => {
-            // Récupérer le produit actuel (inclure metadata pour merge)
+            // Validate save payload before writing to DB
+            const validation = SavePayloadSchema.safeParse(formData);
+            if (!validation.success) {
+                const issues = validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+                throw new Error(`Données invalides: ${issues}`);
+            }
+
+            // Récupérer le produit actuel (inclure metadata pour merge + updated_at for optimistic locking)
             const { data: currentProduct, error: fetchError } = await supabase
                 .from('products')
-                .select('store_snapshot_content, working_content, metadata')
+                .select('store_id, store_snapshot_content, working_content, metadata, updated_at')
                 .eq('id', productId)
                 .single();
 
@@ -241,158 +267,137 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
 
             const currentWorking = (currentProduct.working_content as ContentData) || {};
             const snapshot = currentProduct.store_snapshot_content as ContentData;
+            let resolvedProductType =
+                (formData.product_type && formData.product_type.length > 0) ? formData.product_type
+                : (currentWorking.product_type && (currentWorking.product_type as string).length > 0) ? currentWorking.product_type as string
+                : ((currentWorking as any).type && ((currentWorking as any).type as string).length > 0) ? (currentWorking as any).type as string
+                : PRODUCT_TYPE_DEFAULT;
 
-            // Construire le nouveau working_content
-            const newWorkingContent: ContentData = {
-                ...currentWorking,
-                // Basic info
-                title: formData.title ?? currentWorking.title,
-                description: formData.description ?? currentWorking.description,
-                short_description: formData.short_description ?? currentWorking.short_description,
-                sku: formData.sku ?? currentWorking.sku,
-                slug: formData.slug ?? currentWorking.slug,
-                status: formData.status ?? currentWorking.status,
-                vendor: formData.vendor ?? currentWorking.vendor,
-                product_type: formData.product_type || currentWorking.product_type || 'simple',
-                global_unique_id: formData.global_unique_id ?? currentWorking.global_unique_id,
+            // Build new working_content by merging formData over currentWorking.
+            // For each field: use formData value if provided (non-null), else keep current.
+            const MERGE_FIELDS = [
+                'title', 'description', 'short_description', 'sku', 'slug', 'status',
+                'vendor', 'global_unique_id',
+                'price', 'regular_price', 'sale_price', 'on_sale',
+                'date_on_sale_from', 'date_on_sale_to',
+                'stock', 'manage_stock', 'backorders', 'low_stock_amount',
+                'weight', 'dimensions', 'tax_status', 'tax_class', 'shipping_class',
+                'catalog_visibility', 'virtual', 'downloadable', 'purchasable', 'featured',
+                'sold_individually', 'reviews_allowed', 'menu_order', 'purchase_note',
+                'external_url', 'button_text',
+                'categories', 'tags', 'images', 'attributes',
+                'upsell_ids', 'cross_sell_ids', 'related_ids',
+            ] as const;
 
-                // Pricing
-                price: formData.price ?? currentWorking.price,
-                regular_price: formData.regular_price ?? currentWorking.regular_price,
-                sale_price: formData.sale_price ?? currentWorking.sale_price,
-                on_sale: formData.on_sale ?? currentWorking.on_sale,
-                date_on_sale_from: formData.date_on_sale_from ?? currentWorking.date_on_sale_from,
-                date_on_sale_to: formData.date_on_sale_to ?? currentWorking.date_on_sale_to,
-
-                // Stock
-                stock: formData.stock ?? currentWorking.stock,
-                manage_stock: formData.manage_stock ?? currentWorking.manage_stock,
-                backorders: formData.backorders ?? currentWorking.backorders,
-                low_stock_amount: formData.low_stock_amount ?? currentWorking.low_stock_amount,
-
-                // Physical & Shipping
-                weight: formData.weight ?? currentWorking.weight,
-                dimensions: formData.dimensions ?? currentWorking.dimensions,
-                tax_status: formData.tax_status ?? currentWorking.tax_status,
-                tax_class: formData.tax_class ?? currentWorking.tax_class,
-                shipping_class: formData.shipping_class ?? currentWorking.shipping_class,
-
-                // Visibility & Type
-                catalog_visibility: formData.catalog_visibility ?? currentWorking.catalog_visibility,
-                virtual: formData.virtual ?? currentWorking.virtual,
-                downloadable: formData.downloadable ?? currentWorking.downloadable,
-                purchasable: formData.purchasable ?? currentWorking.purchasable,
-                featured: formData.featured ?? currentWorking.featured,
-
-                // Options
-                sold_individually: formData.sold_individually ?? currentWorking.sold_individually,
-                reviews_allowed: formData.reviews_allowed ?? currentWorking.reviews_allowed,
-                menu_order: formData.menu_order ?? currentWorking.menu_order,
-                purchase_note: formData.purchase_note ?? currentWorking.purchase_note,
-
-                // External products
-                external_url: formData.external_url ?? currentWorking.external_url,
-                button_text: formData.button_text ?? currentWorking.button_text,
-
-                // SEO
-                seo: formData.seo ? {
-                    ...currentWorking.seo,
-                    ...formData.seo,
-                } : currentWorking.seo,
-
-                // Taxonomies & Media
-                categories: formData.categories ?? currentWorking.categories,
-                tags: formData.tags ?? currentWorking.tags,
-                images: formData.images ?? currentWorking.images,
-                attributes: formData.attributes as ContentData['attributes'] ?? currentWorking.attributes,
-
-                // Linked products
-                upsell_ids: formData.upsell_ids ?? currentWorking.upsell_ids,
-                cross_sell_ids: formData.cross_sell_ids ?? currentWorking.cross_sell_ids,
-                related_ids: formData.related_ids ?? currentWorking.related_ids,
-            };
+            const newWorkingContent: ContentData = { ...currentWorking, product_type: resolvedProductType };
+            for (const field of MERGE_FIELDS) {
+                const formVal = (formData as any)[field];
+                if (formVal !== undefined && formVal !== null) {
+                    (newWorkingContent as any)[field] = formVal;
+                }
+            }
+            // SEO is nested — merge subfields
+            if (formData.seo) {
+                newWorkingContent.seo = { ...currentWorking.seo, ...formData.seo };
+            }
 
             // Calculer les dirty fields
             const dirtyFields = computeDirtyFields(newWorkingContent, snapshot);
 
-            // Préparer les données pour la table products
-            // IMPORTANT: Merge metadata avec l'existant pour ne pas perdre les données WooCommerce
+            // FIX: Preserve snapshot format for NON-dirty fields.
+            // The form normalizes data (strips dates from images, converts category ids
+            // to strings, strips slug from attributes). When saving, this creates format
+            // drift between working_content and store_snapshot_content. By copying snapshot
+            // values for unchanged fields, we prevent false positive dirty fields on next load.
+            if (snapshot) {
+                const snapshotPreservableFields = [
+                    'images', 'categories', 'attributes', 'tags',
+                    'upsell_ids', 'cross_sell_ids', 'related_ids',
+                ] as const;
+                for (const field of snapshotPreservableFields) {
+                    if (!dirtyFields.includes(field) && snapshot[field] != null) {
+                        (newWorkingContent as any)[field] = snapshot[field];
+                    }
+                }
+                // Also preserve product_type from snapshot if not dirty
+                if (!dirtyFields.includes('product_type') && snapshot.product_type) {
+                    newWorkingContent.product_type = snapshot.product_type;
+                    resolvedProductType = snapshot.product_type as string;
+                }
+            }
+
+            // Build metadata by merging form data over existing (preserves WooCommerce data).
+            // Tuple format: [metadataKey, formDataKey] — renamed fields are explicit.
+            const META_FIELD_MAP: [string, string][] = [
+                ['status', 'status'], ['handle', 'slug'], ['slug', 'slug'],
+                ['regular_price', 'regular_price'], ['sale_price', 'sale_price'],
+                ['on_sale', 'on_sale'], ['date_on_sale_from', 'date_on_sale_from'],
+                ['date_on_sale_to', 'date_on_sale_to'],
+                ['backorders', 'backorders'], ['low_stock_amount', 'low_stock_amount'],
+                ['categories', 'categories'], ['tags', 'tags'], ['images', 'images'],
+                ['brand', 'vendor'],
+                ['weight', 'weight'], ['dimensions', 'dimensions'],
+                ['shipping_class', 'shipping_class'], ['tax_status', 'tax_status'],
+                ['tax_class', 'tax_class'],
+                ['visibility', 'catalog_visibility'],
+                ['is_virtual', 'virtual'], ['is_downloadable', 'downloadable'],
+                ['purchasable', 'purchasable'], ['featured', 'featured'],
+                ['sold_individually', 'sold_individually'], ['reviews_allowed', 'reviews_allowed'],
+                ['menu_order', 'menu_order'], ['purchase_note', 'purchase_note'],
+                ['external_url', 'external_url'], ['button_text', 'button_text'],
+                ['upsell_ids', 'upsell_ids'], ['cross_sell_ids', 'cross_sell_ids'],
+                ['related_ids', 'related_ids'],
+            ];
+
             const existingMetadata = (currentProduct.metadata as Record<string, unknown>) || {};
+            const mergedMetadata: Record<string, unknown> = {
+                ...existingMetadata,
+                type: resolvedProductType,
+                product_type: resolvedProductType,
+            };
+            for (const [metaKey, formKey] of META_FIELD_MAP) {
+                mergedMetadata[metaKey] = (formData as any)[formKey];
+            }
+
+            // SKU uniqueness check (before writing to DB)
+            const skuToSave = formData.sku?.trim();
+            if (skuToSave && currentProduct.store_id) {
+                await checkSkuUniqueness(supabase, currentProduct.store_id, skuToSave, productId);
+            }
+
+            const now = new Date().toISOString();
             const productUpdate: Record<string, unknown> = {
                 title: formData.title,
                 price: formData.regular_price ?? formData.price,
                 stock: formData.stock,
                 sku: formData.sku,
+                product_type: resolvedProductType,
                 working_content: newWorkingContent,
                 dirty_fields_content: dirtyFields,
-                working_content_updated_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                metadata: {
-                    ...existingMetadata,
-                    // Basic
-                    status: formData.status,
-                    handle: formData.slug,
-                    slug: formData.slug,
-
-                    // Pricing
-                    regular_price: formData.regular_price,
-                    sale_price: formData.sale_price,
-                    on_sale: formData.on_sale,
-                    date_on_sale_from: formData.date_on_sale_from,
-                    date_on_sale_to: formData.date_on_sale_to,
-
-                    // Stock
-                    backorders: formData.backorders,
-                    low_stock_amount: formData.low_stock_amount,
-
-                    // Taxonomies
-                    categories: formData.categories,
-                    tags: formData.tags,
-                    images: formData.images,
-                    product_type: formData.product_type || currentWorking.product_type || 'simple',
-                    brand: formData.vendor,
-
-                    // Physical
-                    weight: formData.weight,
-                    dimensions: formData.dimensions,
-                    shipping_class: formData.shipping_class,
-                    tax_status: formData.tax_status,
-                    tax_class: formData.tax_class,
-
-                    // Visibility
-                    visibility: formData.catalog_visibility,
-                    is_virtual: formData.virtual,
-                    is_downloadable: formData.downloadable,
-                    purchasable: formData.purchasable,
-                    featured: formData.featured,
-
-                    // Options
-                    sold_individually: formData.sold_individually,
-                    reviews_allowed: formData.reviews_allowed,
-                    menu_order: formData.menu_order,
-                    purchase_note: formData.purchase_note,
-
-                    // External
-                    external_url: formData.external_url,
-                    button_text: formData.button_text,
-
-                    // Linked products
-                    upsell_ids: formData.upsell_ids,
-                    cross_sell_ids: formData.cross_sell_ids,
-                    related_ids: formData.related_ids,
-                },
+                working_content_updated_at: now,
+                updated_at: now,
+                metadata: mergedMetadata,
             };
 
-            // Mettre à jour
+            // Optimistic locking: only update if row hasn't changed since we read it.
+            // If another tab, sync, or process modified the row, updated_at will differ
+            // and this UPDATE will match 0 rows → StaleDataError.
+            const fetchedUpdatedAt = currentProduct.updated_at;
             const { data, error } = await supabase
                 .from('products')
                 .update(productUpdate)
                 .eq('id', productId)
-                .select()
-                .single();
+                .eq('updated_at', fetchedUpdatedAt)
+                .select();
 
             if (error) throw error;
-            return { product: data, dirtyFields };
+
+            // If 0 rows returned, the product was modified between our SELECT and UPDATE
+            if (!data || data.length === 0) {
+                throw new StaleDataError();
+            }
+
+            return { product: data[0], dirtyFields };
         },
         onSuccess: async (result, variables) => {
             const { dirtyFields } = result;
@@ -417,8 +422,23 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 toast.success('Produit sauvegardé');
             }
         },
-        onError: (error: Error) => {
-            toast.error('Erreur de sauvegarde', { description: error.message });
+        onError: (error: Error, variables) => {
+            if (error instanceof StaleDataError) {
+                // Refetch product data so the user sees the latest version
+                queryClient.invalidateQueries({ queryKey: ['product', variables.productId] });
+                queryClient.invalidateQueries({ queryKey: ['product-content', variables.productId] });
+                toast.warning('Données modifiées', {
+                    description: 'Le produit a été modifié depuis votre dernière lecture. Les données ont été rechargées.',
+                    duration: 8000,
+                });
+            } else if (error instanceof DuplicateSkuError) {
+                toast.error('SKU dupliqué', {
+                    description: error.message,
+                    duration: 8000,
+                });
+            } else {
+                toast.error('Erreur de sauvegarde', { description: error.message });
+            }
         },
     });
 
@@ -438,6 +458,15 @@ export function useAutoSaveProduct() {
     const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
     const isMountedRef = React.useRef(true);
 
+    // FIX B2: Stabilize mutate/mutateAsync via refs so useCallback deps don't change
+    // every render. Without this, debouncedSave is recreated every cycle, breaking debounce.
+    const mutateRef = React.useRef(saveProduct.mutate);
+    const mutateAsyncRef = React.useRef(saveProduct.mutateAsync);
+    React.useEffect(() => {
+        mutateRef.current = saveProduct.mutate;
+        mutateAsyncRef.current = saveProduct.mutateAsync;
+    });
+
     // Cleanup on unmount
     React.useEffect(() => {
         isMountedRef.current = true;
@@ -450,20 +479,20 @@ export function useAutoSaveProduct() {
         };
     }, []);
 
-    const debouncedSave = React.useCallback((productId: string, data: ProductFormData, delay = 2000) => {
+    const debouncedSave = React.useCallback((productId: string, data: ProductSavePayload, delay = 2000) => {
         // Cancel previous timeout
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
         }
 
         timeoutRef.current = setTimeout(() => {
-            // Only save if component is still mounted
-            if (isMountedRef.current) {
-                saveProduct.mutate({ productId, data });
+            // Only save if component is still mounted and no save is already in-flight
+            if (isMountedRef.current && !saveProduct.isPending) {
+                mutateRef.current({ productId, data });
             }
             timeoutRef.current = null;
         }, delay);
-    }, [saveProduct]);
+    }, [saveProduct.isPending]); // Re-create when isPending changes
 
     const cancelAutoSave = React.useCallback(() => {
         if (timeoutRef.current) {
@@ -472,13 +501,13 @@ export function useAutoSaveProduct() {
         }
     }, []);
 
-    const flushAutoSave = React.useCallback(async (productId: string, data: ProductFormData) => {
+    const flushAutoSave = React.useCallback(async (productId: string, data: ProductSavePayload) => {
         // Cancel pending auto-save and save immediately
         cancelAutoSave();
         if (isMountedRef.current) {
-            return saveProduct.mutateAsync({ productId, data });
+            return mutateAsyncRef.current({ productId, data });
         }
-    }, [saveProduct, cancelAutoSave]);
+    }, [cancelAutoSave]); // Stable: cancelAutoSave has no deps
 
     return {
         ...saveProduct,
@@ -503,7 +532,7 @@ export function useQuickUpdateProduct() {
             value,
         }: {
             productId: string;
-            field: keyof ProductFormData;
+            field: keyof ProductSavePayload;
             value: unknown;
         }) => {
             // Récupérer et mettre à jour le working_content
