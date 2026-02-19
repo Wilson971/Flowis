@@ -38,8 +38,12 @@ export default function FlowriterPage() {
                 storeId={selectedStore.id}
                 tenantId={selectedStore.tenant_id}
                 onComplete={(articleId) => {
-                    // Navigate to article list after completion
-                    router.push('/app/blog');
+                    // Navigate to editor so user can review and push to WooCommerce
+                    if (articleId) {
+                        router.push(`/app/blog/editor/${articleId}`);
+                    } else {
+                        router.push('/app/blog');
+                    }
                 }}
             />
         </div>

@@ -62,8 +62,10 @@ export interface ArticleSyncHook {
   isPublished: boolean;
   isScheduled: boolean;
   scheduledAt: string | null;
+  connectedPlatforms?: Array<{ platform: string; connected?: boolean }>;
   publishNow: (platforms: string[]) => Promise<boolean>;
   schedulePublish: (options: any) => Promise<boolean>;
+  retrySync?: (platform: string) => Promise<boolean | void>;
   isPublishing: boolean;
   isScheduling: boolean;
 }
@@ -118,7 +120,7 @@ export interface ArticleEditContextType {
 
   // Platform context
   selectedPlatform?: 'flowz' | 'woocommerce' | 'wordpress';
-  connectedPlatforms?: Array<{ platform: string; connected: boolean }>;
+  connectedPlatforms?: Array<{ platform: string; connected?: boolean }>;
 }
 
 // ============================================================================

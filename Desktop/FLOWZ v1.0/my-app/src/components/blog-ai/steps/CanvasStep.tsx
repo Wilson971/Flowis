@@ -27,7 +27,8 @@ import {
   PanelRightClose,
   Globe,
   Eye,
-  Code2
+  Code2,
+  SpellCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,6 +59,8 @@ const actionIcons: Record<CanvasAIAction, React.ElementType> = {
   factcheck: ShieldCheck,
   simplify: Minus,
   formalize: Briefcase,
+  change_tone: Globe,
+  correct: SpellCheck,
 };
 
 // ============================================================================

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useUserProfile } from "../../hooks/profile/useUserProfile";
-import { useDashboardKPIs } from "../../hooks/useDashboardKPIs";
+import { useDashboardKPIs } from "../../hooks/dashboard/useDashboardKPIs";
 import { useRecentActivity } from "../../hooks/analytics/useRecentActivity";
 import { useSelectedStore } from "../../contexts/StoreContext";
 import { DashboardHeader } from "./DashboardHeader";

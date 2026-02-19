@@ -194,18 +194,22 @@ export function useArticleEditorForm(
         updates: changes as any,
       });
 
-      // Create auto-save version (silently, no toast)
-      const title = changes.title || article?.title || 'Sans titre';
-      const content = changes.content || article?.content || '';
-      const excerpt = changes.excerpt || article?.excerpt || '';
+      // Create auto-save version (silently, non-blocking — table may not exist yet)
+      try {
+        const title = changes.title || article?.title || 'Sans titre';
+        const content = changes.content || article?.content || '';
+        const excerpt = changes.excerpt || article?.excerpt || '';
 
-      await createVersionMutation.mutateAsync({
-        article_id: articleIdRef.current,
-        title,
-        content,
-        excerpt,
-        trigger_type: 'auto_save',
-      });
+        await createVersionMutation.mutateAsync({
+          article_id: articleIdRef.current,
+          title,
+          content,
+          excerpt,
+          trigger_type: 'auto_save',
+        });
+      } catch {
+        // Version tracking is optional — don't fail the auto-save
+      }
 
       setLastSavedAt(new Date());
       setAutoSaveStatus('saved');

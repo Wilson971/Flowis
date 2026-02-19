@@ -6,7 +6,7 @@ import { Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProductsTableModern } from '@/components/products/ProductsTableModern';
-import { useProducts, useProductStats } from '@/hooks/useProducts';
+import { useProducts, useProductStats } from '@/hooks/products/useProducts';
 import { useSelectedStore } from '@/contexts/StoreContext';
 import {
     ProductsPageHeader,
@@ -21,7 +21,7 @@ import { useAcceptDraft, useRejectDraft } from '@/hooks/products/useProductConte
 import { ModularGenerationSettings } from '@/types/imageGeneration';
 import { getRemainingProposals } from '@/lib/productHelpers';
 import type { ContentData } from '@/types/productContent';
-import { useTableFilters } from '@/hooks/useTableFilters';
+import { useTableFilters } from '@/hooks/products/useTableFilters';
 import { ProductsPagination } from '@/components/products/ProductsPagination';
 import { ProductsFilter } from '@/components/products/ProductsFilter';
 import { useDebounce } from '@/hooks/useDebounce';

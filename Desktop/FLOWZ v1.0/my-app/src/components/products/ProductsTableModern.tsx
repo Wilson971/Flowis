@@ -42,9 +42,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DataTable } from "@/components/ui/data-table";
 import { useSelectedStore } from "@/contexts/StoreContext";
-import { useAcceptDraft, useRejectDraft } from "@/hooks/useProductContent";
-import { usePushToStore } from "@/hooks/usePushToStore";
-import { useCancelSync } from "@/hooks/useCancelSync";
+import { useAcceptDraft, useRejectDraft } from "@/hooks/products/useProductContent";
+import { usePushToStore } from "@/hooks/products";
+import { useCancelSync } from "@/hooks/sync";
 import { CancelSyncDialog } from "./CancelSyncDialog";
 import { getGeneratedFieldsTooltip, hasRemainingDraftContent, isDraftAlreadyApplied } from "@/lib/productHelpers";
 import { shouldSync } from "@/lib/syncHelpers";

@@ -431,6 +431,8 @@ export function useWordPressSync(options: UseWordPressSyncOptions = {}) {
     // Taxonomies
     categories: categories.data || [],
     tags: tags.data || [],
+    isLoadingCategories: categories.isLoading,
+    isLoadingTags: tags.isLoading,
     isLoadingTaxonomies: categories.isLoading || tags.isLoading,
 
     // Article status

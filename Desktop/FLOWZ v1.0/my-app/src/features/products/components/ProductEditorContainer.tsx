@@ -7,9 +7,9 @@ import { AlertCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useProduct } from "@/hooks/useProducts";
+import { useProduct } from "@/hooks/products/useProducts";
 import { useConflictDetection, useDirtyVariationsCount } from "@/hooks/products";
-import { useProductContent } from "@/hooks/useProductContent";
+import { useProductContent } from "@/hooks/products/useProductContent";
 import { useDraftActions } from "@/features/products/hooks/useDraftActions";
 import { getRemainingProposals, getContentStatus } from "@/lib/productHelpers";
 import { useProductForm, ProductFormValues } from "../hooks/useProductForm";
@@ -208,7 +208,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             if (manualSaveLockRef.current) return;
 
             // Skip auto-save if within cooldown period after manual save
-            if (Date.now() - manualSaveCooldownRef.current < 15_000) return;
+            if (Date.now() - manualSaveCooldownRef.current < 5_000) return;
 
             // Cancel any previous saved-state reset timer
             if (autoSaveTimerRef.current) {
@@ -430,6 +430,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                                 dirtyFieldsContent={dirtyFieldsContent}
                                 hasConflict={hasConflict}
                                 isSaving={actions.isSaving}
+                                isAutoSyncing={actions.isAutoSyncing}
                                 history={history}
                                 onSave={() => methods.handleSubmit(handleManualSave)()}
                                 onReset={() => methods.reset()}

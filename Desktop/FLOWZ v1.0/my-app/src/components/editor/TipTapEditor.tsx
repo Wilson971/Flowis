@@ -155,13 +155,14 @@ export const TipTapEditor = ({
     });
 
     // Sync content when value changes externally (e.g. form reset, undo/redo, draft accept)
+    // NOTE: Do NOT guard with isInitializingRef here. When product data is already cached
+    // (TanStack Query), value arrives in the same render cycle as editor creation.
+    // The RAF in onCreate hasn't fired yet, so isInitializingRef is still true — skipping
+    // the sync permanently. emitUpdate:false already prevents false dirty state.
     useEffect(() => {
         if (!editor) return;
-        // Skip sync during initialization — editor already has the correct initial content
-        if (isInitializingRef.current) return;
 
         const editorHtml = editor.getHTML();
-        // Compare against both raw value and fixed version to avoid unnecessary updates
         if (editorHtml !== value) {
             editor.commands.setContent(value, { emitUpdate: false });
         }

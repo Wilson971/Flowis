@@ -94,4 +94,4 @@ export type { SyncReport } from './useSyncReports';
 export { useSyncManager } from './useSyncManager';
 
 // Cancel sync hook
-export { useCancelSync } from '../useCancelSync';
+export { useCancelSync } from './useCancelSync';

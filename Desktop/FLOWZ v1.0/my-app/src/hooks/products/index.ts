@@ -16,7 +16,6 @@ export {
 export {
     useProductSave,
     useAutoSaveProduct,
-    useQuickUpdateProduct,
     type ProductSavePayload,
 } from './useProductSave';
 
@@ -67,10 +66,6 @@ export {
 // ============================================================================
 export {
     useSeoAnalysis,
-    useRunSeoAnalysis,
-    useProductSeoScore,
-    useSeoStats,
-    useBatchSeoAnalysis,
     getSeoStatus,
     getSeoColor,
     getSeoLabel,
@@ -106,9 +101,6 @@ export {
 export {
     useProductRealtime,
     useProductListRealtime,
-    useSeoAnalysisRealtime,
-    useStudioJobsRealtime,
-    useProductFullRealtime,
 } from './useProductRealtime';
 
 // ============================================================================
@@ -117,11 +109,8 @@ export {
 export { useBatchGeneration } from './useBatchGeneration';
 
 export {
-    useBatchJobStatus,
     useBatchProgress,
     useBatchJobs,
-    useActiveJobs,
-    useBatchJobDetails,
     useCancelBatchJob,
     useRetryBatchJob,
     useBatchJobRealtime,
@@ -133,3 +122,28 @@ export {
 // APPROVAL (existing)
 // ============================================================================
 export * from './useApproval';
+
+// ============================================================================
+// PRODUCTS CRUD & LISTING
+// ============================================================================
+export {
+    useProducts,
+    useProduct,
+    useProductStats,
+    useBatchJobItems,
+    useBatchGenerationMutation,
+} from './useProducts';
+
+// ============================================================================
+// DIRTY FIELDS UTILITY
+// ============================================================================
+export { computeDirtyFields } from './computeDirtyFields';
+
+// ============================================================================
+// TABLE & SEO UTILITIES
+// ============================================================================
+export { useTableFilters } from './useTableFilters';
+export { useSerpAnalysisByProduct } from './useSerpAnalysis';
+export { useProductSerpStatus } from './useProductSerpStatus';
+export { useProductSeoStatus } from './useProductSeoStatus';
+export { useSeoGlobalScore } from './useSeoGlobalScore';

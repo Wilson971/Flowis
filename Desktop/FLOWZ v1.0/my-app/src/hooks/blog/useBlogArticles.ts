@@ -189,11 +189,13 @@ export function useCreateBlogArticle() {
         ? params.content.replace(/[#*`>\[\]]/g, '').slice(0, 200).trim() + '...'
         : '');
 
-      // Store AI generation info and extra fields in metadata JSONB
+      // Store AI generation info, source tracking, and extra fields in metadata JSONB
       const metadata = {
         ai_generated: params.ai_generated ?? true,
         generation_config: params.generation_config,
         word_count: params.word_count,
+        source: params.source || 'manual',
+        flowriter_session_id: params.flowriter_session_id,
       };
 
       // Insert with tenant_id from store (for RLS policy)
@@ -208,9 +210,6 @@ export function useCreateBlogArticle() {
           content: params.content || '',
           excerpt,
           metadata,
-          // Source tracking for FloWriter -> Editor link
-          source: params.source || 'manual',
-          flowriter_session_id: params.flowriter_session_id,
         })
         .select()
         .single();
@@ -224,10 +223,11 @@ export function useCreateBlogArticle() {
         description: `"${data.title}" a été créé avec succès.`,
       });
     },
-    onError: (error: Error) => {
-      toast.error('Erreur', {
-        description: error.message || 'Impossible de créer l\'article.',
-      });
+    onError: (error: unknown) => {
+      const message = error instanceof Error
+        ? error.message
+        : (error as { message?: string })?.message || 'Impossible de créer l\'article.';
+      toast.error('Erreur', { description: message });
     },
   });
 }

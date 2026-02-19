@@ -2,25 +2,14 @@ import { useState, useCallback } from 'react';
 import { UseFormSetValue } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ProductFormValues } from '../schemas/product-schema';
-import { useAcceptDraft, useRejectDraft } from "@/hooks/useProductContent";
-import { useBatchGeneration } from "@/hooks/useProducts";
+import { useAcceptDraft, useRejectDraft } from "@/hooks/products/useProductContent";
+import { useBatchGenerationMutation } from "@/hooks/products/useProducts";
 import { BatchGenerationSettings } from "@/types/product";
+import type { ContentData } from "@/types/productContent";
 
 // ============================================================================
 // TYPES
 // ============================================================================
-
-interface ContentData {
-    title?: string;
-    description?: string;
-    short_description?: string;
-    sku?: string;
-    seo?: {
-        title?: string;
-        description?: string;
-    };
-    [key: string]: any;
-}
 
 interface UseDraftActionsParams {
     productId: string | undefined;
@@ -95,7 +84,7 @@ export const useDraftActions = ({
     // Mutations
     const { mutate: acceptDraft, isPending: isAccepting } = useAcceptDraft();
     const { mutate: rejectDraft, isPending: isRejecting } = useRejectDraft();
-    const batchGeneration = useBatchGeneration();
+    const batchGeneration = useBatchGenerationMutation();
 
     // -------------------------------------------------------------------------
     // ACCEPTER un champ

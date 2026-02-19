@@ -73,8 +73,8 @@ function calculateInitialFormValues(
         title: wc.title ?? product.title ?? "",
         sku: wc.sku ?? product.sku ?? "",
         global_unique_id: wc.global_unique_id ?? "",
-        short_description: wc.short_description ?? "",
-        description: wc.description ?? "",
+        short_description: wc.short_description ?? (product.metadata as Record<string, any>)?.short_description ?? "",
+        description: wc.description ?? (product.metadata as Record<string, any>)?.description ?? "",
         permalink: wc.permalink ?? (product.metadata as any)?.permalink ?? null,
 
         // Pricing

@@ -5,8 +5,6 @@
  * des données de synchronisation.
  */
 
-import { z } from 'zod';
-
 // ============================================================================
 // SYNC STATUS & PHASES
 // ============================================================================
@@ -270,44 +268,6 @@ export interface SyncResponse {
 }
 
 // ============================================================================
-// ZOD SCHEMAS
-// ============================================================================
-
-export const SyncResultSchema = z.object({
-    product_id: z.string(),
-    status: z.enum(['success', 'failed', 'skipped']),
-    error: z.string().optional(),
-    reason: z.string().optional(),
-    product: z.any().optional(),
-});
-
-export const SyncResponseSchema = z.object({
-    success: z.boolean(),
-    total: z.number(),
-    pushed: z.number(),
-    failed: z.number(),
-    skipped: z.number(),
-    results: z.array(SyncResultSchema),
-    error: z.string().optional(),
-    details: z.string().optional(),
-});
-
-// ============================================================================
-// STATE MACHINE TYPES
-// ============================================================================
-
-export type SyncState = 'idle' | 'pending' | 'synced' | 'error' | 'dirty';
-
-export interface SyncStateTransition {
-    productId: string;
-    previousState: SyncState;
-    newState: SyncState;
-    trigger: string;
-    timestamp: string;
-    metadata?: Record<string, unknown>;
-}
-
-// ============================================================================
 // SYNC ACTIONS STATE
 // ============================================================================
 
@@ -320,46 +280,4 @@ export interface SyncActionsState {
     isPaused: boolean;
     isCompleted: boolean;
     isFailed: boolean;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-export function toUIStatus(manifestStatus: ManifestStatus | null, isStarting: boolean): SyncUIStatus {
-    if (isStarting) return 'starting';
-    if (!manifestStatus) return 'idle';
-
-    switch (manifestStatus) {
-        case 'planning':
-        case 'ready':
-            return 'starting';
-        case 'in_progress':
-            return 'syncing';
-        case 'paused':
-            return 'paused';
-        case 'completed':
-            return 'completed';
-        case 'failed':
-            return 'failed';
-    }
-}
-
-export function isActiveStatus(status: SyncStatus): boolean {
-    return ['pending', 'running', 'discovering', 'fetching', 'saving', 'syncing', 'importing'].includes(status);
-}
-
-export function canPauseJob(job: SyncJob | null): boolean {
-    if (!job) return false;
-    return isActiveStatus(job.status);
-}
-
-export function canResumeJob(job: SyncJob | null): boolean {
-    if (!job) return false;
-    return job.status === 'paused';
-}
-
-export function canCancelJob(job: SyncJob | null): boolean {
-    if (!job) return false;
-    return isActiveStatus(job.status) || job.status === 'paused';
 }

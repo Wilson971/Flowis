@@ -21,7 +21,8 @@ export interface PushResult {
 export interface PushResponse {
     success: boolean;
     total: number;
-    pushed: number;
+    successful: number;
+    pushed?: number; // Legacy alias
     failed: number;
     skipped: number;
     results: PushResult[];
@@ -104,8 +105,11 @@ export function usePushToStore() {
         },
         onError: (error: Error) => {
             console.error('[usePushToStore] onError:', error);
-            toast.error('Erreur', {
-                description: error.message || 'Impossible de lancer la synchronisation',
+            const isNetwork = error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch');
+            toast.error(isNetwork ? 'Connexion perdue' : 'Erreur de synchronisation', {
+                description: isNetwork
+                    ? 'Vérifiez votre connexion internet et réessayez.'
+                    : (error.message || 'Impossible de lancer la synchronisation'),
             });
         },
     });
@@ -205,7 +209,7 @@ export function useCancelProductSync() {
             toast.success('Modifications annulées');
         },
         onError: (error: Error) => {
-            toast.error('Erreur', { description: error.message });
+            toast.error('Erreur d\'annulation', { description: error.message || 'Impossible d\'annuler les modifications.' });
         },
     });
 }

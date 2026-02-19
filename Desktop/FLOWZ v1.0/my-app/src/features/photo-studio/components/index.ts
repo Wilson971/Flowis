@@ -7,19 +7,14 @@ export { SessionTimeline } from './SessionTimeline';
 export { PresetGrid } from './PresetGrid';
 export { CompareOverlay } from './CompareOverlay';
 export { SceneStudioLoader } from './SceneStudioLoader';
-export { SmartTagsEditor } from './SmartTagsEditor';
-
 // Batch components
 export { StudioBatchPanel } from './StudioBatchPanel';
-export { BatchBrandingPanel } from './BatchBrandingPanel';
 export { BatchStudioProgressPanel } from './BatchStudioProgressPanel';
 
 // Photo Studio page views
 export { PhotoStudioPage } from './PhotoStudioPage';
 export { PhotoStudioTable } from './PhotoStudioTable';
 export { PhotoStudioCard } from './PhotoStudioCard';
-export { PhotoStudioListCompact } from './PhotoStudioListCompact';
-
 // Re-export modals
 export {
   SourceImagesModal,

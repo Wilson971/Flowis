@@ -11,49 +11,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ContentData, ProductContentBuffer } from '@/types/productContent';
+import { computeDirtyFields } from './computeDirtyFields';
 
 // ============================================================================
 // HELPERS
 // ============================================================================
-
-/**
- * Calcule les champs modifiés entre working et snapshot
- */
-function computeDirtyFields(
-    working: ContentData | null,
-    snapshot: ContentData | null
-): string[] {
-    if (!working || !snapshot) return [];
-
-    const dirtyFields: string[] = [];
-    const fieldsToCompare = [
-        'title',
-        'description',
-        'short_description',
-        'sku',
-        'slug',
-        'vendor',
-        'product_type',
-    ] as const;
-
-    for (const field of fieldsToCompare) {
-        const workingValue = working[field];
-        const snapshotValue = snapshot[field];
-        if (workingValue !== snapshotValue && workingValue !== undefined) {
-            dirtyFields.push(field);
-        }
-    }
-
-    // SEO fields
-    if (working.seo?.title !== snapshot.seo?.title && working.seo?.title) {
-        dirtyFields.push('seo.title');
-    }
-    if (working.seo?.description !== snapshot.seo?.description && working.seo?.description) {
-        dirtyFields.push('seo.description');
-    }
-
-    return dirtyFields;
-}
 
 /**
  * Retire un champ du draft de manière propre
@@ -160,9 +122,9 @@ export function useProductContent(productId: string | null) {
             };
         },
         enabled: !!productId,
-        staleTime: 0,
+        staleTime: 30_000, // 30s — dedup rapid mounts; realtime/invalidation covers live updates
         refetchOnMount: true,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: true, // Safe: content data doesn't overwrite form state
     });
 }
 

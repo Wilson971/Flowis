@@ -184,6 +184,41 @@ export interface BlogSyncResult {
 }
 
 // ============================================================================
+// WOOCOMMERCE PUBLISH
+// ============================================================================
+
+export type WCSyncStatus = 'not_synced' | 'synced' | 'pending' | 'failed';
+
+export interface WCCategory {
+  id: number;
+  name: string;
+  slug: string;
+  parent: number;
+  count?: number;
+}
+
+export interface WCTag {
+  id: number;
+  name: string;
+  slug: string;
+  count?: number;
+}
+
+export interface WCPublishOptions {
+  status: 'draft' | 'publish' | 'pending';
+  categoryIds: number[];
+  tagIds: number[];
+  featuredImageUrl?: string;
+}
+
+export interface WCPublishResult {
+  success: boolean;
+  externalId?: string;
+  externalUrl?: string;
+  error?: string;
+}
+
+// ============================================================================
 // AI GENERATION CONFIG (Imported from blog-ai)
 // ============================================================================
 
