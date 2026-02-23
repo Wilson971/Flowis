@@ -168,7 +168,11 @@ export function useSyncManager() {
         try {
             const supabase = createClient();
 
-            // Annuler tous les jobs actifs pour ce store
+            // Defense-in-depth: scope cancel to authenticated user's tenant
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Authentication required');
+
+            // Annuler tous les jobs actifs pour ce store (tenant-scoped)
             await supabase
                 .from('sync_jobs')
                 .update({
@@ -177,6 +181,7 @@ export function useSyncManager() {
                     completed_at: new Date().toISOString()
                 })
                 .eq('store_id', storeId)
+                .eq('tenant_id', user.id)
                 .in('status', ['pending', 'discovering', 'syncing', 'products', 'variations', 'categories']);
 
             // Petit délai pour laisser la BDD se mettre à jour

@@ -144,12 +144,12 @@ function logTokenUsage(usage: TokenUsage, metadata: {
     // Token usage tracking — extend to DB storage if needed
 }
 
-// Daily token limit per user (if needed)
-const DAILY_TOKEN_LIMIT = 500000; // 500K tokens per day
+// Monthly token limit per user
+const MONTHLY_TOKEN_LIMIT = 2_000_000; // 2M tokens per month
 
 /**
- * Check if user is within daily limit (stub for future implementation)
- * In production, this would check against a database
+ * Check if user is within monthly token limit.
+ * Queries ai_usage table aggregated by month.
  */
 async function checkTokenLimit(userId?: string): Promise<{
     allowed: boolean;
@@ -174,7 +174,7 @@ async function checkTokenLimit(userId?: string): Promise<{
         ? 0
         : (data ?? []).reduce((sum, row) => sum + (row.tokens_input ?? 0) + (row.tokens_output ?? 0), 0);
 
-    const remaining = Math.max(0, DAILY_TOKEN_LIMIT - used);
+    const remaining = Math.max(0, MONTHLY_TOKEN_LIMIT - used);
 
     // Reset at start of next month
     const now = new Date();
@@ -239,7 +239,7 @@ function getPersonaInstructions(persona?: string): string {
 const SANITIZE_CONFIG = {
     maxTopicLength: 500,
     maxTitleLength: 200,
-    maxOutlineItems: 300,
+    maxOutlineItems: 50,
     maxKeywords: 20,
     maxCustomInstructionsLength: 1000,
 };

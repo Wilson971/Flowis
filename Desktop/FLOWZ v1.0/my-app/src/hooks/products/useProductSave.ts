@@ -16,6 +16,7 @@ import type { ContentData } from '@/types/productContent';
 import { PRODUCT_TYPE_DEFAULT } from '@/features/products/schemas/product-schema';
 import { useAutoSync } from '@/hooks/sync/usePushToStore';
 import { computeDirtyFields } from './computeDirtyFields';
+import { calculateProductSeoScore } from '@/lib/seo/analyzer';
 
 // ============================================================================
 // ERRORS
@@ -209,12 +210,14 @@ async function checkSkuUniqueness(
         throw new DuplicateSkuError(sku, conflictProduct.title || `Produit #${conflictProduct.id.slice(0, 8)}`);
     }
 
-    // Check product_variations table (any variation in the same store)
+    // Check product_variations table (exclude variations of the current product —
+    // WooCommerce allows a product and its own variations to share the same SKU)
     const { data: conflictVariation } = await supabase
         .from('product_variations')
         .select('id, sku, parent_product_external_id')
         .eq('store_id', storeId)
         .eq('sku', sku)
+        .neq('product_id', excludeProductId)
         .limit(1)
         .maybeSingle();
 
@@ -365,6 +368,20 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 await checkSkuUniqueness(supabase, currentProduct.store_id, skuToSave, productId);
             }
 
+            // Calculate SEO score for persistence
+            const seoResult = calculateProductSeoScore({
+                title: (newWorkingContent as any).title ?? formData.title ?? '',
+                short_description: (newWorkingContent as any).short_description ?? formData.short_description ?? '',
+                description: (newWorkingContent as any).description ?? formData.description ?? '',
+                meta_title: (newWorkingContent as any).seo?.title ?? formData.seo?.title ?? '',
+                meta_description: (newWorkingContent as any).seo?.description ?? formData.seo?.description ?? '',
+                slug: (newWorkingContent as any).slug ?? formData.slug ?? '',
+                images: Array.isArray((newWorkingContent as any).images)
+                    ? (newWorkingContent as any).images.map((img: any) => ({ src: img.src, alt: img.alt }))
+                    : [],
+                focus_keyword: (newWorkingContent as any).seo?.focus_keyword ?? formData.seo?.focus_keyword,
+            });
+
             const now = new Date().toISOString();
             const productUpdate: Record<string, unknown> = {
                 title: formData.title,
@@ -377,18 +394,31 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 working_content_updated_at: now,
                 updated_at: now,
                 metadata: mergedMetadata,
+                seo_score: seoResult.overall,
             };
 
             // Optimistic locking: only update if row hasn't changed since we read it.
-            // If another tab, sync, or process modified the row, updated_at will differ
-            // and this UPDATE will match 0 rows → StaleDataError.
             const fetchedUpdatedAt = currentProduct.updated_at;
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('products')
                 .update(productUpdate)
                 .eq('id', productId)
                 .eq('updated_at', fetchedUpdatedAt)
                 .select();
+
+            // If update fails because seo_score column doesn't exist yet
+            // (migration not applied), retry without it.
+            if (error && error.message?.includes('seo_score')) {
+                delete productUpdate.seo_score;
+                const retry = await supabase
+                    .from('products')
+                    .update(productUpdate)
+                    .eq('id', productId)
+                    .eq('updated_at', fetchedUpdatedAt)
+                    .select();
+                data = retry.data;
+                error = retry.error;
+            }
 
             if (error) throw error;
 
@@ -548,6 +578,10 @@ export function useQuickUpdateProduct() {
             const updatedWorking = { ...working, [field]: value };
             const dirtyFields = computeDirtyFields(updatedWorking, snapshot);
 
+            // Defense-in-depth: scope update to authenticated user's tenant
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Authentication required');
+
             const { error } = await supabase
                 .from('products')
                 .update({
@@ -555,7 +589,8 @@ export function useQuickUpdateProduct() {
                     dirty_fields_content: dirtyFields,
                     working_content_updated_at: new Date().toISOString(),
                 })
-                .eq('id', productId);
+                .eq('id', productId)
+                .eq('tenant_id', user.id);
 
             if (error) throw error;
             return { field, value };
