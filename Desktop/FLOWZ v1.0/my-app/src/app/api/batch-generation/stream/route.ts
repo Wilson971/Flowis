@@ -11,6 +11,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchImageSafe } from '@/lib/ssrf';
 import { batchGenerationRequestSchema } from '@/schemas/batch-generation';
 import {
     buildProductTitlePrompt,
@@ -71,50 +72,10 @@ function classifyError(error: any): { retryable: boolean; code: string; message:
 }
 
 // ============================================================================
-// IMAGE FETCHING + SSRF PROTECTION
+// IMAGE FETCHING (uses shared SSRF protection from @/lib/ssrf)
 // ============================================================================
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
-
-const BLOCKED_IP_PATTERNS = [
-    /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./,
-    /^192\.168\./, /^169\.254\./, /^0\./, /^::1$/, /^fc00:/i, /^fe80:/i,
-];
-const BLOCKED_HOSTNAMES = ['localhost', 'metadata.google.internal', 'metadata.google', 'instance-data'];
-
-function validateImageUrl(urlString: string): boolean {
-    try {
-        const parsed = new URL(urlString);
-        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-        const hostname = parsed.hostname.toLowerCase();
-        if (BLOCKED_HOSTNAMES.some(h => hostname === h || hostname.endsWith('.' + h))) return false;
-        if (BLOCKED_IP_PATTERNS.some(p => p.test(hostname))) return false;
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-async function fetchImageAsBase64(imageUrl: string): Promise<{ data: string; mimeType: string } | null> {
-    if (!validateImageUrl(imageUrl)) return null;
-
-    try {
-        const response = await fetch(imageUrl, {
-            headers: { Accept: 'image/*' },
-            signal: AbortSignal.timeout(15000), // 15s timeout for image fetch
-        });
-        if (!response.ok) return null;
-
-        const buffer = await response.arrayBuffer();
-        if (buffer.byteLength > MAX_IMAGE_SIZE) return null;
-
-        const data = Buffer.from(buffer).toString('base64');
-        const mimeType = response.headers.get('content-type') || 'image/jpeg';
-        return { data, mimeType };
-    } catch {
-        return null;
-    }
-}
 
 // ============================================================================
 // GEMINI CALL WITH RETRY
@@ -396,6 +357,7 @@ export async function POST(request: NextRequest) {
                             .from('products')
                             .select('id, title, image_url, price, sku, product_type, metadata, working_content, draft_generated_content')
                             .eq('id', productId)
+                            .eq('store_id', store_id)
                             .single();
 
                         if (prodError || !product) {
@@ -407,7 +369,7 @@ export async function POST(request: NextRequest) {
                         // Fetch image if needed for vision
                         let imageBase64: { data: string; mimeType: string } | null = null;
                         if (settings.image_analysis && productCtx.imageUrl) {
-                            imageBase64 = await fetchImageAsBase64(productCtx.imageUrl);
+                            imageBase64 = await fetchImageSafe(productCtx.imageUrl, MAX_IMAGE_SIZE).catch(() => null);
                         }
 
                         // Generate each enabled field
@@ -444,7 +406,7 @@ export async function POST(request: NextRequest) {
                                         // Fetch each image for vision analysis if enabled
                                         let imgBase64: { data: string; mimeType: string } | null = null;
                                         if (settings.image_analysis && imgSrc) {
-                                            imgBase64 = await fetchImageAsBase64(imgSrc);
+                                            imgBase64 = await fetchImageSafe(imgSrc, MAX_IMAGE_SIZE).catch(() => null);
                                         }
 
                                         const imgPrompt = buildPromptForField(
@@ -472,7 +434,7 @@ export async function POST(request: NextRequest) {
                                     // Fallback: single image from image_url
                                     let fallbackBase64: { data: string; mimeType: string } | null = null;
                                     if (settings.image_analysis) {
-                                        fallbackBase64 = await fetchImageAsBase64(productCtx.imageUrl);
+                                        fallbackBase64 = await fetchImageSafe(productCtx.imageUrl, MAX_IMAGE_SIZE).catch(() => null);
                                     }
                                     const fallbackPrompt = buildPromptForField('alt_text', productCtx, settings, !!fallbackBase64);
                                     const rawAlt = await callGeminiWithRetry(ai, fallbackPrompt, fallbackBase64);

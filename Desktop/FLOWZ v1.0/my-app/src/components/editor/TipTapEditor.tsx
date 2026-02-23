@@ -195,14 +195,20 @@ export const TipTapEditor = ({
             return;
         }
 
-        editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        // Sanitize URL: only allow http/https to prevent XSS via javascript: links
+        let safeUrl = url.trim();
+        if (!/^https?:\/\//i.test(safeUrl)) {
+            safeUrl = 'https://' + safeUrl;
+        }
+
+        editor.chain().focus().extendMarkRange('link').setLink({ href: safeUrl }).run();
     }, [editor]);
 
     if (!editor) {
         return (
             <div
                 className={cn(
-                    "rounded-md border border-border bg-background animate-pulse",
+                    "rounded-lg border border-border bg-background animate-pulse",
                     className
                 )}
                 style={{ minHeight }}
@@ -211,7 +217,7 @@ export const TipTapEditor = ({
     }
 
     return (
-        <div className={cn("rounded-md border border-border overflow-hidden bg-background", className)}>
+        <div className={cn("rounded-lg border border-border overflow-hidden bg-background", className)}>
             {/* Toolbar */}
             <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b border-border bg-muted/30">
                 {/* Text formatting */}

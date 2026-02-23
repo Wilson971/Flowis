@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchImageSafe } from '@/lib/ssrf';
 
 // ============================================================================
 // PHOTO STUDIO - Image Generation API Route
@@ -159,7 +160,7 @@ interface ErrorResponse {
 }
 
 // ============================================================================
-// IMAGE HELPERS + SSRF PROTECTION
+// IMAGE HELPERS
 // ============================================================================
 
 /** Maximum image size in bytes (10 MB) */
@@ -167,122 +168,6 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 /** Maximum base64 string length (~13.3 MB for 10 MB binary) */
 const MAX_BASE64_LENGTH = Math.ceil(MAX_IMAGE_SIZE * 1.37);
-
-/**
- * Blocked IP ranges for SSRF protection.
- * Prevents server-side requests to internal/private networks.
- */
-const BLOCKED_IP_PATTERNS = [
-  /^127\./,                    // Loopback
-  /^10\./,                     // Private class A
-  /^172\.(1[6-9]|2\d|3[01])\./, // Private class B
-  /^192\.168\./,               // Private class C
-  /^169\.254\./,               // Link-local / cloud metadata
-  /^0\./,                      // Current network
-  /^::1$/,                     // IPv6 loopback
-  /^fc00:/i,                   // IPv6 private
-  /^fe80:/i,                   // IPv6 link-local
-];
-
-const BLOCKED_HOSTNAMES = [
-  'localhost',
-  'metadata.google.internal',
-  'metadata.google',
-  'instance-data',
-];
-
-/**
- * Validate URL against SSRF attacks.
- * Blocks internal IPs, metadata endpoints, and non-HTTPS protocols.
- */
-function validateImageUrl(urlString: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(urlString);
-  } catch {
-    throw Object.assign(new Error('Invalid image URL'), { code: 'INVALID_REQUEST' });
-  }
-
-  // Only allow HTTP(S)
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw Object.assign(
-      new Error('Only HTTP/HTTPS image URLs are allowed'),
-      { code: 'INVALID_REQUEST' }
-    );
-  }
-
-  // Block known internal hostnames
-  const hostname = parsed.hostname.toLowerCase();
-  if (BLOCKED_HOSTNAMES.some(h => hostname === h || hostname.endsWith('.' + h))) {
-    throw Object.assign(
-      new Error('Access to internal hosts is not allowed'),
-      { code: 'INVALID_REQUEST' }
-    );
-  }
-
-  // Block private/reserved IP ranges
-  if (BLOCKED_IP_PATTERNS.some(pattern => pattern.test(hostname))) {
-    throw Object.assign(
-      new Error('Access to private IP ranges is not allowed'),
-      { code: 'INVALID_REQUEST' }
-    );
-  }
-}
-
-/**
- * Fetch an image from URL server-side with SSRF protection and size limits.
- * Returns { data, mimeType } where data is raw base64 string.
- */
-async function fetchImageFromUrl(
-  imageUrl: string
-): Promise<{ data: string; mimeType: string }> {
-  // SSRF validation
-  validateImageUrl(imageUrl);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
-
-  try {
-    const response = await fetch(imageUrl, {
-      headers: { Accept: 'image/*' },
-      signal: controller.signal,
-      redirect: 'follow',
-    });
-
-    if (!response.ok) {
-      throw Object.assign(
-        new Error(`Failed to fetch image: HTTP ${response.status}`),
-        { code: 'IMAGE_FETCH_FAILED' }
-      );
-    }
-
-    // Check Content-Length before downloading
-    const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-    if (contentLength > MAX_IMAGE_SIZE) {
-      throw Object.assign(
-        new Error(`Image too large: ${Math.round(contentLength / 1024 / 1024)}MB (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`),
-        { code: 'INVALID_REQUEST' }
-      );
-    }
-
-    const buffer = await response.arrayBuffer();
-
-    // Double-check actual size (Content-Length can be absent or wrong)
-    if (buffer.byteLength > MAX_IMAGE_SIZE) {
-      throw Object.assign(
-        new Error(`Image too large: ${Math.round(buffer.byteLength / 1024 / 1024)}MB (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`),
-        { code: 'INVALID_REQUEST' }
-      );
-    }
-
-    const data = Buffer.from(buffer).toString('base64');
-    const mimeType = response.headers.get('content-type') || 'image/jpeg';
-
-    return { data, mimeType };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 /**
  * Extract base64 data and mimeType from a data URL.
@@ -432,7 +317,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<GenerateR
 
   try {
     if (imageUrl) {
-      const fetched = await fetchImageFromUrl(imageUrl);
+      const fetched = await fetchImageSafe(imageUrl, MAX_IMAGE_SIZE);
       imageData = fetched.data;
       imageMimeType = fetched.mimeType;
     } else {

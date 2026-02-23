@@ -18,8 +18,19 @@ import type {
   BatchJobItem,
 } from '@/types/product';
 
+/** Max products per page for list views */
+const PRODUCTS_PAGE_SIZE = 200;
+
 /**
- * Fetch all products for a store
+ * List columns for product list views (excludes heavy JSONB fields).
+ * Full metadata/working_content/draft_generated_content are loaded per-product via useProduct().
+ */
+const LIST_COLUMNS = 'id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content, last_synced_at, stock, store_id, imported_at, updated_at, status, platform, tenant_id';
+
+/**
+ * Fetch products for a store with server-side pagination.
+ * Heavy JSONB columns (metadata, working_content, draft_generated_content) are excluded
+ * from list queries to prevent OOM on large catalogs.
  */
 export function useProducts(storeId?: string) {
   return useQuery({
@@ -28,20 +39,28 @@ export function useProducts(storeId?: string) {
       if (!storeId) return [];
       const supabase = createClient();
 
-      const { data, error } = await supabase
+      // Try with seo_score column; fall back if migration not yet applied
+      let { data, error } = await supabase
         .from('products')
-        .select(
-          `
-          *,
-          studio_jobs:studio_jobs(*),
-          product_seo_analysis:product_seo_analysis(*),
-          product_serp_analysis:product_serp_analysis(*)
-        `
-        )
+        .select(`${LIST_COLUMNS}, seo_score`)
         .eq('store_id', storeId)
         .order('imported_at', { ascending: false })
         .order('title', { ascending: true })
-        .order('id', { ascending: true });
+        .order('id', { ascending: true })
+        .limit(PRODUCTS_PAGE_SIZE);
+
+      if (error && error.message?.includes('seo_score')) {
+        const retry = await supabase
+          .from('products')
+          .select(LIST_COLUMNS)
+          .eq('store_id', storeId)
+          .order('imported_at', { ascending: false })
+          .order('title', { ascending: true })
+          .order('id', { ascending: true })
+          .limit(PRODUCTS_PAGE_SIZE);
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) throw error;
       return (data || []) as Product[];
@@ -82,7 +101,8 @@ export function useProduct(productId: string) {
 }
 
 /**
- * Fetch product statistics
+ * Fetch product statistics using server-side counts.
+ * Uses head:true + count:'exact' to avoid transferring full rows.
  */
 export function useProductStats(storeId?: string) {
   return useQuery({
@@ -91,28 +111,41 @@ export function useProductStats(storeId?: string) {
       if (!storeId) return null;
       const supabase = createClient();
 
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, ai_enhanced, draft_generated_content, dirty_fields_content')
-        .eq('store_id', storeId);
+      // Run count queries in parallel for efficiency
+      const [totalRes, optimizedRes, withDraftsRes, needsSyncRes] = await Promise.all([
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('store_id', storeId),
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('store_id', storeId)
+          .eq('ai_enhanced', true),
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('store_id', storeId)
+          .not('draft_generated_content', 'is', null),
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('store_id', storeId)
+          .not('dirty_fields_content', 'eq', '[]')
+          .not('dirty_fields_content', 'is', null),
+      ]);
 
-      if (error) throw error;
+      if (totalRes.error) throw totalRes.error;
 
-      const total = data?.length || 0;
-      const optimized = data?.filter((p) => p.ai_enhanced).length || 0;
-      const notOptimized = total - optimized;
-      const withDrafts = data?.filter((p) => p.draft_generated_content !== null).length || 0;
-      const needsSync =
-        data?.filter(
-          (p) => p.dirty_fields_content && p.dirty_fields_content.length > 0
-        ).length || 0;
+      const total = totalRes.count || 0;
+      const optimized = optimizedRes.count || 0;
 
       return {
         total,
         optimized,
-        notOptimized,
-        withDrafts,
-        needsSync,
+        notOptimized: total - optimized,
+        withDrafts: withDraftsRes.count || 0,
+        needsSync: needsSyncRes.count || 0,
       } as ProductStats;
     },
     enabled: !!storeId,
