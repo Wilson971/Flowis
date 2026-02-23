@@ -116,7 +116,8 @@ export function usePushToStore() {
             // Retry logic with exponential backoff
             if (attempt < MAX_RETRIES - 1) {
                 const delay = getBackoffDelay(attempt);
-                console.warn(`[usePushToStore] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
+
+
                 await sleep(delay);
                 return executePush(params, attempt + 1);
             }
@@ -126,11 +127,6 @@ export function usePushToStore() {
 
     return useMutation({
         mutationFn: async (params: PushToStoreParams): Promise<PushResponse> => {
-            console.log('[usePushToStore] Starting push:', {
-                type: params.type,
-                count: params.ids.length,
-                force: params.force,
-            });
             return executePush(params);
         },
         onSuccess: (data, variables) => {

@@ -75,7 +75,8 @@ export function useSyncStore() {
                 }
             })
             .subscribe((status) => {
-                console.log(`[useSyncStore] Realtime subscription status: ${status}`);
+
+
             });
 
         setChannel(newChannel);
@@ -133,7 +134,8 @@ export function useSyncStore() {
             }
 
             if (!data?.success && data?.errors?.length) {
-                console.warn('[useSyncStore] Sync completed with errors:', data.errors);
+
+
             }
 
             return data as SyncResult;

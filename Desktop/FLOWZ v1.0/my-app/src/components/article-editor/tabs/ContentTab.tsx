@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useState, useEffect } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { useWatch } from 'react-hook-form';
 import {
   Sparkles,
@@ -263,7 +264,8 @@ export function ContentTab() {
         return;
       }
       // AI actions would be handled by the context
-      console.log('AI Action:', action, options);
+
+
     },
     [content]
   );
@@ -289,7 +291,7 @@ export function ContentTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                 onClick={() => draftActions.handleAcceptField(field)}
                 disabled={draftActions.isAccepting}
               >
@@ -307,7 +309,7 @@ export function ContentTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="h-6 w-6 p-0 text-destructive hover:text-red-700 hover:bg-destructive/10"
                 onClick={() => draftActions.handleRejectField(field)}
                 disabled={draftActions.isRejecting}
               >
@@ -334,7 +336,7 @@ export function ContentTab() {
           <Wand2 className="h-3 w-3" />
           Suggestion IA
         </div>
-        <div dangerouslySetInnerHTML={{ __html: String(suggestion) }} />
+        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(suggestion)) }} />
       </div>
     );
   };
@@ -396,7 +398,7 @@ export function ContentTab() {
           </Label>
           <div className="flex items-center gap-2">
             {isDraft && (
-              <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-500 px-2 py-0.5 rounded font-medium">
+              <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-amber-500 px-2 py-0.5 rounded font-medium">
                 Brouillon
               </span>
             )}

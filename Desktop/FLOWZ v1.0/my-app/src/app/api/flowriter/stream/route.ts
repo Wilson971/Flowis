@@ -141,11 +141,7 @@ function logTokenUsage(usage: TokenUsage, metadata: {
     timestamp: number;
 }): void {
     // For now, just log to console - can be extended to store in database
-    console.log('[FloWriter] Token Usage:', {
-        ...usage,
-        ...metadata,
-        costFormatted: `$${usage.estimatedCost.toFixed(6)}`,
-    });
+    // Token usage tracking — extend to DB storage if needed
 }
 
 // Daily token limit per user (if needed)
@@ -160,13 +156,31 @@ async function checkTokenLimit(userId?: string): Promise<{
     remaining: number;
     resetAt: Date;
 }> {
-    // TODO: Implement actual tracking with database
-    // For now, always allow
-    return {
-        allowed: true,
-        remaining: DAILY_TOKEN_LIMIT,
-        resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
+    if (!userId) {
+        return { allowed: false, remaining: 0, resetAt: new Date() };
+    }
+
+    const supabase = await createClient();
+    const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+
+    // Sum all tokens (input + output) for this tenant this month
+    const { data, error } = await supabase
+        .from('ai_usage')
+        .select('tokens_input, tokens_output')
+        .eq('tenant_id', userId)
+        .eq('month', currentMonth);
+
+    const used = error
+        ? 0
+        : (data ?? []).reduce((sum, row) => sum + (row.tokens_input ?? 0) + (row.tokens_output ?? 0), 0);
+
+    const remaining = Math.max(0, DAILY_TOKEN_LIMIT - used);
+
+    // Reset at start of next month
+    const now = new Date();
+    const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+    return { allowed: remaining > 0, remaining, resetAt };
 }
 
 // ============================================================================
@@ -326,7 +340,8 @@ async function generateWithRetry(
     prompt: string,
     sendEvent: (data: any) => void,
     outline: any[],
-    config: any
+    config: any,
+    onComplete?: (usage: { inputTokens: number; outputTokens: number }) => Promise<void>
 ): Promise<void> {
     let lastError: any = null;
 
@@ -426,6 +441,13 @@ async function generateWithRetry(
                 targetWordCount: config.targetWordCount,
                 timestamp: Date.now(),
             });
+
+            // Persist AI usage to DB (fire-and-forget)
+            if (onComplete) {
+                onComplete({ inputTokens, outputTokens }).catch((err) => {
+                    console.error('[FloWriter] Failed to log AI usage:', err);
+                });
+            }
 
             // Complete
             const wordCount = fullContent.split(/\s+/).filter(Boolean).length;
@@ -655,7 +677,16 @@ GÉNÈRE MAINTENANT l'article complet en suivant EXACTEMENT cette structure:`;
 
             try {
                 // Use retry-enabled generation
-                await generateWithRetry(ai, prompt, sendEvent, outline, config);
+                const currentMonth = new Date().toISOString().slice(0, 7);
+                await generateWithRetry(ai, prompt, sendEvent, outline, config, async ({ inputTokens, outputTokens }) => {
+                    await supabase.from('ai_usage').insert({
+                        tenant_id: user.id,
+                        feature: 'flowriter',
+                        tokens_input: inputTokens,
+                        tokens_output: outputTokens,
+                        month: currentMonth,
+                    });
+                });
 
             } catch (error: any) {
                 console.error("Generation failed after retries:", error);

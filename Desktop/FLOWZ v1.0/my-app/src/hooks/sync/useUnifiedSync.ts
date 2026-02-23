@@ -83,7 +83,8 @@ export function useUnifiedSync() {
       fields,
       priority = 5,
     }: QueueSyncOptions): Promise<QueueSyncResult> => {
-      console.log(`[useUnifiedSync] Queueing ${productIds.length} products for sync`);
+
+
 
       const result: QueueSyncResult = {
         success: true,
@@ -195,7 +196,8 @@ export function useUnifiedSync() {
         status: j.status,
       }));
 
-      console.log(`[useUnifiedSync] Queued ${result.queued} products, skipped ${result.skipped}`);
+
+
 
       return result;
     },

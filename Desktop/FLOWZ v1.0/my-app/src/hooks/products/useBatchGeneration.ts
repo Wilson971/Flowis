@@ -50,7 +50,8 @@ export function useBatchGeneration() {
     const abortRef = useRef<AbortController | null>(null);
 
     const startGeneration = useCallback(async (params: ModularBatchRequest): Promise<ModularBatchResponse | null> => {
-        console.log('[useBatchGeneration] startGeneration called with:', params);
+
+
 
         // Abort any existing generation
         abortRef.current?.abort();
@@ -64,7 +65,8 @@ export function useBatchGeneration() {
         let total = params.product_ids.length;
 
         try {
-            console.log('[useBatchGeneration] Fetching /api/batch-generation/stream...');
+
+
             const response = await fetch('/api/batch-generation/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -72,7 +74,8 @@ export function useBatchGeneration() {
                 signal: abortRef.current.signal,
             });
 
-            console.log('[useBatchGeneration] Response status:', response.status);
+
+
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));

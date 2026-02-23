@@ -102,7 +102,8 @@ export const useDraftActions = ({
                     const wc = (response?.data?.working_content as Partial<ContentData>) || {};
 
                     if (!useEdited && (!wc || Object.keys(wc).length === 0)) {
-                        console.warn("Pas de working_content dans la réponse de l'edge function");
+
+
                         return;
                     }
 
@@ -138,7 +139,8 @@ export const useDraftActions = ({
                     const updateField = fieldMappings[field];
                     if (updateField) {
                         updateField();
-                        console.log("Champ accepté et formulaire mis à jour", { field, edited: useEdited, value: useEdited ? editedValue : (wc[field] || wc.seo) });
+
+
                         // Create an ai_approval version after field acceptance
                         onFieldAccepted?.();
                     }
@@ -165,7 +167,8 @@ export const useDraftActions = ({
             { productId, field },
             {
                 onSuccess: () => {
-                    console.log("Champ rejeté", field);
+
+
                     setPreviewField(null);
                 },
                 onError: (error: any) => {

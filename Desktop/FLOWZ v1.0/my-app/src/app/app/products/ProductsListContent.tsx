@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProductsTableModern } from '@/components/products/ProductsTableModern';
+import { ProductsTableSkeleton } from '@/components/products/ProductsTableSkeleton';
 import { useProducts, useProductStats } from '@/hooks/products/useProducts';
 import { useSelectedStore } from '@/contexts/StoreContext';
 import {
@@ -14,7 +16,6 @@ import {
     ProductsToolbar,
 } from '@/components/products/ui';
 import { BatchGenerationSheet } from '@/components/products/ui/BatchGenerationSheet';
-import { BatchGenerationSettings } from '@/components/products/ui/BatchGenerationSettings';
 import { BatchProgressPanel } from '@/components/products/BatchProgressPanel';
 import { useBatchGeneration } from '@/hooks/products/useBatchGeneration';
 import { useAcceptDraft, useRejectDraft } from '@/hooks/products/useProductContent';
@@ -22,11 +23,16 @@ import { ModularGenerationSettings } from '@/types/imageGeneration';
 import { getRemainingProposals } from '@/lib/productHelpers';
 import type { ContentData } from '@/types/productContent';
 import { useTableFilters } from '@/hooks/products/useTableFilters';
+import { ProductsSelectionBar } from '@/components/products/ui/ProductsSelectionBar';
+import { FilterPill } from '@/components/products/ui/FilterPills';
 import { ProductsPagination } from '@/components/products/ProductsPagination';
 import { ProductsFilter } from '@/components/products/ProductsFilter';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useUnifiedSync, usePendingSyncCount } from '@/hooks/sync';
+import { usePendingSyncCount } from '@/hooks/sync';
+import { usePushToStore } from '@/hooks/products/usePushToStore';
+import { useLocalStorage, STORAGE_KEYS } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
+import { VisibilityState } from '@tanstack/react-table';
 
 export function ProductsListContent() {
     const { selectedStore } = useSelectedStore();
@@ -34,8 +40,8 @@ export function ProductsListContent() {
     const { data: products = [], isLoading } = useProducts(selectedStore?.id);
     const { data: stats } = useProductStats(selectedStore?.id);
 
-    // Queue-based sync V2
-    const { queueSync, isQueuing } = useUnifiedSync();
+    // Direct push to store (non-blocking)
+    const { mutate: pushToStore, isPending: isPushing } = usePushToStore();
     const { data: pendingSyncCount } = usePendingSyncCount(selectedStore?.id);
 
     const params = useTableFilters();
@@ -47,6 +53,7 @@ export function ProductsListContent() {
         pageSize,
         setPageSize,
         setFilter,
+        resetFilters,
     } = params;
 
     const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -66,6 +73,14 @@ export function ProductsListContent() {
     } = useBatchGeneration();
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isBatchPanelOpen, setIsBatchPanelOpen] = useState(false);
+
+    // Column Visibility with LocalStorage Persistence
+    const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+        STORAGE_KEYS.PRODUCTS_COLUMN_VISIBILITY,
+        { defaultValue: {} }
+    );
+
     const [generationSettings, setGenerationSettings] = useState<ModularGenerationSettings>({
         provider: 'gemini',
         model: 'gemini-2.0-flash',
@@ -90,6 +105,7 @@ export function ProductsListContent() {
     });
 
     // Approval hooks
+    const queryClient = useQueryClient();
     const acceptDraft = useAcceptDraft();
     const rejectDraft = useRejectDraft();
 
@@ -105,7 +121,8 @@ export function ProductsListContent() {
     }, [products, selectedProducts]);
 
     const handleGenerate = useCallback(async (types: string[], _enableSerpAnalysis: boolean, _forceRegenerate?: boolean) => {
-        console.log('[handleGenerate] Called with:', { types, selectedProducts, storeId: selectedStore?.id });
+
+
 
         if (!selectedStore?.id) {
             console.error('[handleGenerate] No store selected, aborting');
@@ -123,7 +140,8 @@ export function ProductsListContent() {
             settings: generationSettings,
             store_id: selectedStore.id,
         };
-        console.log('[handleGenerate] Starting generation with payload:', payload);
+
+
 
         try {
             await startGeneration(payload);
@@ -132,53 +150,61 @@ export function ProductsListContent() {
         }
     }, [selectedStore?.id, selectedProducts, generationSettings, startGeneration]);
 
-    // Bulk approve all selected products
+    // Bulk approve all selected products (single toast + single cache invalidation)
     const handleApproveAll = useCallback(async () => {
         if (selectedProducts.length === 0) return;
+        const toastId = toast.loading(`Approbation de ${selectedProducts.length} produit(s)...`);
         let successCount = 0;
+        let failCount = 0;
         for (const productId of selectedProducts) {
             try {
-                await acceptDraft.mutateAsync({ productId });
+                await acceptDraft.mutateAsync({ productId, silent: true });
                 successCount++;
             } catch {
-                // Continue with remaining products
+                failCount++;
             }
         }
-        if (successCount > 0) {
-            toast.success(`${successCount} produit(s) approuvé(s)`);
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        if (successCount > 0 && failCount === 0) {
+            toast.success(`${successCount} produit(s) approuvé(s)`, { id: toastId, duration: 4000 });
+        } else if (successCount > 0) {
+            toast.warning(`${successCount} approuvé(s), ${failCount} échoué(s)`, { id: toastId, duration: 4000 });
+        } else if (failCount > 0) {
+            toast.error(`Échec de l'approbation (${failCount} erreur(s))`, { id: toastId, duration: 6000 });
         }
-    }, [selectedProducts, acceptDraft]);
+    }, [selectedProducts, acceptDraft, queryClient]);
 
-    // Bulk reject all selected products
+    // Bulk reject all selected products (single toast + single cache invalidation)
     const handleRejectAll = useCallback(async () => {
         if (selectedProducts.length === 0) return;
+        const toastId = toast.loading(`Rejet de ${selectedProducts.length} brouillon(s)...`);
         let successCount = 0;
+        let failCount = 0;
         for (const productId of selectedProducts) {
             try {
-                await rejectDraft.mutateAsync({ productId });
+                await rejectDraft.mutateAsync({ productId, silent: true });
                 successCount++;
             } catch {
-                // Continue with remaining products
+                failCount++;
             }
         }
-        if (successCount > 0) {
-            toast.success(`${successCount} brouillon(s) rejeté(s)`);
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        if (successCount > 0 && failCount === 0) {
+            toast.success(`${successCount} brouillon(s) rejeté(s)`, { id: toastId, duration: 4000 });
+        } else if (successCount > 0) {
+            toast.warning(`${successCount} rejeté(s), ${failCount} échoué(s)`, { id: toastId, duration: 4000 });
+        } else if (failCount > 0) {
+            toast.error(`Échec du rejet (${failCount} erreur(s))`, { id: toastId, duration: 6000 });
         }
-    }, [selectedProducts, rejectDraft]);
+    }, [selectedProducts, rejectDraft, queryClient]);
 
-    // Handle sync to store using queue-based V2 system
-    const handlePushToStore = async () => {
+    // Push to store — non-blocking direct call (user can keep working)
+    const syncToastId = 'batch-sync';
+    const handlePushToStore = useCallback(() => {
         if (selectedProducts.length === 0) return;
-
-        try {
-            await queueSync({
-                productIds: selectedProducts,
-                priority: 3,
-            });
-        } catch (error) {
-            console.error('[ProductsListContent] Sync error:', error);
-        }
-    };
+        toast.loading(`Synchronisation de ${selectedProducts.length} produit(s)...`, { id: syncToastId, duration: Infinity });
+        pushToStore({ product_ids: selectedProducts });
+    }, [selectedProducts, pushToStore]);
 
     // Build SSE progress message for the Sheet
     const sseProgressMessage = useMemo(() => {
@@ -214,6 +240,14 @@ export function ProductsListContent() {
         setLocalSearch(search);
     }, [search]);
 
+    // Close batch panel if selected products become 0
+    useEffect(() => {
+        if (selectedProducts.length === 0) {
+            setIsBatchPanelOpen(false);
+            cancelGeneration();
+        }
+    }, [selectedProducts.length, cancelGeneration]);
+
     // Sync debounced search to URL
     useEffect(() => {
         if (debouncedSearch !== search) {
@@ -229,15 +263,35 @@ export function ProductsListContent() {
     const stockFilter = params.stock || 'all';
 
     const handleReset = () => {
-        setFilter('status', null);
-        setFilter('type', null);
-        setFilter('category', null);
-        setFilter('ai_status', null);
-        setFilter('sync_status', null);
-        setFilter('stock', null);
-        setFilter('search', null);
+        resetFilters();
         setLocalSearch('');
     };
+
+    // Calculate active filters to display as pills
+    const activeFilters = useMemo<FilterPill[]>(() => {
+        const filters: FilterPill[] = [];
+        if (statusFilter !== 'all') filters.push({ id: 'status', label: 'Statut', value: statusFilter });
+        if (typeFilter !== 'all') filters.push({ id: 'type', label: 'Type', value: typeFilter });
+        if (categoryFilter !== 'all') filters.push({ id: 'category', label: 'Catégorie', value: categoryFilter });
+        if (aiStatusFilter !== 'all') {
+            const aiLabels: Record<string, string> = { optimized: 'Optimisé', not_optimized: 'Non optimisé', has_draft: 'Brouillon généré' };
+            filters.push({ id: 'ai_status', label: 'Statut IA', value: aiLabels[aiStatusFilter] || aiStatusFilter });
+        }
+        if (syncStatusFilter !== 'all') {
+            const syncLabels: Record<string, string> = { synced: 'Synchronisé', pending: 'En attente', never: 'Jamais synchronisé' };
+            filters.push({ id: 'sync_status', label: 'Synchronisation', value: syncLabels[syncStatusFilter] || syncStatusFilter });
+        }
+        if (stockFilter !== 'all') {
+            const stockLabels: Record<string, string> = { in_stock: 'En stock', low_stock: 'Stock faible', out_of_stock: 'En rupture' };
+            filters.push({ id: 'stock', label: 'Stock', value: stockLabels[stockFilter] || stockFilter });
+        }
+        return filters;
+    }, [statusFilter, typeFilter, categoryFilter, aiStatusFilter, syncStatusFilter, stockFilter]);
+
+    // Handle single filter removal
+    const handleRemoveFilter = useCallback((id: string) => {
+        setFilter(id as any, 'all');
+    }, [setFilter]);
 
     // Filter products based on search and status
     const filteredProducts = useMemo(() => {
@@ -361,10 +415,10 @@ export function ProductsListContent() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="text-text-muted">Chargement des produits...</p>
+            <div className="space-y-6">
+                {/* Modern Header - Skeleton representation or minimal view could go here, but keeping simple for now */}
+                <div>
+                    <ProductsTableSkeleton />
                 </div>
             </div>
         );
@@ -419,10 +473,15 @@ export function ProductsListContent() {
                     {/* Subtle gradient accent */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.02] via-transparent to-violet-500/[0.02] pointer-events-none" />
 
-                    <CardContent className="p-5 relative z-10">
+                    <CardContent className="p-6 relative z-10">
                         <ProductsToolbar
                             searchValue={localSearch}
                             onSearchChange={(value) => setLocalSearch(value)}
+                            activeFilters={activeFilters}
+                            onRemoveFilter={handleRemoveFilter}
+                            onClearAllFilters={handleReset}
+                            columnVisibility={columnVisibility}
+                            onColumnVisibilityChange={setColumnVisibility}
                             filterComponent={
                                 <ProductsFilter
                                     statusFilter={statusFilter}
@@ -443,32 +502,44 @@ export function ProductsListContent() {
                             }
                         />
 
+                        {/* Floating Bulk Actions Bar */}
+                        <div className="mt-4">
+                            <ProductsSelectionBar
+                                isHidden={isBatchPanelOpen}
+                                selectedCount={selectedProducts.length}
+                                onDeselect={() => setSelectedProducts([])}
+                                onGenerate={() => setIsBatchPanelOpen(true)}
+                                onSync={handlePushToStore}
+                                isGenerating={isGenerating}
+                                pendingApprovalsCount={pendingApprovalsCount}
+                                syncableProductsCount={selectedProducts.length}
+                                onApproveAll={handleApproveAll}
+                                onRejectAll={handleRejectAll}
+                                onCancelSync={() => { }}
+                                isProcessingBulkAction={isPushing || acceptDraft.isPending || rejectDraft.isPending}
+                            />
+                        </div>
+
                         <BatchGenerationSheet
+                            isOpen={isBatchPanelOpen}
                             selectedCount={selectedProducts.length}
                             onGenerate={handleGenerate}
                             onOpenSettings={() => setIsSettingsOpen(true)}
-                            onClose={() => {
-                                setSelectedProducts([]);
-                                cancelGeneration();
-                            }}
+                            onClose={() => setIsBatchPanelOpen(false)}
                             isGenerating={isGenerating}
                             isAdvancedSettingsOpen={isSettingsOpen}
                             onApproveAll={handleApproveAll}
                             onRejectAll={handleRejectAll}
                             onPushToStore={handlePushToStore}
-                            onCancelSync={() => cancelGeneration()}
+                            onCancelSync={() => { /* Cancel sync not needed — push is immediate */ }}
                             pendingApprovalsCount={pendingApprovalsCount}
                             syncableProductsCount={selectedProducts.length}
-                            isProcessingBulkAction={isQueuing || acceptDraft.isPending || rejectDraft.isPending}
+                            isProcessingBulkAction={isPushing || acceptDraft.isPending || rejectDraft.isPending}
                             sseProgressMessage={sseProgressMessage}
                             modelName={generationSettings.model === 'gemini-2.5-flash-preview-05-20' ? 'Gemini 2.5 Flash' : 'Gemini 2.0 Flash'}
-                        />
-
-                        <BatchGenerationSettings
-                            open={isSettingsOpen}
-                            onOpenChange={setIsSettingsOpen}
                             settings={generationSettings}
                             onSettingsChange={setGenerationSettings}
+                            onCloseSettings={() => setIsSettingsOpen(false)}
                         />
                     </CardContent>
                 </Card>
@@ -535,6 +606,8 @@ export function ProductsListContent() {
                         selectedProducts={selectedProducts}
                         onToggleSelect={toggleProduct}
                         onToggleSelectAll={toggleAll}
+                        columnVisibility={columnVisibility}
+                        onColumnVisibilityChange={setColumnVisibility}
                     />
 
                     {/* Pagination with Animation */}

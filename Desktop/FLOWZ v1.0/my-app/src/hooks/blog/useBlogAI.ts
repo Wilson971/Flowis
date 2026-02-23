@@ -132,7 +132,8 @@ export function useGenerateArticle() {
 
                 switch (data.type) {
                   case 'connected':
-                    console.log('[FloWriter] Connected to stream');
+
+
                     break;
 
                   case 'heartbeat':
@@ -189,7 +190,8 @@ export function useGenerateArticle() {
 
         // Safety: If stream ends without explicit complete event
         if (!hasCompleted && fullContent.length > 0) {
-          console.warn('[FloWriter] Stream ended without complete event');
+
+
           callbacks?.onComplete?.(fullContent, meta);
         }
 

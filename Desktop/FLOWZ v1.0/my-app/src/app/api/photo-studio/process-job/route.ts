@@ -272,6 +272,21 @@ export async function POST(
     );
   }
 
+  // SEC-05: Explicit auth + ownership check
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+  if (job.tenant_id !== user.id) {
+    return NextResponse.json(
+      { success: false, error: "Access denied" },
+      { status: 403 }
+    );
+  }
+
   if (job.status !== "pending") {
     return NextResponse.json(
       { success: false, error: `Job already ${job.status}` },
@@ -336,18 +351,12 @@ export async function POST(
       );
     }
 
-    console.log(
-      `[Photo Studio] Job ${jobId}: resolved ${inputUrls.length} input image(s) for "${productName}"`
-    );
-
     // 8. Initialize Gemini
     const ai = new GoogleGenAI({ apiKey });
     const model = "gemini-2.5-flash-image";
 
     const presetJson =
-      (job.preset_json as Record<string, unknown>) ||
-      (job.preset_settings as Record<string, unknown>) ||
-      {};
+      (job.preset_json as Record<string, unknown>) || {};
 
     // 9. Generate based on action
     const outputUrls: string[] = [];
@@ -364,9 +373,6 @@ export async function POST(
 
       for (const angle of angles) {
         const prompt = buildAnglePrompt(productName, angle);
-        console.log(
-          `[Photo Studio] Job ${jobId}: generating angle "${angle}"`
-        );
         const result = await generateWithGemini(ai, model, sourceImage, prompt);
         if (result) outputUrls.push(result);
       }
@@ -375,9 +381,6 @@ export async function POST(
       const prompt = buildPromptForAction(job.action, presetJson, productName);
       const sourceImage = await fetchImageFromUrl(inputUrls[0]);
 
-      console.log(
-        `[Photo Studio] Job ${jobId}: action="${job.action}" product="${productName}"`
-      );
       const result = await generateWithGemini(ai, model, sourceImage, prompt);
       if (result) outputUrls.push(result);
     }
@@ -399,10 +402,6 @@ export async function POST(
     if (job.batch_id) {
       await updateBatchProgress(supabase, job.batch_id);
     }
-
-    console.log(
-      `[Photo Studio] Job ${jobId} completed: ${outputUrls.length} image(s) generated`
-    );
 
     return NextResponse.json({
       success: true,

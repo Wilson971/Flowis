@@ -74,7 +74,7 @@ const blockIcons: Record<BlockType, React.ElementType> = {
 };
 
 const blockColors: Record<BlockType, string> = {
-  heading: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
+  heading: 'text-primary bg-primary/10 border-primary/20',
   image: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
   table: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
   quote: 'text-amber-500 bg-amber-500/10 border-amber-500/20',
@@ -335,7 +335,7 @@ function SortableItem({ item, onUpdate, onRemove, onAddAfter, onLevelChange, isT
                   Ajouter Après
                 </div>
                 <DropdownMenuItem onSelect={() => onAddAfter('heading')} className="rounded-xl gap-2">
-                  <Heading2 className="h-4 w-4 text-blue-500" /> Section
+                  <Heading2 className="h-4 w-4 text-primary" /> Section
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onAddAfter('paragraph')} className="rounded-xl gap-2">
                   <ParagraphIconWrapper /> Paragraphe
@@ -465,7 +465,8 @@ export function OutlineStep({
     const previousBlock = index > 0 ? snapshot[index - 1] : null;
     const previousBlockContext = previousBlock ? previousBlock.title : null;
 
-    console.log("🤖 Generating content for:", { itemId: newItemId, type: item.type, context: parentHeadingContext });
+
+
 
     try {
       // 2. Call AI
@@ -477,14 +478,16 @@ export function OutlineStep({
         previousBlockContext
       );
 
-      console.log("✅ AI Suggestion received:", suggestion);
+
+
 
       // 3. Update the item using the LATEST state from ref
       // If the AI is very fast (or fails instantly), the ref might not have updated yet (stale).
       // In that case, we fallback to using the snapshot (which we know contains the item).
       let currentItems = latestOutlineRef.current;
       if (!currentItems.some(i => i.id === newItemId)) {
-        console.warn("⚠️ Item not in latest ref (stale?), falling back to snapshot for base:", newItemId);
+
+
         currentItems = snapshot;
       }
 

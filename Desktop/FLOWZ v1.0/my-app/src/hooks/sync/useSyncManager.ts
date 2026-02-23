@@ -33,7 +33,8 @@ export function useSyncManager() {
             if (error) {
                 // Check if it's a timeout (504) - these are retryable
                 if (error.message?.includes('504') || error.message?.includes('timeout')) {
-                    console.warn('[useSyncManager] Timeout detected, sync may still be in progress');
+
+
                     return {
                         success: true,
                         status: 'in_progress',
@@ -49,7 +50,8 @@ export function useSyncManager() {
         } catch (err: any) {
             // Handle network timeouts as resumable
             if (err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('504')) {
-                console.warn('[useSyncManager] Network timeout, treating as resumable');
+
+
                 return {
                     success: true,
                     status: 'in_progress',
@@ -77,7 +79,8 @@ export function useSyncManager() {
                 retryCountRef.current < MAX_RETRIES
             ) {
                 retryCountRef.current++;
-                console.log(`[useSyncManager] Auto-resuming sync (attempt ${retryCountRef.current}/${MAX_RETRIES})`);
+
+
 
                 // Delay before resume - increases with each retry to avoid hammering
                 const delay = Math.min(RETRY_DELAY_MS * Math.pow(1.2, retryCountRef.current - 1), 10000);
@@ -87,7 +90,8 @@ export function useSyncManager() {
                     response = await invokeSync(params);
                 } catch (err: any) {
                     // If retry fails, wait longer and try again
-                    console.warn(`[useSyncManager] Retry ${retryCountRef.current} failed, waiting longer...`, err.message);
+
+
                     await new Promise(r => setTimeout(r, 5000));
                     response = { success: true, status: 'in_progress', can_resume: true };
                 }
@@ -194,7 +198,8 @@ export function useSyncManager() {
                 retryCountRef.current < MAX_RETRIES
             ) {
                 retryCountRef.current++;
-                console.log(`[useSyncManager] Auto-resuming sync (attempt ${retryCountRef.current}/${MAX_RETRIES})`);
+
+
                 await new Promise(r => setTimeout(r, 1000));
                 currentResponse = await invokeSync({ storeId, types: 'all', sync_type: 'full' });
             }

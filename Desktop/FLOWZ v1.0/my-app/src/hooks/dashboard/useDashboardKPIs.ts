@@ -15,12 +15,6 @@ import { useSelectedStore } from '@/contexts/StoreContext';
  * Uses React Query for proper caching and automatic refetching on store change
  */
 
-// Helper to calculate time saved based on stats
-const calculateEstimatedTimeSaved = (productsCount: number, blogCount: number) => {
-  const PRODUCT_TIME_MIN = 20;
-  const BLOG_TIME_MIN = 120;
-  return (productsCount * PRODUCT_TIME_MIN) + (blogCount * BLOG_TIME_MIN);
-};
 
 // Query key factory for dashboard stats
 export const dashboardKeys = {
@@ -39,7 +33,8 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
     // IMPORTANT: Include storeId in the query key so React Query refetches when store changes
     queryKey: dashboardKeys.byStore(effectiveStoreId),
     queryFn: async () => {
-      console.log('[useDashboardKPIs] Fetching stats for store:', effectiveStoreId);
+
+
 
       const { data: stats, error: rpcError } = await supabase
         .rpc('get_dashboard_stats', { p_store_id: effectiveStoreId });
@@ -49,7 +44,8 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
         throw rpcError;
       }
 
-      console.log('[useDashboardKPIs] Received stats:', stats);
+
+
 
       // Safe destructuring of result
       const stat = stats && stats[0] ? stats[0] : {
@@ -61,7 +57,12 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
         products_with_errors: 0,
         published_blog_posts: 0,
         draft_blog_posts: 0,
-        last_sync_date: null
+        last_sync_date: null,
+        // New fields from extended RPC
+        store_last_synced_at: null,
+        ai_optimized_products: 0,
+        seo_avg_score_prev_month: null,
+        ai_optimized_prev_month: null,
       };
 
       // Construct Context
@@ -69,10 +70,9 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
         selectedShopId: effectiveStoreId,
         selectedShopName: selectedStore?.name || 'Vue d\'ensemble',
         selectedShopPlatform: selectedStore?.platform || null,
-        connectionStatus: selectedStore?.status === 'active' ? 'connected' :
-          selectedStore?.status === 'error' ? 'pending' : 'disconnected',
+        connectionStatus: selectedStore?.connection_status === 'connected' ? 'connected' : 'disconnected',
         totalAccountShops: stores.length,
-        activeShopsCount: stores.filter(s => s.status === 'active').length,
+        activeShopsCount: stores.filter(s => s.connection_status === 'connected').length,
         shopStats: {
           totalProducts: Number(stat.total_products),
           totalCategories: Number(stat.total_categories),
@@ -82,10 +82,8 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
       };
 
       // Construct KPIs
-      const timeSavedMinutes = calculateEstimatedTimeSaved(
-        Number(stat.total_products),
-        Number(stat.total_blog_posts)
-      );
+      const totalProducts = Number(stat.total_products);
+      const aiOptimized = Number(stat.ai_optimized_products ?? 0);
 
       const kpis: DashboardKPIs = {
         period: period,
@@ -97,25 +95,36 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
           goodCount: 0,
           topIssue: null
         },
-        productContentGeneratedCount: Number(stat.total_products) * 4,
+        // SEO trend from M-1 snapshot
+        seoScorePrevMonth: stat.seo_avg_score_prev_month != null
+          ? Number(stat.seo_avg_score_prev_month)
+          : null,
+        productContentGeneratedCount: aiOptimized,
         productFieldsBreakdown: {
-          title: Number(stat.total_products),
-          short_description: Number(stat.total_products),
-          description: Number(stat.total_products),
-          seo_title: Number(stat.total_products),
-          seo_description: Number(stat.total_products),
+          title: aiOptimized,
+          short_description: aiOptimized,
+          description: aiOptimized,
+          seo_title: aiOptimized,
+          seo_description: aiOptimized,
           alt_text: 0
         },
-        catalogCoveragePercent: stat.total_products > 0 ? (stat.analyzed_products_count / stat.total_products) * 100 : 0,
-        totalFieldsToOptimize: 0,
+        // Real AI coverage: products with working_content IS NOT NULL
+        catalogCoveragePercent: totalProducts > 0
+          ? Math.round((aiOptimized / totalProducts) * 100 * 10) / 10
+          : 0,
+        totalFieldsToOptimize: totalProducts - aiOptimized,
+        aiOptimizedProducts: aiOptimized,
+        aiOptimizedPrevMonth: stat.ai_optimized_prev_month != null
+          ? Number(stat.ai_optimized_prev_month)
+          : null,
         blogStats: {
           totalArticles: Number(stat.total_blog_posts),
           publishedCount: Number(stat.published_blog_posts),
           draftCount: Number(stat.draft_blog_posts),
           lastCreatedAt: stat.last_sync_date
         },
-        timeSavedMinutes: timeSavedMinutes,
-        moneySavedEuros: Math.round((timeSavedMinutes / 60) * 30),
+        // Real last sync from stores.last_synced_at
+        storeLastSyncedAt: stat.store_last_synced_at ?? null,
         activeShopsCount: context.activeShopsCount,
         blogContentGeneratedCount: Number(stat.total_blog_posts)
       };

@@ -38,7 +38,7 @@ export function SyncProvider({ children }: SyncProviderProps) {
     // Cleanup global à l'unmount
     useEffect(() => {
         return () => {
-            console.log('[SyncProvider] Unmounting, cleaning up...');
+
             syncSubscriptions.cleanup();
         };
     }, []);
@@ -139,7 +139,8 @@ export function useStartSync() {
             if (canStart) {
                 return startSync(storeId, options);
             }
-            console.warn('[useStartSync] Cannot start: sync already in progress');
+
+
             return Promise.resolve();
         },
         canStart,

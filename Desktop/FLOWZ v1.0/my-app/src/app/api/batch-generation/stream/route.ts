@@ -211,7 +211,8 @@ function buildPromptForField(
     fieldType: FieldType,
     productCtx: ReturnType<typeof extractProductContext>,
     settings: ModularGenerationSettings,
-    hasImage: boolean
+    hasImage: boolean,
+    storeName?: string
 ): string {
     switch (fieldType) {
         case 'title':
@@ -221,7 +222,7 @@ function buildPromptForField(
         case 'description':
             return buildDescriptionPrompt(productCtx, settings);
         case 'seo_title':
-            return buildSeoTitlePrompt(productCtx, settings);
+            return buildSeoTitlePrompt(productCtx, settings, storeName);
         case 'meta_description':
             return buildMetaDescriptionPrompt(productCtx, settings);
         case 'sku':
@@ -236,8 +237,6 @@ function buildPromptForField(
 // ============================================================================
 
 export async function POST(request: NextRequest) {
-    console.log('[batch-generation] POST received');
-
     // 1. Validate API key
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -245,11 +244,17 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
     }
 
-    // 2. Parse and validate request body
+    // 2. Authenticate user (before body parsing — SEC-04)
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.error('[batch-generation] Auth failed:', authError?.message);
+        return Response.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+    // 3. Parse and validate request body
     let body: any;
     try {
         body = await request.json();
-        console.log('[batch-generation] Body parsed:', JSON.stringify(body).slice(0, 200));
     } catch {
         console.error('[batch-generation] Invalid JSON body');
         return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
@@ -264,21 +269,11 @@ export async function POST(request: NextRequest) {
         );
     }
     const { product_ids, content_types, settings, store_id } = validation.data;
-    console.log('[batch-generation] Validated:', { product_ids, content_types, store_id });
-
-    // 3. Authenticate user
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        console.error('[batch-generation] Auth failed:', authError?.message);
-        return Response.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-    console.log('[batch-generation] Authenticated user:', user.id);
 
     // Verify store ownership (stores table uses tenant_id, not user_id)
     const { data: store, error: storeError } = await supabase
         .from('stores')
-        .select('id, tenant_id')
+        .select('id, tenant_id, name')
         .eq('id', store_id)
         .eq('tenant_id', user.id)
         .single();
@@ -287,8 +282,6 @@ export async function POST(request: NextRequest) {
         console.error('[batch-generation] Store not found or access denied:', storeError?.message);
         return Response.json({ error: 'Boutique non trouvée ou accès refusé' }, { status: 403 });
     }
-    console.log('[batch-generation] Store verified:', store.id);
-
     // 4. Determine enabled content types
     const enabledTypes = (Object.entries(content_types) as [FieldType, boolean | undefined][])
         .filter(([, enabled]) => enabled)
@@ -322,8 +315,6 @@ export async function POST(request: NextRequest) {
         console.error('[batch-generation] Failed to create batch job:', jobError?.message);
         return Response.json({ error: 'Impossible de créer le batch job' }, { status: 500 });
     }
-    console.log('[batch-generation] Batch job created:', batchJob.id);
-
     // 6. Create batch job items
     const items = product_ids.map((pid) => ({
         batch_job_id: batchJob.id,
@@ -493,7 +484,8 @@ export async function POST(request: NextRequest) {
                                     fieldType,
                                     productCtx,
                                     settings,
-                                    false
+                                    false,
+                                    store.name
                                 );
 
                                 const rawText = await callGeminiWithRetry(ai, prompt, null);

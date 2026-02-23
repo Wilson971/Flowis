@@ -107,6 +107,27 @@ function classifyError(error: any): (typeof ERROR_CODES)[keyof typeof ERROR_CODE
 }
 
 // ============================================================================
+// PROMPT INJECTION DETECTION (defense in depth — same patterns as FloWriter)
+// ============================================================================
+
+const SUSPICIOUS_PATTERNS = [
+  /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/i,
+  /disregard\s+(all\s+)?(previous|above|prior)/i,
+  /you\s+are\s+now\s+(a|an)\s+/i,
+  /pretend\s+(to\s+be|you\'?re)\s+/i,
+  /new\s+instructions?:/i,
+  /system\s*prompt:/i,
+  /\[INST\]/i,
+  /\[\/INST\]/i,
+  /<<SYS>>/i,
+  /<\|im_start\|>/i,
+];
+
+function containsInjection(text: string): boolean {
+  return SUSPICIOUS_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+// ============================================================================
 // REQUEST / RESPONSE TYPES
 // ============================================================================
 
@@ -360,6 +381,22 @@ export async function POST(request: NextRequest): Promise<NextResponse<GenerateR
     );
   }
 
+  // ---- Prompt injection check (defense in depth) ----
+  if (containsInjection(prompt)) {
+    console.warn(`[Photo Studio] Prompt injection detected from user ${user.id}`);
+    return NextResponse.json(
+      {
+        success: false as const,
+        error: {
+          code: 'INVALID_REQUEST',
+          message: 'Le prompt contient du contenu non autorisé.',
+          retryable: false,
+        },
+      },
+      { status: 400 }
+    );
+  }
+
   if (!imageUrl && !imageBase64) {
     return NextResponse.json(
       {
@@ -424,15 +461,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<GenerateR
     try {
       if (attempt > 0) {
         const backoff = calculateBackoff(attempt - 1);
-        console.log(
-          `[Photo Studio] Retry attempt ${attempt}/${RETRY_CONFIG.maxRetries} after ${backoff}ms`
-        );
         await new Promise((resolve) => setTimeout(resolve, backoff));
       }
-
-      console.log(
-        `[Photo Studio] Generating image (attempt ${attempt + 1}, model: ${model})`
-      );
 
       const response = await ai.models.generateContent({
         model,
@@ -489,8 +519,16 @@ export async function POST(request: NextRequest): Promise<NextResponse<GenerateR
         });
       }
 
-      const elapsed = Date.now() - startTime;
-      console.log(`[Photo Studio] Generation complete in ${elapsed}ms`);
+      // Persist AI usage to DB (fire-and-forget — fixed estimate for image gen)
+      supabase.from('ai_usage').insert({
+        tenant_id: user.id,
+        feature: 'photo_studio',
+        tokens_input: 500,
+        tokens_output: 500,
+        month: new Date().toISOString().slice(0, 7),
+      }).then(({ error }) => {
+        if (error) console.error('[Photo Studio] Failed to log AI usage:', error);
+      });
 
       return NextResponse.json({
         success: true as const,
