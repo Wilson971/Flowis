@@ -67,6 +67,40 @@ function buildAnglePrompt(productName: string, angle: string): string {
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 // ============================================================================
+// SUPABASE STORAGE UPLOAD
+// ============================================================================
+
+const STORAGE_BUCKET = "studio-images";
+
+async function uploadToStorage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  base64Data: string,
+  mimeType: string,
+  productId: string,
+  jobId: string,
+  index: number
+): Promise<string> {
+  const buffer = Buffer.from(base64Data, "base64");
+  const ext = mimeType.includes("png") ? "png" : "jpg";
+  const storagePath = `products/${productId}/${jobId}_${index}_${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(storagePath, buffer, {
+      contentType: mimeType,
+      upsert: false,
+    });
+
+  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+
+  const { data: { publicUrl } } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(storagePath);
+
+  return publicUrl;
+}
+
+// ============================================================================
 // GEMINI GENERATION
 // ============================================================================
 
@@ -74,7 +108,11 @@ async function generateWithGemini(
   ai: InstanceType<typeof GoogleGenAI>,
   model: string,
   sourceImage: { data: string; mimeType: string },
-  prompt: string
+  prompt: string,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId: string,
+  jobId: string,
+  imageIndex: number
 ): Promise<string | null> {
   const response = await ai.models.generateContent({
     model,
@@ -101,7 +139,15 @@ async function generateWithGemini(
   for (const part of parts) {
     if (part.inlineData?.data) {
       const mime = part.inlineData.mimeType || "image/png";
-      return `data:${mime};base64,${part.inlineData.data}`;
+      // Upload to Supabase Storage instead of storing base64 in DB
+      return await uploadToStorage(
+        supabase,
+        part.inlineData.data,
+        mime,
+        productId,
+        jobId,
+        imageIndex
+      );
     }
   }
   return null;
@@ -291,9 +337,9 @@ export async function POST(
       ];
       const sourceImage = await fetchImageSafe(inputUrls[0], MAX_IMAGE_SIZE);
 
-      for (const angle of angles) {
-        const prompt = buildAnglePrompt(productName, angle);
-        const result = await generateWithGemini(ai, model, sourceImage, prompt);
+      for (let i = 0; i < angles.length; i++) {
+        const prompt = buildAnglePrompt(productName, angles[i]);
+        const result = await generateWithGemini(ai, model, sourceImage, prompt, supabase, job.product_id, jobId, i);
         if (result) outputUrls.push(result);
       }
     } else {
@@ -301,7 +347,7 @@ export async function POST(
       const prompt = buildPromptForAction(job.action, presetJson, productName);
       const sourceImage = await fetchImageSafe(inputUrls[0], MAX_IMAGE_SIZE);
 
-      const result = await generateWithGemini(ai, model, sourceImage, prompt);
+      const result = await generateWithGemini(ai, model, sourceImage, prompt, supabase, job.product_id, jobId, 0);
       if (result) outputUrls.push(result);
     }
 

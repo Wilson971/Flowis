@@ -47,29 +47,24 @@ function batchProgressKey(batchId: string | null) {
 }
 
 /**
- * Process studio jobs sequentially by calling the server-side API.
- * Each job is dispatched to /api/photo-studio/process-job.
- * Runs in the background — errors are logged but don't block the UI.
+ * Dispatch batch processing to the server-side endpoint.
+ * A single POST replaces the previous browser-side sequential loop,
+ * making batch processing resilient to tab closure / network issues.
  */
-async function dispatchJobProcessing(jobs: StudioJobStatus[]) {
-  for (const job of jobs) {
-    try {
-      const res = await fetch('/api/photo-studio/process-job', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id }),
-      });
+async function dispatchBatchProcessing(batchId: string) {
+  try {
+    const res = await fetch('/api/photo-studio/process-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ batchId }),
+    });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.error(
-          `[Studio Batch] Job ${job.id} processing failed:`,
-          data.error || res.statusText
-        );
-      }
-    } catch (err) {
-      console.error(`[Studio Batch] Job ${job.id} dispatch error:`, err);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('[Studio Batch] Server dispatch failed:', data.error || res.statusText);
     }
+  } catch (err) {
+    console.error('[Studio Batch] Server dispatch error:', err);
   }
 }
 
@@ -149,9 +144,9 @@ export function useCreateBatchJobs() {
         description: `Batch ${result.batchId.slice(0, 8)}...`,
       });
 
-      // Fire-and-forget: dispatch jobs for server-side processing.
+      // Fire-and-forget: dispatch entire batch for server-side processing.
       // The polling UI will reflect progress as each job completes.
-      dispatchJobProcessing(result.jobs);
+      dispatchBatchProcessing(result.batchId);
     },
     onError: (error: Error) => {
       toast.error('Erreur lors de la creation du batch', {

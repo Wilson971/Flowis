@@ -29,7 +29,7 @@ import { ProductsPagination } from '@/components/products/ProductsPagination';
 import { ProductsFilter } from '@/components/products/ProductsFilter';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePendingSyncCount } from '@/hooks/sync';
-import { usePushToStore } from '@/hooks/products/usePushToStore';
+import { usePushProductBatch } from '@/hooks/sync/usePushToStore';
 import { useLocalStorage, STORAGE_KEYS } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
 import { VisibilityState } from '@tanstack/react-table';
@@ -41,7 +41,7 @@ export function ProductsListContent() {
     const { data: stats } = useProductStats(selectedStore?.id);
 
     // Direct push to store (non-blocking)
-    const { mutate: pushToStore, isPending: isPushing } = usePushToStore();
+    const { mutate: pushToStore, isPending: isPushing } = usePushProductBatch();
     const { data: pendingSyncCount } = usePendingSyncCount(selectedStore?.id);
 
     const params = useTableFilters();

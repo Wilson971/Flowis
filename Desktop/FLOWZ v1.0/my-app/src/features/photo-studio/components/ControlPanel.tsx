@@ -3,8 +3,8 @@
 import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { Sparkles, Loader2, ArrowLeftRight, Play, Settings, Palette, X } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { MorphSurface } from '@/components/ui/morph-surface';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { PresetGrid } from './PresetGrid';
@@ -14,9 +14,33 @@ import { useSceneGeneration } from '@/features/photo-studio/hooks/useSceneGenera
 import { useSceneGenerationMachine } from '@/features/photo-studio/hooks/useSceneGenerationMachine';
 import { useCreateGenerationSession } from '@/features/photo-studio/hooks/useGenerationSessions';
 import { useBrandStyles } from '@/features/photo-studio/hooks/useBrandStyles';
+import { useProductClassification } from '@/features/photo-studio/hooks/useProductClassification';
 import { getPresetById } from '@/features/photo-studio/constants/scenePresets';
 import { getViewPresetById } from '@/features/photo-studio/constants/viewPresets';
 import { buildEnhancedPrompt, getTemperature } from '@/features/photo-studio/lib/promptBuilder';
+
+// ---------------------------------------------------------------------------
+// Prompt injection detection (same patterns as FloWriter)
+// ---------------------------------------------------------------------------
+
+const SUSPICIOUS_PATTERNS = [
+  /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/i,
+  /disregard\s+(all\s+)?(previous|above|prior)/i,
+  /you\s+are\s+now\s+(a|an)\s+/i,
+  /pretend\s+(to\s+be|you\'?re)\s+/i,
+  /new\s+instructions?:/i,
+  /system\s*prompt:/i,
+  /\[INST\]/i,
+  /\[\/INST\]/i,
+  /<<SYS>>/i,
+  /<\|im_start\|>/i,
+];
+
+function containsInjection(text: string): boolean {
+  return SUSPICIOUS_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+// ---------------------------------------------------------------------------
 
 type ControlPanelProps = {
   productId: string;
@@ -62,6 +86,8 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
   const sceneGeneration = useSceneGeneration();
   const createSession = useCreateGenerationSession();
   const { data: brandStyles } = useBrandStyles();
+  const { data: classification } = useProductClassification(productId, sourceImageUrl);
+  const recommendedPresetIds = classification?.suggestedSceneIds ?? [];
 
   const [settings, setSettings] = useState<GenerationSettings>(DEFAULT_SETTINGS);
   const [presetsModalOpen, setPresetsModalOpen] = useState(false);
@@ -92,6 +118,14 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
       return;
     }
 
+    // Prompt injection check
+    if (customPrompt && containsInjection(customPrompt)) {
+      toast.error('Prompt invalide', {
+        description: 'Le texte saisi contient du contenu non autorise. Veuillez reformuler.',
+      });
+      return;
+    }
+
     setIsGenerating(true, `gen-${Date.now()}`);
 
     try {
@@ -114,6 +148,7 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
       const basePrompt = buildEnhancedPrompt({
         productName,
         presetPromptModifier: scenePreset.promptModifier || scenePreset.description,
+        presetMood: scenePreset.mood,
         quality: settings.quality,
         aspectRatio: settings.aspectRatio,
         customPrompt: customPrompt || undefined,
@@ -245,7 +280,7 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
           <PresetGrid
             selectedPresetId={selectedPresetId}
             onSelectPreset={setSelectedPreset}
-            recommendedPresetIds={[]}
+            recommendedPresetIds={recommendedPresetIds}
             onOpenModal={() => setPresetsModalOpen(true)}
             maxVisiblePresets={4}
           />
@@ -281,7 +316,7 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
                 variant="outline"
                 size="sm"
                 onClick={() => handleChipClick(chip)}
-                className="rounded-full text-xs hover:border-primary/30 hover:text-foreground"
+                className="rounded-full text-xs bg-background/50 hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-all duration-200"
               >
                 {chip.label}
               </Button>
@@ -292,44 +327,99 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
 
       {/* Footer */}
       <div className="flex-shrink-0 p-4 space-y-3 border-t border-border">
-        {/* Prompt Input */}
-        <div className="relative">
-          <Textarea
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder="Decrivez votre scene ideale..."
-            className="min-h-[80px] resize-none pr-12"
-            disabled={isGenerating}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setSettingsModalOpen(true)}
-            className="absolute bottom-2 left-2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
-        </div>
+        {/* MorphSurface Prompt */}
+        <MorphSurface
+          fullWidth
+          collapsedHeight={44}
+          expandedHeight={160}
+          dockLabel=""
+          placeholder="Decrivez votre scene ideale..."
+          onSubmit={async () => {
+            // Value already synced via controlled textarea onChange
+          }}
+          renderTrigger={({ onClick }) => (
+            <button
+              type="button"
+              onClick={onClick}
+              disabled={isGenerating}
+              className={cn(
+                "flex items-center gap-2 w-full h-full px-3 text-sm text-left",
+                "text-muted-foreground hover:text-foreground transition-colors duration-200",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              <Sparkles className="w-3.5 h-3.5 flex-shrink-0 text-primary" />
+              <span className="flex-1 truncate">
+                {customPrompt || "Decrivez votre scene ideale..."}
+              </span>
+            </button>
+          )}
+          renderContent={({ onClose }) => (
+            <div className="flex flex-col h-full p-2 gap-1.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  Prompt de scene
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSettingsModalOpen(true)}
+                    className="h-6 w-6 rounded-lg text-muted-foreground hover:text-foreground"
+                  >
+                    <Settings className="w-3 h-3" />
+                  </Button>
+                  <span className="flex items-center gap-0.5">
+                    <kbd className="w-5 h-5 bg-muted text-muted-foreground text-xs rounded flex items-center justify-center">⌘</kbd>
+                    <kbd className="px-1.5 h-5 bg-muted text-muted-foreground text-xs rounded flex items-center justify-center">Enter</kbd>
+                  </span>
+                </div>
+              </div>
+              <textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                name="message"
+                placeholder="Decrivez votre scene ideale..."
+                className={cn(
+                  "flex-1 resize-none w-full text-sm outline-none p-2 rounded-xl",
+                  "bg-muted/50 dark:bg-accent/50",
+                  "caret-primary placeholder:text-muted-foreground",
+                  "focus-visible:ring-1 focus-visible:ring-primary/30"
+                )}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') onClose()
+                  if (e.key === 'Enter' && e.metaKey) onClose()
+                }}
+                disabled={isGenerating}
+                spellCheck={false}
+                autoFocus
+              />
+            </div>
+          )}
+        />
 
         {/* Generate Button */}
         <Button
           onClick={handleGenerate}
           disabled={isGenerating || !sourceImageUrl || !selectedPresetId}
-          className="w-full h-12 text-sm font-semibold gap-2 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md transition-all duration-200"
+          className="w-full h-12 text-sm font-semibold gap-2 rounded-xl shadow-lg hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md transition-all duration-300 relative overflow-hidden group"
           size="lg"
         >
-          {isGenerating ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Generation...</>
-          ) : (
-            <>
-              <Play className="w-4 h-4 fill-current" />
-              Generer
-              <span className="ml-2 px-2 py-0.5 rounded-lg bg-primary-foreground/20 text-xs font-bold uppercase tracking-wider">
-                {totalCredits} Credit{totalCredits > 1 ? 's' : ''}
-              </span>
-            </>
-          )}
+          <div className="absolute inset-0 bg-primary-foreground/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+          <div className="relative flex items-center justify-center gap-2">
+            {isGenerating ? (
+              <><Loader2 className="w-4 h-4 animate-spin" />Generation...</>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform duration-300" />
+                Generer
+                <span className="ml-2 px-2 py-0.5 rounded-lg bg-primary-foreground/20 text-xs font-bold uppercase tracking-wider">
+                  {totalCredits} Credit{totalCredits > 1 ? 's' : ''}
+                </span>
+              </>
+            )}
+          </div>
         </Button>
       </div>
 
@@ -341,7 +431,7 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
         onSelectPreset={setSelectedPreset}
         selectedBrandStyleId={selectedBrandStyleId}
         onSelectBrandStyle={setSelectedBrandStyle}
-        recommendedPresetIds={[]}
+        recommendedPresetIds={recommendedPresetIds}
       />
       <SettingsModal
         open={settingsModalOpen}

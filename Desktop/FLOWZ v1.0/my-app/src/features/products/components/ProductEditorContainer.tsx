@@ -18,8 +18,7 @@ import { useSeoAnalysis } from "../hooks/useSeoAnalysis";
 import { useFormHistory } from "../hooks/useFormHistory";
 import { useFormHistoryKeyboard } from "../hooks/useFormHistoryKeyboard";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
-import { useAutoSaveProduct } from "@/hooks/products/useProductSave";
-import { transformFormToSaveData } from "../utils/transformFormToSaveData";
+import { usePushSingleProduct } from "@/hooks/sync/usePushToStore";
 import { useProductVersionManager } from "@/hooks/products/useProductVersions";
 import {
     ProductEditContext,
@@ -66,6 +65,26 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
 
     // 4. Actions (save, etc.) - avec les catégories pour résoudre les IDs WooCommerce
     const actions = useProductActions({ productId, availableCategories: categories });
+
+    // 4a. Push to store (explicit publish action)
+    const pushToStore = usePushSingleProduct();
+
+    const handlePublish = useCallback(() => {
+        const title = methods.getValues("title");
+        if (!title?.trim()) {
+            toast.warning("Titre requis", {
+                description: "Le produit doit avoir un titre avant d'être publié vers la boutique.",
+            });
+            return;
+        }
+        if (methods.formState.isDirty) {
+            toast.warning("Modifications non sauvegardées", {
+                description: "Sauvegardez d'abord vos modifications (Ctrl+S) avant de publier.",
+            });
+            return;
+        }
+        pushToStore.push(productId);
+    }, [pushToStore, productId, methods]);
 
     // 4b. Conflict detection
     const { data: conflictData, refetch: refetchConflicts } = useConflictDetection(productId);
@@ -151,31 +170,71 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     });
 
     // ------------------------------------------------------------------------
-    // AUTO-SAVE: Debounced save to Supabase (no WooCommerce sync)
+    // SAVE STATUS: Simple feedback for manual save button
     // ------------------------------------------------------------------------
-    const autoSave = useAutoSaveProduct();
-    const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-    const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-    // Lock: prevent auto-save while manual save is in-flight (race condition guard)
-    const manualSaveLockRef = useRef<boolean>(false);
-    // Cooldown: prevent auto-save from firing shortly after a manual save
-    // (to avoid overwriting dirty_fields_content that was just cleared by push-to-store)
-    const manualSaveCooldownRef = useRef<number>(0);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // FIX: Post-save guard — prevents the stabilization effect from destabilizing the form
+    // when isFetching toggles due to query invalidation after a manual save.
+    const postSaveGuardRef = useRef<boolean>(false);
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        return () => {
+            if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+            if (formStableTimerRef.current) clearTimeout(formStableTimerRef.current);
+            if (quickStabilizeTimerRef.current) clearTimeout(quickStabilizeTimerRef.current);
+        };
+    }, []);
 
     // Form stabilization guard — prevent auto-save during initial form setup.
     // Uses isFetching signal from TanStack Query instead of an arbitrary 3s timer.
     // When isFetching goes false, we add a 200ms micro-delay to let the form reset propagate.
     const formStableRef = useRef(false);
-    const formStableTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const formStableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const quickStabilizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (!product || isLoading || isFetching) {
-            formStableRef.current = false;
+            // FIX: Do NOT destabilize the form when isFetching toggles due to post-save
+            // query invalidation. The save already reset the form — re-running the
+            // stabilization flow would cause TipTap normalization to create false isDirty
+            // state that surfaces as "Non sauvegardé" + disabled Publish button.
+            if (!postSaveGuardRef.current) {
+                formStableRef.current = false;
+            }
             if (formStableTimerRef.current) {
                 clearTimeout(formStableTimerRef.current);
                 formStableTimerRef.current = null;
             }
             return;
+        }
+
+        // If we just saved, the form is already stable — skip the 700ms stabilization.
+        // Just clear the guard and apply a quick normalization reset if needed.
+        if (postSaveGuardRef.current) {
+            postSaveGuardRef.current = false;
+            // Quick normalization: if TipTap normalization made formState dirty
+            // despite no user interaction, re-reset to absorb the normalized values.
+            if (quickStabilizeTimerRef.current) {
+                clearTimeout(quickStabilizeTimerRef.current);
+            }
+            quickStabilizeTimerRef.current = setTimeout(() => {
+                quickStabilizeTimerRef.current = null;
+                const { isDirty: formIsDirty, touchedFields } = methods.formState;
+                if (formIsDirty && Object.keys(touchedFields).length === 0) {
+                    const currentValues = methods.getValues();
+                    methods.reset(currentValues, { keepDefaultValues: false });
+                    history.markAsSaved();
+                }
+            }, 200);
+            return () => {
+                if (quickStabilizeTimerRef.current) {
+                    clearTimeout(quickStabilizeTimerRef.current);
+                    quickStabilizeTimerRef.current = null;
+                }
+            };
         }
 
         // Data arrived and query is idle — wait for form reset + TipTap stabilization.
@@ -186,6 +245,17 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             // Mark history as saved once form is stable — prevents false "NON SAUVEGARDÉ"
             // caused by form reset creating spurious history entries during initialization
             history.markAsSaved();
+
+            // FIX: After re-stabilization (e.g. post-save refetch), the form may have
+            // transient isDirty from component normalization (TipTap HTML, zodResolver
+            // async overwrite). If no user interaction happened since the last reset,
+            // re-reset with current (normalized) values to clear the false dirty state.
+            const { isDirty: formIsDirty, touchedFields } = methods.formState;
+            if (formIsDirty && Object.keys(touchedFields).length === 0) {
+                const currentValues = methods.getValues();
+                methods.reset(currentValues, { keepDefaultValues: false });
+                history.markAsSaved();
+            }
         }, 700);
 
         return () => {
@@ -194,72 +264,6 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [product?.id, product?.last_synced_at, isLoading, isFetching]);
 
-    // Watch form changes for auto-save
-    useEffect(() => {
-        if (!product || isLoading) return;
-
-        const subscription = methods.watch(() => {
-            // FIX: Skip auto-save until form is fully stabilized after load/sync
-            if (!formStableRef.current) return;
-            if (isRestoringRef.current) return;
-            if (!methods.formState.isDirty) return;
-
-            // Skip auto-save if manual save is in-flight (prevents race condition)
-            if (manualSaveLockRef.current) return;
-
-            // Skip auto-save if within cooldown period after manual save
-            if (Date.now() - manualSaveCooldownRef.current < 5_000) return;
-
-            // Cancel any previous saved-state reset timer
-            if (autoSaveTimerRef.current) {
-                clearTimeout(autoSaveTimerRef.current);
-                autoSaveTimerRef.current = null;
-            }
-
-            const currentValues = methods.getValues();
-            const saveData = transformFormToSaveData(currentValues, categories);
-
-            setAutoSaveStatus('saving');
-            autoSave.debouncedSave(productId, saveData, 5000);
-        });
-
-        return () => subscription.unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [product, isLoading, productId, categories]);
-
-    // Track auto-save completion
-    useEffect(() => {
-        if (autoSave.isSuccess && autoSaveStatus === 'saving') {
-            setAutoSaveStatus('saved');
-            // Reset to idle after 3 seconds
-            autoSaveTimerRef.current = setTimeout(() => {
-                setAutoSaveStatus('idle');
-            }, 3000);
-
-            // Rate-limited auto-save version creation (every 5 min max)
-            if (versionManager.canCreateAutoVersion()) {
-                const currentValues = methods.getValues();
-                versionManager.createVersion({
-                    product_id: productId,
-                    form_data: currentValues,
-                    trigger_type: 'auto_save',
-                }).catch(err => console.error('Failed to create auto-save version:', err));
-            }
-        }
-        if (autoSave.isError) {
-            setAutoSaveStatus('error');
-            autoSaveTimerRef.current = setTimeout(() => {
-                setAutoSaveStatus('idle');
-            }, 5000);
-        }
-
-        return () => {
-            if (autoSaveTimerRef.current) {
-                clearTimeout(autoSaveTimerRef.current);
-            }
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autoSave.isSuccess, autoSave.isError, autoSaveStatus]);
 
     // Calculate dirty state
     // FIX: Suppress isDirty during form initialization (before formStableRef is true).
@@ -282,10 +286,10 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // ------------------------------------------------------------------------
     const handleManualSave = useCallback(async (data: ProductFormValues) => {
         try {
-            // Lock: prevent auto-save from firing while manual save is in-flight
-            manualSaveLockRef.current = true;
-            autoSave.cancelAutoSave();
-            manualSaveCooldownRef.current = Date.now();
+            setSaveStatus('saving');
+            // Arm the post-save guard BEFORE the save so the stabilization effect
+            // doesn't destabilize the form when queries are invalidated in onSuccess.
+            postSaveGuardRef.current = true;
 
             await actions.handleSave(data);
 
@@ -305,7 +309,13 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
 
             methods.reset(data, { keepDefaultValues: false });
             history.markAsSaved();
-            setAutoSaveStatus('saved');
+
+            setSaveStatus('saved');
+            if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+            saveStatusTimerRef.current = setTimeout(() => {
+                saveStatusTimerRef.current = null;
+                setSaveStatus('idle');
+            }, 3000);
 
             if (variationSaveOk) {
                 versionManager.createVersion({
@@ -315,14 +325,18 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                 }).catch(err => console.error('Failed to create version:', err));
             }
         } catch (e) {
+            postSaveGuardRef.current = false;
+            setSaveStatus('error');
+            if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+            saveStatusTimerRef.current = setTimeout(() => {
+                saveStatusTimerRef.current = null;
+                setSaveStatus('idle');
+            }, 5000);
             toast.error("Erreur de sauvegarde", {
                 description: e instanceof Error ? e.message : "Une erreur est survenue. Veuillez réessayer.",
             });
-        } finally {
-            // Release lock after manual save completes (success or failure)
-            manualSaveLockRef.current = false;
         }
-    }, [actions, methods, history, autoSave, versionManager, productId]);
+    }, [actions, methods, history, versionManager, productId]);
 
     // Keyboard save: triggers form validation then calls shared handler
     const handleKeyboardSave = useCallback(() => {
@@ -363,7 +377,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         isSaving: actions.isSaving,
         handleSave: actions.handleSave,
         savedSnapshot: null,
-        contentBuffer,
+        contentBuffer: contentBuffer ?? undefined,
         dirtyFieldsData,
         remainingProposals,
         draftActions,
@@ -373,11 +387,11 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         seoAnalysis: analysisData,
         runSeoAnalysis: runServerAnalysis,
         formHistory: history,
-        autoSaveStatus,
+        saveStatus,
     }), [
         productId, product, isLoading, methods, actions.isSaving, actions.handleSave,
         refetchProduct, refetchContentBuffer, selectedStore, analysisData, runServerAnalysis,
-        contentBuffer, dirtyFieldsData, remainingProposals, draftActions, history, autoSaveStatus
+        contentBuffer, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
     ]);
 
     return (
@@ -385,7 +399,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             {isLoading && (
                 <div className="container max-w-7xl mx-auto py-8 space-y-8">
                     <div className="flex items-center gap-4">
-                        <Skeleton className="h-10 w-10 rounded-md" />
+                        <Skeleton className="h-10 w-10 rounded-lg" />
                         <div className="space-y-2">
                             <Skeleton className="h-8 w-64" />
                             <Skeleton className="h-4 w-32" />
@@ -425,24 +439,25 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                                 product={product}
                                 productId={productId}
                                 selectedStore={selectedStore}
-                                autoSaveStatus={autoSaveStatus}
+                                saveStatus={saveStatus}
                                 isDirty={isDirty}
                                 dirtyFieldsContent={dirtyFieldsContent}
                                 hasConflict={hasConflict}
                                 isSaving={actions.isSaving}
-                                isAutoSyncing={actions.isAutoSyncing}
+                                isPublishing={pushToStore.isPending}
                                 history={history}
                                 onSave={() => methods.handleSubmit(handleManualSave)()}
+                                onPublish={handlePublish}
                                 onReset={() => methods.reset()}
                                 onResolveConflicts={() => setConflictDialogOpen(true)}
                             />
 
                             {/* Conflict Banner */}
                             {hasConflict && (
-                                <div className="mb-6 flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3">
-                                    <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+                                <div className="mb-6 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
                                     <div className="flex-1">
-                                        <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                                        <p className="text-sm font-semibold text-destructive dark:text-destructive">
                                             Conflit détecté — {conflictData?.conflicts.length} champ{(conflictData?.conflicts.length ?? 0) > 1 ? "s" : ""} en conflit
                                         </p>
                                         <p className="text-xs text-muted-foreground">
