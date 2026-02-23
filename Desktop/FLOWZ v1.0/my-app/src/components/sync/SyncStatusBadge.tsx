@@ -37,7 +37,7 @@ const statusConfig: Record<SyncStatus, {
         label: 'En attente',
         variant: 'secondary',
         icon: Clock,
-        className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+        className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-amber-400',
     },
     running: {
         label: 'En cours',
@@ -85,25 +85,25 @@ const statusConfig: Record<SyncStatus, {
         label: 'Terminé',
         variant: 'outline',
         icon: CheckCircle2,
-        className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-300',
+        className: 'bg-emerald-100 text-emerald-800 dark:bg-green-900/30 dark:text-emerald-400 border-emerald-300',
     },
     failed: {
         label: 'Échec',
         variant: 'destructive',
         icon: XCircle,
-        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-destructive',
     },
     cancelled: {
         label: 'Annulé',
         variant: 'secondary',
         icon: XCircle,
-        className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+        className: 'bg-muted text-gray-800 dark:bg-gray-900/30 dark:text-muted-foreground',
     },
     error: {
         label: 'Erreur',
         variant: 'destructive',
         icon: AlertTriangle,
-        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-destructive',
     },
 };
 
@@ -171,9 +171,9 @@ export function SyncStatusDot({
         <span
             className={cn(
                 'inline-block w-2 h-2 rounded-full',
-                isActive && 'bg-blue-500 animate-pulse',
-                isSuccess && 'bg-green-500',
-                isError && 'bg-red-500',
+                isActive && 'bg-primary animate-pulse',
+                isSuccess && 'bg-emerald-500',
+                isError && 'bg-destructive',
                 isPaused && 'bg-orange-500',
                 !isActive && !isSuccess && !isError && !isPaused && 'bg-gray-400',
                 className

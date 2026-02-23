@@ -133,7 +133,7 @@ function NewArticleOptionCard({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "relative w-full flex items-start gap-4 p-5 rounded-2xl border transition-all text-left",
+        "relative w-full flex items-start gap-4 p-6 rounded-2xl border transition-all text-left",
         recommended
           ? "bg-primary/5 border-primary/30 hover:bg-primary/10 hover:border-primary/50"
           : "bg-surface-1 border-border hover:bg-muted/50 hover:border-primary/30",

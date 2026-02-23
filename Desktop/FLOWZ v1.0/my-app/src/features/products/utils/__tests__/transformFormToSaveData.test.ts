@@ -192,7 +192,7 @@ describe('transformFormToSaveData', () => {
                 variation: true,
             }],
         }));
-        expect(result.attributes?.[0].options).toEqual(['Rouge', 'Bleu', 'Vert']);
+        expect((result.attributes?.[0] as { options: string[] }).options).toEqual(['Rouge', 'Bleu', 'Vert']);
     });
 
     it('includes attribute id when present', () => {

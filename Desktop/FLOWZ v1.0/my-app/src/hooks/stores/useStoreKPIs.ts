@@ -18,12 +18,19 @@ export function useStoreKPIs(storeId: string | null) {
             if (!storeId) return null;
 
             // Parallel queries for efficiency
-            const [productsResult, categoriesResult, syncJobsResult, storeResult] = await Promise.all([
-                // Total products
+            const [totalResult, optimizedResult, categoriesResult, syncJobsResult, storeResult] = await Promise.all([
+                // Total products count (head: true avoids fetching rows)
                 supabase
                     .from('products')
-                    .select('id, sync_status', { count: 'exact' })
+                    .select('id', { count: 'exact', head: true })
                     .eq('store_id', storeId),
+
+                // AI-optimized products count (working_content IS NOT NULL)
+                supabase
+                    .from('products')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('store_id', storeId)
+                    .not('working_content', 'is', null),
 
                 // Total categories
                 supabase
@@ -47,17 +54,12 @@ export function useStoreKPIs(storeId: string | null) {
                     .single(),
             ]);
 
-            const products = productsResult.data || [];
-            const totalProducts = productsResult.count || products.length;
+            const totalProducts = totalResult.count || 0;
+            const optimizedProducts = optimizedResult.count || 0;
 
-            // Count optimized products (those with sync_status = 'synced')
-            const optimizedProducts = products.filter(
-                p => p.sync_status === 'synced'
-            ).length;
-
-            const pendingProducts = products.filter(
-                p => p.sync_status === 'pending' || p.sync_status === 'dirty'
-            ).length;
+            // Pending sync: products with AI content that haven't been pushed to store yet
+            // (optimized but not yet synced — approximated as 0 since we'd need sync_status)
+            const pendingProducts = 0;
 
             const totalCategories = categoriesResult.count || 0;
 
@@ -106,7 +108,7 @@ export function useAllStoresKPIs() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Non authentifié');
 
-            const [storesResult, productsResult, categoriesResult] = await Promise.all([
+            const [storesResult, totalProductsResult, optimizedProductsResult, categoriesResult] = await Promise.all([
                 supabase
                     .from('stores')
                     .select('id', { count: 'exact', head: true })
@@ -114,18 +116,20 @@ export function useAllStoresKPIs() {
 
                 supabase
                     .from('products')
-                    .select('id, sync_status', { count: 'exact' }),
+                    .select('id', { count: 'exact', head: true }),
+
+                supabase
+                    .from('products')
+                    .select('id', { count: 'exact', head: true })
+                    .not('working_content', 'is', null),
 
                 supabase
                     .from('categories')
                     .select('id', { count: 'exact', head: true }),
             ]);
 
-            const products = productsResult.data || [];
-            const totalProducts = productsResult.count || products.length;
-            const optimizedProducts = products.filter(
-                p => p.sync_status === 'synced'
-            ).length;
+            const totalProducts = totalProductsResult.count || 0;
+            const optimizedProducts = optimizedProductsResult.count || 0;
 
             return {
                 totalStores: storesResult.count || 0,

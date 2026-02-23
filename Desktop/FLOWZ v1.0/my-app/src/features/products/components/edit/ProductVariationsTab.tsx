@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useFormContext, useFieldArray } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -99,19 +99,22 @@ export function ProductVariationsTab({
 
     const { data: dirtyVariationsCount = 0 } = useDirtyVariationsCount(productId, storeId);
 
-    // Register save function with parent container so "ENREGISTRER" saves variations too
+    // Register save function with parent container so "ENREGISTRER" saves variations too.
+    // Use a ref to always access the latest manager state, avoiding stale closures
+    // and the race condition where the useEffect cleanup briefly sets the ref to a no-op.
+    const managerRef = useRef(manager);
+    managerRef.current = manager;
+
     useEffect(() => {
         if (onRegisterSave) {
             onRegisterSave(async () => {
-                if (manager.hasUnsavedChanges) {
-                    await manager.saveVariations();
+                const m = managerRef.current;
+                if (m.hasUnsavedChanges) {
+                    await m.saveVariations();
                 }
             });
         }
-        return () => {
-            if (onRegisterSave) onRegisterSave(async () => {});
-        };
-    }, [onRegisterSave, manager.hasUnsavedChanges, manager.saveVariations]);
+    }, [onRegisterSave]);
 
     // Auto-select first attribute when attributes change
     useEffect(() => {

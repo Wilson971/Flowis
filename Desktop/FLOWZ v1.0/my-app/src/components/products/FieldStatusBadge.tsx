@@ -44,7 +44,7 @@ export const FieldStatusBadge = ({
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Badge variant="outline" className={`h-5 gap-1 px-1.5 bg-indigo-50 text-indigo-700 border-indigo-200 ${className}`}>
+                        <Badge variant="outline" className={`h-5 gap-1 px-1.5 bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20 ${className}`}>
                             <Sparkles className="h-3 w-3" />
                             <span className="text-[10px] font-medium uppercase">IA v2</span>
                         </Badge>
@@ -82,7 +82,7 @@ export const FieldStatusBadge = ({
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Badge variant="outline" className={`h-5 gap-1 px-1.5 bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 ${className}`}>
+                        <Badge variant="outline" className={`h-5 gap-1 px-1.5 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 ${className}`}>
                             <RefreshCw className="h-3 w-3" />
                             <span className="text-[10px] font-medium uppercase">Sync</span>
                         </Badge>

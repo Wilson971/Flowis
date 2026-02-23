@@ -122,7 +122,7 @@ export const cardBaseStyles: Record<
 export const premiumActionCardStyles = {
     // Container principal
     container: {
-        base: "h-full flex flex-col p-5 relative overflow-hidden rounded-2xl",
+        base: "h-full flex flex-col p-6 relative overflow-hidden rounded-2xl",
         withTopLine: true,
     },
 
@@ -136,7 +136,7 @@ export const premiumActionCardStyles = {
     header: {
         container: "pb-5",
         iconWrapper:
-            "p-2 rounded-md bg-gradient-to-br from-primary/15 to-primary/10 border border-primary/20",
+            "p-2 rounded-lg bg-gradient-to-br from-primary/15 to-primary/10 border border-primary/20",
         title: typographyTokens.scale.heading4.cssClass,
         subtitle: `${typographyTokens.scale.bodySm.cssClass} text-muted-foreground`,
     },

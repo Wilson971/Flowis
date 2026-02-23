@@ -58,7 +58,7 @@ export const ProductsFilter = ({
         { value: "all", label: "Tous", icon: Layers },
         { value: "publish", label: "Publié", icon: CheckCircle2, color: "text-emerald-500" },
         { value: "draft", label: "Brouillon", icon: FileText, color: "text-amber-500" },
-        { value: "pending", label: "Attente", icon: Clock, color: "text-blue-500" },
+        { value: "pending", label: "Attente", icon: Clock, color: "text-primary" },
         { value: "private", label: "Privé", icon: ShieldAlert, color: "text-slate-500" },
     ];
 
@@ -86,7 +86,7 @@ export const ProductsFilter = ({
         { value: "all", label: "Tous", icon: Layers },
         { value: "in_stock", label: "En stock", icon: PackageCheck, color: "text-emerald-500" },
         { value: "low_stock", label: "Stock faible", icon: AlertTriangle, color: "text-amber-500" },
-        { value: "out_of_stock", label: "Rupture", icon: PackageX, color: "text-red-500" },
+        { value: "out_of_stock", label: "Rupture", icon: PackageX, color: "text-destructive" },
     ];
 
     const activeFiltersCount =
@@ -107,7 +107,7 @@ export const ProductsFilter = ({
                         key={option.value}
                         onClick={() => onStatusChange(option.value)}
                         className={cn(
-                            "px-3 py-1.5 text-[13px] font-medium rounded-md transition-all duration-200 flex items-center gap-2",
+                            "px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200 flex items-center gap-2",
                             statusFilter === option.value
                                 ? "bg-background text-foreground border border-border"
                                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -117,7 +117,7 @@ export const ProductsFilter = ({
                             <div className={cn("h-1.5 w-1.5 rounded-full bg-current",
                                 option.value === 'publish' ? 'text-emerald-500' :
                                     option.value === 'draft' ? 'text-amber-500' :
-                                        option.value === 'pending' ? 'text-blue-500' :
+                                        option.value === 'pending' ? 'text-primary' :
                                             'text-zinc-500'
                             )} />
                         )}
@@ -159,7 +159,7 @@ export const ProductsFilter = ({
                                 key={option.value}
                                 onClick={() => onAiStatusChange && onAiStatusChange(option.value)}
                                 className={cn(
-                                    "flex items-center px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-muted",
+                                    "flex items-center px-2 py-2 text-sm rounded-lg cursor-pointer hover:bg-muted",
                                     aiStatusFilter === option.value && "bg-muted font-medium"
                                 )}
                             >
@@ -206,7 +206,7 @@ export const ProductsFilter = ({
                                 key={option.value}
                                 onClick={() => onSyncStatusChange && onSyncStatusChange(option.value)}
                                 className={cn(
-                                    "flex items-center px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-muted",
+                                    "flex items-center px-2 py-2 text-sm rounded-lg cursor-pointer hover:bg-muted",
                                     syncStatusFilter === option.value && "bg-muted font-medium"
                                 )}
                             >
@@ -231,7 +231,7 @@ export const ProductsFilter = ({
                         className={cn(
                             "h-9 border-dashed text-xs",
                             stockFilter && stockFilter !== "all" &&
-                                "bg-blue-500/10 border-blue-500/50 text-blue-600 border-solid"
+                                "bg-primary/10 border-primary/50 text-primary border-solid"
                         )}
                     >
                         <Package className="mr-2 h-3.5 w-3.5" />
@@ -253,7 +253,7 @@ export const ProductsFilter = ({
                                 key={option.value}
                                 onClick={() => onStockChange && onStockChange(option.value)}
                                 className={cn(
-                                    "flex items-center px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-muted",
+                                    "flex items-center px-2 py-2 text-sm rounded-lg cursor-pointer hover:bg-muted",
                                     stockFilter === option.value && "bg-muted font-medium"
                                 )}
                             >
@@ -297,7 +297,7 @@ export const ProductsFilter = ({
                                 key={option.value}
                                 onClick={() => onTypeChange(option.value)}
                                 className={cn(
-                                    "flex items-center px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-muted",
+                                    "flex items-center px-2 py-2 text-sm rounded-lg cursor-pointer hover:bg-muted",
                                     typeFilter === option.value && "bg-muted font-medium"
                                 )}
                             >
@@ -335,7 +335,7 @@ export const ProductsFilter = ({
                             <div
                                 onClick={() => onCategoryChange && onCategoryChange("all")}
                                 className={cn(
-                                    "flex items-center px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-muted",
+                                    "flex items-center px-2 py-2 text-sm rounded-lg cursor-pointer hover:bg-muted",
                                     (!categoryFilter || categoryFilter === "all") && "bg-muted font-medium"
                                 )}
                             >
@@ -347,7 +347,7 @@ export const ProductsFilter = ({
                                     key={cat}
                                     onClick={() => onCategoryChange && onCategoryChange(cat)}
                                     className={cn(
-                                        "flex items-center px-2 py-2 text-sm rounded-md cursor-pointer hover:bg-muted",
+                                        "flex items-center px-2 py-2 text-sm rounded-lg cursor-pointer hover:bg-muted",
                                         categoryFilter === cat && "bg-muted font-medium"
                                     )}
                                 >

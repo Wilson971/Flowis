@@ -31,13 +31,13 @@ const BLOCK_ICONS: Record<DescriptionBlockType, React.ComponentType<{ className?
 // Couleurs pour les badges de type
 const BLOCK_COLORS: Record<DescriptionBlockType, string> = {
     heading_h1: 'bg-violet-500/10 text-violet-700 border-violet-200 dark:text-violet-400 dark:border-violet-800',
-    heading_h2: 'bg-blue-500/10 text-blue-700 border-blue-200 dark:text-blue-400 dark:border-blue-800',
+    heading_h2: 'bg-primary/10 text-blue-700 border-primary/20 dark:text-blue-400 dark:border-blue-800',
     heading_h3: 'bg-cyan-500/10 text-cyan-700 border-cyan-200 dark:text-cyan-400 dark:border-cyan-800',
     paragraph: 'bg-slate-500/10 text-slate-700 border-slate-200 dark:text-slate-400 dark:border-slate-700',
     benefits_list: 'bg-emerald-500/10 text-emerald-700 border-emerald-200 dark:text-emerald-400 dark:border-emerald-800',
     specs_table: 'bg-amber-500/10 text-amber-700 border-amber-200 dark:text-amber-400 dark:border-amber-800',
     cta: 'bg-rose-500/10 text-rose-700 border-rose-200 dark:text-rose-400 dark:border-rose-800',
-    separator: 'bg-gray-500/10 text-gray-700 border-gray-200 dark:text-gray-400 dark:border-gray-700',
+    separator: 'bg-muted text-gray-700 border-border dark:text-muted-foreground dark:border-gray-700',
 };
 
 // Descriptions courtes pour afficher les configurations

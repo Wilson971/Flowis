@@ -111,6 +111,14 @@ function dbToEditable(dbVar: ProductVariation): EditableVariation {
     };
 }
 
+/** Convert a Supabase PostgrestError to a proper Error with readable message */
+function toError(err: { message?: string; code?: string; details?: string }): Error {
+    const parts = [err.message || "Erreur Supabase inconnue"];
+    if (err.details) parts.push(err.details);
+    if (err.code) parts.push(`(code: ${err.code})`);
+    return new Error(parts.join(" — "));
+}
+
 /** Convert a fallback AppVariation (from metadata) to EditableVariation */
 function appVariationToEditable(appVar: AppVariation): EditableVariation {
     return {
@@ -445,11 +453,14 @@ export function useVariationManager({
 
             const toCreate = variations.filter((v) => v._status === "new");
             // Metadata-only variations (from WC sync fallback) need to be
-            // migrated into the product_variations table on first save
+            // migrated into the product_variations table on first save.
+            // This includes both "synced" (untouched) AND "modified" (user-edited)
+            // metadata variations — both lack a dbId since they don't exist in the table yet.
             const toMigrateFromMetadata = variations.filter(
-                (v) => v._status === "synced" && !v.dbId
+                (v) => !v.dbId && (v._status === "synced" || v._status === "modified")
             );
-            const toUpdate = variations.filter((v) => v._status === "modified");
+            // Only update variations that already exist in the DB (have a dbId)
+            const toUpdate = variations.filter((v) => v._status === "modified" && v.dbId);
             const toDelete = variations.filter(
                 (v) => v._status === "deleted" && v.dbId
             );
@@ -458,31 +469,24 @@ export function useVariationManager({
             const activeVariations = variations.filter(
                 (v) => v._status !== "deleted" && v.sku?.trim()
             );
-            const skuList = activeVariations.map((v) => v.sku.trim());
+            // Deduplicate SKU list for cross-table checks (variations of the
+            // same product are allowed to share a SKU — this is common in WooCommerce)
+            const skuList = [...new Set(activeVariations.map((v) => v.sku.trim()))];
 
-            // 1) Intra-variation duplicates (same SKU on multiple local variations)
-            const seen = new Set<string>();
-            for (const sku of skuList) {
-                if (seen.has(sku)) {
-                    throw new Error(
-                        `SKU dupliqué entre variations : "${sku}". Chaque variation doit avoir un SKU unique.`
-                    );
-                }
-                seen.add(sku);
-            }
-
-            // 2) Cross-table duplicates (vs products + other variations in same store)
+            // Cross-table duplicates (vs products + other variations in same store)
             if (skuList.length > 0) {
                 // Get current variation DB IDs to exclude from check
                 const currentDbIds = activeVariations
                     .filter((v) => v.dbId)
                     .map((v) => v.dbId!);
 
-                // Check against products table
+                // Check against products table (exclude the parent product —
+                // WooCommerce allows variations to share the parent's SKU)
                 const { data: conflictProducts } = await supabase
                     .from("products")
                     .select("sku, title")
                     .eq("store_id", storeId)
+                    .neq("id", productId)
                     .in("sku", skuList);
 
                 if (conflictProducts && conflictProducts.length > 0) {
@@ -492,19 +496,13 @@ export function useVariationManager({
                     );
                 }
 
-                // Check against other variations (exclude current batch)
-                let varQuery = supabase
+                // Check against other variations (exclude all variations of this product)
+                const varQuery = supabase
                     .from("product_variations")
                     .select("sku, parent_product_external_id")
                     .eq("store_id", storeId)
+                    .neq("product_id", productId)
                     .in("sku", skuList);
-
-                if (currentDbIds.length > 0) {
-                    // Exclude variations we're about to update
-                    for (const dbId of currentDbIds) {
-                        varQuery = varQuery.neq("id", dbId);
-                    }
-                }
 
                 const { data: conflictVariations } = await varQuery;
                 if (conflictVariations && conflictVariations.length > 0) {
@@ -551,12 +549,9 @@ export function useVariationManager({
                     description: v.description,
                     virtual: v.virtual,
                     downloadable: v.downloadable,
-                    global_unique_id: v.globalUniqueId || null,
                     backorders: v.backorders,
                     tax_status: v.taxStatus,
                     tax_class: v.taxClass || null,
-                    date_on_sale_from: v.dateOnSaleFrom || null,
-                    date_on_sale_to: v.dateOnSaleTo || null,
                     original_data: { virtual: v.virtual, downloadable: v.downloadable },
                     is_dirty: true,
                     dirty_action: "created",
@@ -565,10 +560,11 @@ export function useVariationManager({
                 const { error } = await supabase
                     .from("product_variations")
                     .insert(rows);
-                if (error) throw error;
+                if (error) throw toError(error);
             }
 
-            // MIGRATE metadata-only variations to product_variations table
+            // MIGRATE metadata-only variations to product_variations table.
+            // Modified metadata variations are marked as dirty for WC sync.
             if (toMigrateFromMetadata.length > 0) {
                 const migrateRows = toMigrateFromMetadata.map((v) => ({
                     store_id: storeId,
@@ -593,21 +589,19 @@ export function useVariationManager({
                     description: v.description,
                     virtual: v.virtual,
                     downloadable: v.downloadable,
-                    global_unique_id: v.globalUniqueId || null,
                     backorders: v.backorders,
                     tax_status: v.taxStatus,
                     tax_class: v.taxClass || null,
-                    date_on_sale_from: v.dateOnSaleFrom || null,
-                    date_on_sale_to: v.dateOnSaleTo || null,
                     original_data: { virtual: v.virtual, downloadable: v.downloadable },
-                    is_dirty: false,
-                    dirty_action: null,
+                    // Synced = pure migration (no user changes), Modified = user edited before migration
+                    is_dirty: v._status === "modified",
+                    dirty_action: v._status === "modified" ? "updated" : null,
                 }));
 
                 const { error } = await supabase
                     .from("product_variations")
                     .insert(migrateRows);
-                if (error) throw error;
+                if (error) throw toError(error);
             }
 
             // UPDATE modified variations
@@ -634,19 +628,16 @@ export function useVariationManager({
                         description: v.description,
                         virtual: v.virtual,
                         downloadable: v.downloadable,
-                        global_unique_id: v.globalUniqueId || null,
                         backorders: v.backorders,
                         tax_status: v.taxStatus,
                         tax_class: v.taxClass || null,
-                        date_on_sale_from: v.dateOnSaleFrom || null,
-                        date_on_sale_to: v.dateOnSaleTo || null,
                         original_data: { virtual: v.virtual, downloadable: v.downloadable },
                         is_dirty: true,
                         dirty_action: "updated",
                         updated_at: new Date().toISOString(),
                     })
                     .eq("id", v.dbId);
-                if (error) throw error;
+                if (error) throw toError(error);
             }
 
             // DELETE removed variations
@@ -660,7 +651,7 @@ export function useVariationManager({
                         dirty_action: "deleted",
                     })
                     .in("id", deleteIds);
-                if (error) throw error;
+                if (error) throw toError(error);
             }
 
             return {

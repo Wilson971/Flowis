@@ -460,7 +460,7 @@ export default function BlogPage() {
           {/* Gradient accent */}
           <div className="absolute inset-0 bg-gradient-to-tr from-violet-500/[0.02] via-transparent to-blue-500/[0.02] pointer-events-none" />
 
-          <CardContent className="p-5 relative z-10">
+          <CardContent className="p-6 relative z-10">
             <BlogToolbar
               searchValue={localSearch}
               onSearchChange={setLocalSearch}

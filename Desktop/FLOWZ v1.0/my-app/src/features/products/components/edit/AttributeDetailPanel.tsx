@@ -47,7 +47,6 @@ const COLOR_MAP: Record<string, string> = {
     black: "#000000",
     white: "#ffffff",
     gray: "#6b7280",
-    orange: "#f97316",
     purple: "#a855f7",
     pink: "#ec4899",
     brown: "#92400e",
@@ -261,7 +260,7 @@ export function AttributeDetailPanel({
                 <div className={cn(
                     "p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2",
                     isVisible && isVariation && "bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400",
-                    isVisible && !isVariation && "bg-blue-500/5 border-blue-500/20 text-blue-700 dark:text-blue-400",
+                    isVisible && !isVariation && "bg-primary/5 border-primary/20 text-blue-700 dark:text-blue-400",
                     !isVisible && isVariation && "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400",
                     !isVisible && !isVariation && "bg-muted/30 border-border/50 text-muted-foreground"
                 )}>

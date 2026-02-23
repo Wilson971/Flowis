@@ -153,7 +153,7 @@ export function DeleteStoreDialog({
                             onChange={(e) => setConfirmation(e.target.value)}
                             placeholder="SUPPRIMER"
                             className={cn(
-                                isConfirmed && 'border-green-500 focus-visible:ring-green-500'
+                                isConfirmed && 'border-emerald-500 focus-visible:ring-green-500'
                             )}
                         />
                     </div>

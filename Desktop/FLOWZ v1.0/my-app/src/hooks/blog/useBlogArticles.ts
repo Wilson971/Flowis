@@ -146,7 +146,8 @@ export function useBlogStats(storeId?: string) {
     },
     enabled: !!storeId,
     staleTime: 15 * 1000, // 15 seconds
-    refetchInterval: 15 * 1000, // Auto-refresh every 15 seconds
+    refetchInterval: false,
+    refetchOnWindowFocus: true,
   });
 }
 

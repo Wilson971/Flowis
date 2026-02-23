@@ -202,7 +202,7 @@ export const LinkedProductsCard = ({
                         <TabsContent value="upsell" className="space-y-3 mt-0">
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-semibold flex items-center gap-2">
-                                    <TrendingUp className="h-3 w-3 text-green-500" />
+                                    <TrendingUp className="h-3 w-3 text-emerald-500" />
                                     Ventes incitatives
                                 </Label>
                                 <p className="text-[10px] text-muted-foreground">
@@ -241,7 +241,7 @@ export const LinkedProductsCard = ({
                         <TabsContent value="crosssell" className="space-y-3 mt-0">
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-semibold flex items-center gap-2">
-                                    <ShoppingBag className="h-3 w-3 text-blue-500" />
+                                    <ShoppingBag className="h-3 w-3 text-primary" />
                                     Ventes croisées
                                 </Label>
                                 <p className="text-[10px] text-muted-foreground">

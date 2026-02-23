@@ -151,7 +151,11 @@ export function useActiveJobs(storeId?: string) {
             return (data || []) as BatchJob[];
         },
         staleTime: 2000, // Deduplicate across multiple components
-        refetchInterval: 5000, // Refresh toutes les 5s
+        refetchInterval: (query) => {
+            const data = query.state.data as BatchJob[] | undefined;
+            const hasActive = data?.some(j => j.status === 'pending' || j.status === 'running');
+            return hasActive ? 5000 : false;
+        },
     });
 }
 

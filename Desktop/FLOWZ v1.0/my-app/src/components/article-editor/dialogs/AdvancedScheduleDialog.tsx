@@ -89,7 +89,7 @@ function getScheduleTypeInfo(type: ScheduleType): {
       return {
         icon: <RefreshCw className="w-4 h-4" />,
         label: 'Republication',
-        color: 'text-blue-600 bg-blue-100',
+        color: 'text-primary bg-blue-100',
       };
     case 'unpublish':
       return {
@@ -122,7 +122,7 @@ function getStatusInfo(status: ScheduleStatus): {
       return {
         icon: <Loader2 className="w-3.5 h-3.5 animate-spin" />,
         label: 'En cours',
-        color: 'text-blue-600 bg-blue-100',
+        color: 'text-primary bg-blue-100',
       };
     case 'completed':
       return {
@@ -134,7 +134,7 @@ function getStatusInfo(status: ScheduleStatus): {
       return {
         icon: <XCircle className="w-3.5 h-3.5" />,
         label: 'Echec',
-        color: 'text-red-600 bg-red-100',
+        color: 'text-destructive bg-red-100',
       };
     case 'cancelled':
       return {
@@ -216,7 +216,7 @@ function ScheduleListItem({
           </div>
         )}
         {schedule.error_message && (
-          <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+          <p className="text-xs text-destructive mt-2 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
             {schedule.error_message}
           </p>
@@ -242,7 +242,7 @@ function ScheduleListItem({
             size="icon"
             onClick={onDelete}
             disabled={isDeleting}
-            className="h-8 w-8 text-muted-foreground hover:text-red-600"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
           >
             {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           </Button>
@@ -312,7 +312,7 @@ function NewScheduleForm({ articleId, onCreate, isCreating, onClose }: NewSchedu
             </SelectItem>
             <SelectItem value="republish">
               <div className="flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-blue-600" />
+                <RefreshCw className="w-4 h-4 text-primary" />
                 <span>Republier</span>
               </div>
             </SelectItem>

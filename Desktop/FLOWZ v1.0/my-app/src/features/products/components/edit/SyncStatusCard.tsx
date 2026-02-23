@@ -89,7 +89,7 @@ const STATUS_CONFIG: Record<SyncStatus, {
     conflict: {
         label: "Conflit détecté",
         icon: AlertTriangle,
-        badgeClass: "bg-red-500/10 text-red-600 border-red-500/20",
+        badgeClass: "bg-destructive/10 text-destructive border-destructive/20",
         description: "Des modifications ont été faites sur la boutique et localement.",
     },
 };
@@ -185,7 +185,7 @@ export const SyncStatusCard = ({
                     </div>
                 </CardHeader>
 
-                <CardContent className="p-5 pt-3 space-y-3 relative z-10">
+                <CardContent className="p-6 pt-3 space-y-3 relative z-10">
                     {/* Dirty fields list */}
                     {syncStatus === "pending" && dirtyFields.length > 0 && (
                         <div className="space-y-2">
@@ -196,13 +196,13 @@ export const SyncStatusCard = ({
                                 {dirtyFields.slice(0, 6).map((field) => (
                                     <span
                                         key={field}
-                                        className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
                                     >
                                         {FIELD_LABELS[field] || field}
                                     </span>
                                 ))}
                                 {dirtyFields.length > 6 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-muted text-muted-foreground">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
                                         +{dirtyFields.length - 6} autres
                                     </span>
                                 )}
@@ -212,7 +212,7 @@ export const SyncStatusCard = ({
 
                     {/* Conflict message */}
                     {syncStatus === "conflict" && (
-                        <p className="text-xs text-red-600 dark:text-red-400">
+                        <p className="text-xs text-destructive dark:text-destructive">
                             {config.description}
                         </p>
                     )}

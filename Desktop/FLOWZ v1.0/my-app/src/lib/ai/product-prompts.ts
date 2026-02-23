@@ -213,19 +213,34 @@ Réponds UNIQUEMENT avec le HTML, sans bloc de code, sans explication.`;
  */
 export function buildSeoTitlePrompt(
     product: ProductContext,
-    settings: ModularGenerationSettings
+    settings: ModularGenerationSettings,
+    storeName?: string,
+    gscKeywords?: Array<{ query: string; impressions: number; position: number }>
 ): string {
+    const storeInstruction = storeName
+        ? `\n- OBLIGATOIRE: Le meta title DOIT se terminer par " | ${storeName}". Ce suffixe compte dans la limite de caractères.`
+        : '';
+
+    const gscContext = gscKeywords && gscKeywords.length > 0
+        ? `\nDONNÉES GOOGLE SEARCH CONSOLE (vraies recherches) :\n` +
+          gscKeywords.slice(0, 5).map(kw =>
+              `  - "${kw.query}" — ${kw.impressions} impressions, pos. ${kw.position.toFixed(1)}`
+          ).join('\n') +
+          `\nUtilise ces termes réels comme base pour le meta title.`
+        : '';
+
     return `Tu es un expert SEO. Génère un meta title (balise <title>) optimisé pour ce produit e-commerce.
 
 ${buildProductContext(product)}
+${storeName ? `BOUTIQUE: ${storeName}` : ''}${gscContext}
 
 CONTRAINTES SEO STRICTES:
 - Longueur: ${SEO_CONSTANTS.seoTitle.minLength}-${SEO_CONSTANTS.seoTitle.maxLength} caractères (Google tronque à 60)
 - Le mot-clé principal DOIT être dans les 3 premiers mots
 - DIFFÉRENT du titre produit (apporte une valeur ajoutée)
-- Format recommandé: [Mot-clé] - [Bénéfice] | [Marque]
+- Format recommandé: [Mot-clé] - [Bénéfice] | [Nom Boutique]
 - Pas de majuscules excessives
-- Un seul séparateur (| ou -)
+- Un seul séparateur (| ou -)${storeInstruction}
 
 TON: ${getToneInstruction(settings.tone)}
 LANGUE: ${getLanguageName(settings.language)}

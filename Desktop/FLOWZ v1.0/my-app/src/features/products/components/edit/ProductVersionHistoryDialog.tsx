@@ -56,7 +56,7 @@ const TRIGGER_CONFIG: Record<ProductVersionTrigger, {
     bgColor: string;
 }> = {
     auto_save: { icon: Clock, label: 'Auto-save', color: 'text-muted-foreground', bgColor: 'bg-muted' },
-    manual_save: { icon: Save, label: 'Sauvegarde', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+    manual_save: { icon: Save, label: 'Sauvegarde', color: 'text-primary', bgColor: 'bg-primary/10' },
     ai_approval: { icon: Sparkles, label: 'IA', color: 'text-violet-500', bgColor: 'bg-violet-500/10' },
     restore: { icon: RotateCcw, label: 'Restauration', color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
 };

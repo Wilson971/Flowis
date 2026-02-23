@@ -1,9 +1,17 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-export function createClient() {
-    // Get environment variables with fallbacks for SSR
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+let client: ReturnType<typeof createBrowserClient> | null = null
 
-    return createBrowserClient(supabaseUrl, supabaseKey)
+export function createClient() {
+    if (client) return client
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required')
+    }
+
+    client = createBrowserClient(supabaseUrl, supabaseKey)
+    return client
 }

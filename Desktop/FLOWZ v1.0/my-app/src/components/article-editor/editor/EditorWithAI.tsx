@@ -261,7 +261,7 @@ export function EditorWithAI({
     return (
       <div
         className={cn(
-          'rounded-md bg-background animate-pulse',
+          'rounded-lg bg-background animate-pulse',
           className
         )}
         style={{ minHeight }}

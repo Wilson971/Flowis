@@ -106,13 +106,13 @@ function ConflictItem({
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">Valeur locale</p>
-                    <div className="p-3 rounded-md bg-blue-50 border border-blue-200 text-sm">
+                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm">
                         {formatValue(conflict.localValue)}
                     </div>
                 </div>
                 <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">Valeur boutique</p>
-                    <div className="p-3 rounded-md bg-green-50 border border-green-200 text-sm">
+                    <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm">
                         {formatValue(conflict.storeValue)}
                     </div>
                 </div>
@@ -249,7 +249,7 @@ export function ConflictResolutionDialog({
                     </ScrollArea>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <Check className="h-12 w-12 text-green-500 mb-4" />
+                        <Check className="h-12 w-12 text-emerald-500 mb-4" />
                         <p className="text-lg font-medium">Aucun conflit</p>
                         <p className="text-sm text-muted-foreground">
                             Le contenu local et la boutique sont synchronisés.

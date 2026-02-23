@@ -210,7 +210,7 @@ export function CanvasStep({
         <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-muted/20">
           <div className="flex items-center gap-4">
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-muted rounded-md p-0.5">
+            <div className="flex items-center bg-muted rounded-lg p-0.5">
               <Button
                 variant={viewMode === 'edit' ? 'secondary' : 'ghost'}
                 size="sm"
@@ -236,7 +236,7 @@ export function CanvasStep({
 
           <div className="flex items-center gap-1">
             <span className="text-xs text-muted-foreground mr-2 font-medium">Actions IA:</span>
-            <div className="flex items-center bg-background rounded-md border border-border p-0.5 shadow-sm">
+            <div className="flex items-center bg-background rounded-lg border border-border p-0.5 shadow-sm">
               {(Object.keys(CANVAS_ACTION_LABELS) as CanvasAIAction[]).map((action) => (
                 <AIActionButton
                   key={action}

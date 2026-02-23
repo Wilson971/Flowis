@@ -71,7 +71,7 @@ function getTriggerInfo(trigger: ProductVersionTrigger): {
             return {
                 icon: <Save className="w-3 h-3" />,
                 label: 'Sauvegarde',
-                color: 'text-blue-500',
+                color: 'text-primary',
             };
         case 'ai_approval':
             return {

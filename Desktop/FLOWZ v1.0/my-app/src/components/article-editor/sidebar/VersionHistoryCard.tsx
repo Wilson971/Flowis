@@ -66,7 +66,7 @@ function getTriggerInfo(trigger: VersionTrigger): {
       return {
         icon: <Save className="w-3 h-3" />,
         label: 'Sauvegarde',
-        color: 'text-blue-500',
+        color: 'text-primary',
       };
     case 'publish':
       return {
@@ -132,7 +132,7 @@ function VersionItem({ version, isLatest, onRestore, isRestoring }: VersionItemP
       {/* Icon */}
       <div
         className={cn(
-          'w-7 h-7 rounded-md flex items-center justify-center shrink-0',
+          'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
           isLatest ? 'bg-primary/10' : 'bg-muted'
         )}
       >

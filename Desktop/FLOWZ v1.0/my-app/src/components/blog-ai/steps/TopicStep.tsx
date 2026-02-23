@@ -174,7 +174,7 @@ export function TopicStep({
 
           {/* Feature Grid */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
-            <div className="p-5 rounded-2xl bg-surface-1 border border-border flex items-start gap-4 transition-all">
+            <div className="p-6 rounded-2xl bg-surface-1 border border-border flex items-start gap-4 transition-all">
               <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                 <LineChart className="w-5 h-5" />
               </div>
@@ -184,7 +184,7 @@ export function TopicStep({
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-surface-1 border border-border flex items-start gap-4 transition-all">
+            <div className="p-6 rounded-2xl bg-surface-1 border border-border flex items-start gap-4 transition-all">
               <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                 <Zap className="w-5 h-5" />
               </div>
@@ -194,7 +194,7 @@ export function TopicStep({
               </div>
             </div>
 
-            <div className="p-5 rounded-2xl bg-surface-1 border border-border flex items-start gap-4 transition-all">
+            <div className="p-6 rounded-2xl bg-surface-1 border border-border flex items-start gap-4 transition-all">
               <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>

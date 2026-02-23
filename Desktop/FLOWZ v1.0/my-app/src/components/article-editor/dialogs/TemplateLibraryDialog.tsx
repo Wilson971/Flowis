@@ -176,7 +176,7 @@ function TemplateListItem({
             e.stopPropagation();
             onDelete();
           }}
-          className="h-8 w-8 text-muted-foreground hover:text-red-600"
+          className="h-8 w-8 text-muted-foreground hover:text-destructive"
         >
           <Trash2 className="w-4 h-4" />
         </Button>

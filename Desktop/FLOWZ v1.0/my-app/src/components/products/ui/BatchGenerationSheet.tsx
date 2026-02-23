@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useLocalStorage, STORAGE_KEYS } from "@/hooks/useLocalStorage";
 import { BatchGenerationPanel, CONTENT_TYPES, AltTextProgress } from "./BatchGenerationPanel";
+import { BatchGenerationRightSettingsPanel } from "./BatchGenerationRightSettingsPanel";
+import { ModularGenerationSettings } from "@/types/imageGeneration";
 
 interface BatchGenerationSheetProps {
+    isOpen?: boolean;
     selectedCount: number;
     onGenerate: (types: string[], enableSerpAnalysis: boolean, forceRegenerate?: boolean) => void;
     onOpenSettings: () => void;
@@ -21,9 +24,13 @@ interface BatchGenerationSheetProps {
     onOpenBulkApproval?: () => void;
     sseProgressMessage?: string;
     modelName?: string;
+    settings?: ModularGenerationSettings;
+    onSettingsChange?: (settings: ModularGenerationSettings) => void;
+    onCloseSettings?: () => void;
 }
 
 export function BatchGenerationSheet({
+    isOpen = false,
     selectedCount,
     onGenerate,
     onOpenSettings,
@@ -41,6 +48,9 @@ export function BatchGenerationSheet({
     onOpenBulkApproval,
     sseProgressMessage,
     modelName,
+    settings,
+    onSettingsChange,
+    onCloseSettings,
 }: BatchGenerationSheetProps) {
     const isProcessingAltTexts = altTextProgress?.status === "processing";
 
@@ -52,48 +62,9 @@ export function BatchGenerationSheet({
         defaultValue: false,
     });
 
-    const [shouldPush, setShouldPush] = useState(false);
-    const [sheetWidth, setSheetWidth] = useState("100%");
     const [isCollapsed, setIsCollapsed] = useLocalStorage<boolean>(STORAGE_KEYS.BATCH_GENERATION_COLLAPSED, {
         defaultValue: false,
     });
-
-    // Layout Responsiveness
-    useEffect(() => {
-        const updateLayout = () => {
-            if (!isAdvancedSettingsOpen) {
-                setShouldPush(false);
-                setSheetWidth("100%");
-                return;
-            }
-
-            const viewportWidth = window.innerWidth;
-            let rightSheetWidth = 520;
-
-            if (viewportWidth < 1024) {
-                setShouldPush(false);
-                setSheetWidth("0");
-                return;
-            } else if (viewportWidth < 1280) {
-                rightSheetWidth = 480;
-            }
-
-            const availableWidth = viewportWidth - rightSheetWidth;
-            const shouldUsePush = availableWidth >= 820;
-
-            setShouldPush(shouldUsePush);
-
-            if (shouldUsePush) {
-                setSheetWidth(`${rightSheetWidth}px`);
-            } else {
-                setSheetWidth("0px");
-            }
-        };
-
-        updateLayout();
-        window.addEventListener("resize", updateLayout);
-        return () => window.removeEventListener("resize", updateLayout);
-    }, [isAdvancedSettingsOpen]);
 
     // Loading Messages
     const LOADING_MESSAGES: Record<string, string> = {
@@ -151,39 +122,64 @@ export function BatchGenerationSheet({
 
     if (typeof window === 'undefined') return null;
 
-    return createPortal(
-        <BatchGenerationPanel
-            selectedCount={selectedCount}
-            selectedTypes={selectedTypes}
-            forceRegenerate={forceRegenerate}
-            isGenerating={isGenerating}
-            isProcessingAltTexts={isProcessingAltTexts}
-            isProcessingBulkAction={isProcessingBulkAction}
-            progressMessage={progressMessage}
-            altTextProgress={altTextProgress}
+    // Determine the numeric width for the Right Settings Panel
+    let settingsPanelWidth = 520;
+    if (typeof window !== 'undefined') {
+        const viewportWidth = window.innerWidth;
+        if (viewportWidth < 1280 && viewportWidth >= 1024) {
+            settingsPanelWidth = 480;
+        } else if (viewportWidth < 1024) {
+            settingsPanelWidth = 400; // Mobile/tablet width
+        }
+    }
 
-            isCollapsed={isCollapsed}
-            sheetWidth={sheetWidth}
-            shouldPush={shouldPush}
-            pendingApprovalsCount={pendingApprovalsCount}
-            syncableProductsCount={syncableProductsCount}
 
-            onToggleType={toggleType}
-            onForceRegenerateChange={setForceRegenerate}
-            onCollapseChange={setIsCollapsed}
-            onGenerate={() => {
-                onGenerate(selectedTypes, false, forceRegenerate);
-            }}
-            onOpenSettings={onOpenSettings}
-            onClose={onClose}
+    return (
+        <>
+            {createPortal(
+                <BatchGenerationPanel
+                    isOpen={isOpen}
+                    selectedCount={selectedCount}
+                    selectedTypes={selectedTypes}
+                    forceRegenerate={forceRegenerate}
+                    isGenerating={isGenerating}
+                    isProcessingAltTexts={isProcessingAltTexts}
+                    isProcessingBulkAction={isProcessingBulkAction}
+                    progressMessage={progressMessage}
+                    altTextProgress={altTextProgress}
 
-            onApproveAll={onApproveAll}
-            onRejectAll={onRejectAll}
-            onPushToStore={onPushToStore}
-            onCancelSync={onCancelSync}
-            onOpenBulkApproval={onOpenBulkApproval}
-            modelName={modelName}
-        />,
-        document.body
+                    isCollapsed={isCollapsed}
+                    isHidden={isAdvancedSettingsOpen}
+                    pendingApprovalsCount={pendingApprovalsCount}
+                    syncableProductsCount={syncableProductsCount}
+
+                    onToggleType={toggleType}
+                    onForceRegenerateChange={setForceRegenerate}
+                    onCollapseChange={setIsCollapsed}
+                    onGenerate={() => {
+                        onGenerate(selectedTypes, false, forceRegenerate);
+                    }}
+                    onOpenSettings={onOpenSettings}
+                    onClose={onClose}
+
+                    onApproveAll={onApproveAll}
+                    onRejectAll={onRejectAll}
+                    onPushToStore={onPushToStore}
+                    onCancelSync={onCancelSync}
+                    onOpenBulkApproval={onOpenBulkApproval}
+                    modelName={modelName}
+                />,
+                document.body
+            )}
+            {settings && onSettingsChange && (
+                <BatchGenerationRightSettingsPanel
+                    isOpen={isAdvancedSettingsOpen}
+                    onClose={() => onCloseSettings?.()}
+                    settings={settings}
+                    onSettingsChange={onSettingsChange}
+                    width={settingsPanelWidth}
+                />
+            )}
+        </>
     );
 }

@@ -91,8 +91,8 @@ export function PublicationCard() {
       <CardContent className="p-4 pt-3 space-y-4">
         {/* Scheduled Info */}
         {isScheduled && scheduledAt && (
-          <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
-            <div className="flex items-center gap-2 text-blue-600 text-xs font-medium">
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2 text-primary text-xs font-medium">
               <Clock className="h-3.5 w-3.5" />
               Planifie pour le {format(new Date(scheduledAt), 'd MMMM a HH:mm', { locale: fr })}
             </div>

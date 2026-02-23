@@ -31,6 +31,11 @@ export interface UserPreferences {
         email: boolean;
         push: boolean;
     };
+    appearance?: {
+        brand_theme?: string;
+        radius?: number;
+        theme?: string;
+    };
 }
 
 export function useUserProfile() {
@@ -52,12 +57,17 @@ export function useUserProfile() {
             if (error) throw error;
 
             // Mapper les champs de la DB vers la structure UserProfile
+            const notifPrefs = (data.notification_prefs as Record<string, any>) || {}
             const profile = {
                 ...data,
                 preferences: {
                     theme: data.theme,
                     language: data.language,
-                    notifications: data.notification_prefs
+                    notifications: {
+                        email: notifPrefs.email ?? true,
+                        push: notifPrefs.push ?? true,
+                    },
+                    appearance: notifPrefs.appearance || {},
                 }
             };
 
@@ -140,10 +150,54 @@ export function useUserProfile() {
         }
     });
 
+    // Dedicated mutation for appearance preferences
+    // Stores brand_theme, radius, and theme in notification_prefs.appearance
+    const updateAppearance = useMutation({
+        mutationFn: async (appearance: { brand_theme?: string; radius?: number; theme?: string }) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Not authenticated');
+
+            // Fetch current notification_prefs to avoid overwriting other keys
+            const { data: current } = await supabase
+                .from('profiles')
+                .select('notification_prefs, theme')
+                .eq('id', user.id)
+                .single();
+
+            const currentPrefs = (current?.notification_prefs as Record<string, any>) || {};
+
+            const updates: Record<string, any> = {
+                notification_prefs: {
+                    ...currentPrefs,
+                    appearance: {
+                        ...(currentPrefs.appearance || {}),
+                        ...appearance,
+                    },
+                },
+            };
+
+            // Also update the top-level theme column when theme changes
+            if (appearance.theme) {
+                updates.theme = appearance.theme;
+            }
+
+            const { error } = await supabase
+                .from('profiles')
+                .update(updates)
+                .eq('id', user.id);
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+        },
+    });
+
     return {
         profile: profileQuery.data,
         isLoading: profileQuery.isLoading,
         updateProfile,
-        updateAvatar
+        updateAvatar,
+        updateAppearance,
     };
 }

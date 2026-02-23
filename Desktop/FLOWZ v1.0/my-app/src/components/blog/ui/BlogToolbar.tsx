@@ -41,7 +41,7 @@ export const BlogToolbar = ({
           placeholder="Rechercher un article..."
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 pr-4 h-9 w-full bg-muted/50 border-input shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all text-xs placeholder:text-muted-foreground rounded-md transition-colors"
+          className="pl-9 pr-4 h-9 w-full bg-muted/50 border-input shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all text-xs placeholder:text-muted-foreground rounded-lg transition-colors"
         />
       </div>
 

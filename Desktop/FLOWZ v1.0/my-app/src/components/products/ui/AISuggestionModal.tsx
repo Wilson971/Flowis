@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, Sparkles, ArrowRight, Edit3, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sanitizeHtml } from '@/lib/sanitize';
 import { getFieldLabel } from "@/lib/productHelpers";
 import { TipTapEditor } from "@/components/editor/TipTapEditor";
 
@@ -150,7 +151,7 @@ export function AISuggestionModal({
                                     {isRich ? (
                                         <div
                                             className="prose prose-sm max-w-none text-foreground/80 [&_h2]:text-base [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:mb-2 [&_ul]:pl-4 [&_li]:mb-1 [&_strong]:font-semibold"
-                                            dangerouslySetInnerHTML={{ __html: currentValue || "<p class='text-muted-foreground italic'>Aucun contenu</p>" }}
+                                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentValue || "<p class='text-muted-foreground italic'>Aucun contenu</p>") }}
                                         />
                                     ) : (
                                         <div className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">
@@ -191,7 +192,7 @@ export function AISuggestionModal({
                                     {isRich ? (
                                         <div
                                             className="prose prose-sm max-w-none text-foreground [&_h2]:text-base [&_h2]:font-bold [&_h2]:mt-4 [&_h2]:mb-2 [&_p]:mb-2 [&_ul]:pl-4 [&_li]:mb-1 [&_strong]:font-semibold"
-                                            dangerouslySetInnerHTML={{ __html: suggestedValue }}
+                                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(suggestedValue) }}
                                         />
                                     ) : (
                                         <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">

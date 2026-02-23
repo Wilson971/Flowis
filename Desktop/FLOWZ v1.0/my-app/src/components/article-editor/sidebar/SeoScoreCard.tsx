@@ -19,7 +19,7 @@ export function SeoScoreCard() {
   const warningIssues = seoChecks.filter((c) => !c.passed && c.severity === 'warning').length;
 
   // Score color
-  const scoreColor = seoScore >= 80 ? 'text-emerald-500' : seoScore >= 50 ? 'text-amber-500' : 'text-red-500';
+  const scoreColor = seoScore >= 80 ? 'text-emerald-500' : seoScore >= 50 ? 'text-amber-500' : 'text-destructive';
 
   return (
     <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden card-elevated">
@@ -81,7 +81,7 @@ export function SeoScoreCard() {
             </div>
             <div className="flex items-center gap-3 text-xs">
               {criticalIssues > 0 && (
-                <span className="flex items-center gap-1 text-red-500">
+                <span className="flex items-center gap-1 text-destructive">
                   <XCircle className="h-3 w-3" />
                   {criticalIssues} critique{criticalIssues > 1 ? 's' : ''}
                 </span>
@@ -106,7 +106,7 @@ export function SeoScoreCard() {
               {check.passed ? (
                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
               ) : check.severity === 'critical' ? (
-                <XCircle className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                <XCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
               ) : (
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
               )}

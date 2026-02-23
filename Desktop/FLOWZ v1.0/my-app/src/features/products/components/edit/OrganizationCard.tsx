@@ -66,7 +66,7 @@ const CheckableCommandItem = ({ item, isSelected, onToggle }: {
         key={item.id}
         value={item.name}
         onSelect={onToggle}
-        className="flex items-center gap-2 py-2 px-2 cursor-pointer rounded-md mb-1 hover:bg-muted/50 transition-colors"
+        className="flex items-center gap-2 py-2 px-2 cursor-pointer rounded-lg mb-1 hover:bg-muted/50 transition-colors"
     >
         <div className={cn(
             "flex h-3.5 w-3.5 items-center justify-center rounded-sm border",

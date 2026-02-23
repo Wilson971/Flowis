@@ -17,6 +17,7 @@ export const SeoScoreGauge = ({
     isLoading = false,
     className
 }: SeoScoreGaugeProps) => {
+    const safeScore = Number.isFinite(score) ? score : 0;
     const sizeConfig = {
         sm: { width: 44, strokeWidth: 3, fontSize: 'text-xs' },
         md: { width: 100, strokeWidth: 8, fontSize: 'text-2xl' },
@@ -26,9 +27,9 @@ export const SeoScoreGauge = ({
     const config = sizeConfig[size];
     const radius = (config.width - config.strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (score / 100) * circumference;
+    const offset = circumference - (safeScore / 100) * circumference;
 
-    const colorConfig = getScoreColorConfig(score);
+    const colorConfig = getScoreColorConfig(safeScore);
     const colors = {
         stroke: colorConfig.primary,
         text: colorConfig.text,
@@ -84,7 +85,7 @@ export const SeoScoreGauge = ({
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.3 }}
                         >
-                            {Math.round(score)}
+                            {Math.round(safeScore)}
                         </motion.span>
                     </>
                 )}

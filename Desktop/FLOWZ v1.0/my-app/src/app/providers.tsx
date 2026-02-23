@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@ta
 import { AuthProvider } from '@/lib/auth/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { StoreProvider } from '@/contexts/StoreContext';
+import { SyncProvider } from '@/features/sync/SyncProvider';
+import { SettingsModalProvider } from '@/contexts/SettingsModalContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useState } from 'react';
@@ -50,11 +52,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
                 <ThemeProvider>
                     <AuthProvider>
                         <StoreProvider>
-                            <TooltipProvider delayDuration={200}>
-                                {children}
-                                <Toaster
+                            <SyncProvider>
+                            <SettingsModalProvider>
+                                <TooltipProvider delayDuration={200}>
+                                    {children}
+                                    <Toaster
                                     richColors
                                     position="bottom-right"
+                                    duration={4000}
                                     toastOptions={{
                                         className: "bg-card/90 backdrop-blur-xl border-border/40 rounded-xl shadow-lg",
                                         style: {
@@ -62,7 +67,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
                                         },
                                     }}
                                 />
-                            </TooltipProvider>
+                                </TooltipProvider>
+                            </SettingsModalProvider>
+                            </SyncProvider>
                         </StoreProvider>
                     </AuthProvider>
                 </ThemeProvider>

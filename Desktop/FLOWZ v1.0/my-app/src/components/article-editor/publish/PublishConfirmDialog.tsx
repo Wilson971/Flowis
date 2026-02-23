@@ -81,12 +81,12 @@ export function PublishConfirmDialog({
                     <AlertDialogTitle className="flex items-center gap-2">
                         {isScheduled ? (
                             <>
-                                <Calendar className="h-5 w-5 text-blue-500" />
+                                <Calendar className="h-5 w-5 text-primary" />
                                 Confirmer la planification
                             </>
                         ) : (
                             <>
-                                <Globe className="h-5 w-5 text-green-500" />
+                                <Globe className="h-5 w-5 text-emerald-500" />
                                 Confirmer la publication
                             </>
                         )}
@@ -100,7 +100,7 @@ export function PublishConfirmDialog({
                             </p>
 
                             {title && (
-                                <div className="p-3 bg-muted rounded-md">
+                                <div className="p-3 bg-muted rounded-lg">
                                     <p className="font-medium text-sm text-foreground">« {title} »</p>
                                 </div>
                             )}
@@ -121,7 +121,7 @@ export function PublishConfirmDialog({
                                 ))}
                             </div>
 
-                            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
+                            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                                 <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
                                 <p className="text-xs text-amber-700 dark:text-amber-400">
                                     {isScheduled
@@ -137,7 +137,7 @@ export function PublishConfirmDialog({
                     <AlertDialogAction
                         onClick={onConfirm}
                         disabled={isLoading}
-                        className={isScheduled ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}
+                        className={isScheduled ? 'bg-primary hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}
                     >
                         {isLoading ? (
                             <>

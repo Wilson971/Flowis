@@ -55,9 +55,6 @@ Edge functions need API keys for external services:
 # Gemini API Key (for AI generation)
 supabase secrets set GEMINI_API_KEY=your_gemini_api_key
 
-# OpenAI API Key (alternative AI provider)
-supabase secrets set OPENAI_API_KEY=your_openai_api_key
-
 # Verify secrets
 supabase secrets list
 ```
@@ -147,12 +144,11 @@ Add these to your `.env.local` file:
 
 ```env
 # Supabase
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 
 # AI Providers (used by edge functions)
 GEMINI_API_KEY=your_gemini_key
-OPENAI_API_KEY=your_openai_key
 ```
 
 ## Security Notes

@@ -55,7 +55,7 @@ function getSourceInfo(source: ArticleSource): {
         icon: <FileText className="w-5 h-5" />,
         title: 'Créé depuis un template',
         description: 'Cet article a été créé à partir d\'un modèle. Personnalisez le contenu selon vos besoins.',
-        color: 'from-blue-500/10 to-cyan-500/10 border-blue-500/20',
+        color: 'from-blue-500/10 to-cyan-500/10 border-primary/20',
       };
     case 'import':
       return {
@@ -69,7 +69,7 @@ function getSourceInfo(source: ArticleSource): {
         icon: <Download className="w-5 h-5" />,
         title: 'Importé depuis WordPress',
         description: 'Cet article a été synchronisé depuis votre blog WordPress.',
-        color: 'from-blue-600/10 to-blue-400/10 border-blue-500/20',
+        color: 'from-blue-600/10 to-blue-400/10 border-primary/20',
       };
     case 'manual':
     default:

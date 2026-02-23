@@ -177,7 +177,7 @@ export function ArticleRow({
       )}
 
       {/* Thumbnail */}
-      <div className="flex-shrink-0 w-16 h-12 rounded-md overflow-hidden bg-muted">
+      <div className="flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden bg-muted">
         {article.featured_image_url ? (
           <img
             src={article.featured_image_url}

@@ -57,7 +57,7 @@ const StatCard = ({
         {/* Glass reflection */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent pointer-events-none" />
 
-        <CardContent className="p-5 flex flex-col justify-center h-full relative z-10">
+        <CardContent className="p-6 flex flex-col justify-center h-full relative z-10">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-muted/80 backdrop-blur-sm flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-foreground group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300 border border-border/50">
               <Icon className="h-5 w-5" />
@@ -70,7 +70,7 @@ const StatCard = ({
                 {badge && (
                   <span
                     className={cn(
-                      "text-[10px] font-bold px-2 py-0.5 rounded-md ml-2 shrink-0 border uppercase tracking-wider",
+                      "text-[10px] font-bold px-2 py-0.5 rounded-full ml-2 shrink-0 border uppercase tracking-wider",
                       badge.variant === "warning" &&
                       "text-warning bg-warning/10 border-warning/20",
                       badge.variant === "info" &&

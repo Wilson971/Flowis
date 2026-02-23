@@ -45,9 +45,9 @@ const SYNC_STATUS_CONFIG = {
     conflict: {
         label: "Conflit d\u00e9tect\u00e9",
         shortLabel: "Conflit",
-        dotClass: "bg-red-500",
-        pillBorder: "border-red-500/30 bg-red-500/5 hover:bg-red-500/10 animate-pulse",
-        textClass: "text-red-700 dark:text-red-400",
+        dotClass: "bg-destructive",
+        pillBorder: "border-destructive/30 bg-destructive/5 hover:bg-destructive/10 animate-pulse",
+        textClass: "text-red-700 dark:text-destructive",
         icon: AlertTriangle,
     },
 } as const;
@@ -182,7 +182,7 @@ export const SyncPill = ({ productId, dirtyFields, lastSyncedAt, hasConflict, on
                     {/* Conflict message */}
                     {status === "conflict" && (
                         <div className="px-4 py-2.5 border-b border-border/10">
-                            <p className="text-xs text-red-600 dark:text-red-400">
+                            <p className="text-xs text-destructive dark:text-destructive">
                                 Le produit a \u00e9t\u00e9 modifi\u00e9 sur la boutique et localement.
                             </p>
                         </div>

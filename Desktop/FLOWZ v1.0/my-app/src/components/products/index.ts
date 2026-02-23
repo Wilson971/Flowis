@@ -5,7 +5,7 @@
 // ============================================================================
 // BATCH GENERATION
 // ============================================================================
-export { BatchGenerationSheet } from './BatchGenerationSheet';
+export { BatchGenerationSheet } from './ui/BatchGenerationSheet';
 export { BatchProgressPanel, BatchProgressIndicator } from './BatchProgressPanel';
 
 // ============================================================================

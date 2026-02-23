@@ -66,8 +66,8 @@ export const BentoGrid = ({
 interface BentoCellProps {
   children: React.ReactNode;
   className?: string;
-  /** Column span (1-3) */
-  colSpan?: 1 | 2 | 3;
+  /** Column span (1-4) */
+  colSpan?: 1 | 2 | 3 | 4;
   /** Row span (1-2) */
   rowSpan?: 1 | 2;
   /** Custom stagger index */
@@ -86,6 +86,7 @@ export const BentoCell = ({
       className={cn(
         colSpan === 2 && "md:col-span-2",
         colSpan === 3 && "md:col-span-2 lg:col-span-3",
+        colSpan === 4 && "md:col-span-2 lg:col-span-4",
         rowSpan === 2 && "row-span-2",
         className
       )}

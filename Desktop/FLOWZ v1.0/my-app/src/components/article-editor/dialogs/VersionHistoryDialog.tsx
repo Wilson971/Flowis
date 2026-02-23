@@ -89,7 +89,7 @@ function getTriggerInfo(trigger: VersionTrigger): {
       return {
         icon: <Save className="w-4 h-4" />,
         label: 'Sauvegarde manuelle',
-        color: 'text-blue-500',
+        color: 'text-primary',
         bgColor: 'bg-blue-100',
       };
     case 'publish':

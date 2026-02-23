@@ -373,7 +373,7 @@ export const PricingCard = ({
                                 <select
                                     id="tax_status"
                                     {...register("tax_status")}
-                                    className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    className="flex h-8 w-full rounded-lg border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 >
                                     <option value="taxable">Taxable</option>
                                     <option value="shipping">Livraison seule</option>
@@ -399,7 +399,7 @@ export const PricingCard = ({
                             <select
                                 id="catalog_visibility"
                                 {...register("catalog_visibility")}
-                                className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                className="flex h-8 w-full rounded-lg border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
                                 <option value="visible">Visible (catalogue + recherche)</option>
                                 <option value="catalog">Catalogue uniquement</option>

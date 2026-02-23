@@ -92,9 +92,9 @@ function SecretInput({
 function ConnectionStatusBadge({ status }: { status: "idle" | "connecting" | "success" | "error" }) {
     const variants = {
         idle: { className: "bg-muted text-muted-foreground border-border", icon: null, text: "Not Connected" },
-        connecting: { className: "bg-blue-500/10 text-blue-500 border-blue-500/20", icon: Loader2, text: "Verifying..." },
-        success: { className: "bg-green-500/10 text-green-500 border-green-500/20", icon: CheckCircle2, text: "Connected" },
-        error: { className: "bg-red-500/10 text-red-500 border-red-500/20", icon: AlertCircle, text: "Error" },
+        connecting: { className: "bg-primary/10 text-primary border-primary/20", icon: Loader2, text: "Verifying..." },
+        success: { className: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", icon: CheckCircle2, text: "Connected" },
+        error: { className: "bg-destructive/10 text-destructive border-destructive/20", icon: AlertCircle, text: "Error" },
     };
 
     const { className, icon: Icon, text } = variants[status];
@@ -197,7 +197,7 @@ export function WooConnectionCard({
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: "auto" }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="rounded-xl border border-red-100 bg-red-50/50 p-4 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-900/10 dark:text-red-400 overflow-hidden"
+                                        className="rounded-xl border border-red-100 bg-destructive/10/50 p-4 text-sm text-destructive dark:border-red-900/50 dark:bg-red-900/10 dark:text-destructive overflow-hidden"
                                     >
                                         <div className="flex items-center gap-2 font-medium mb-1">
                                             <AlertCircle className="h-4 w-4" />

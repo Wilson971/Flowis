@@ -1,98 +1,60 @@
 /**
- * useSeoAnalysis - Hook pour l'analyse SEO des produits
+ * useSeoAnalysis - Hook pour l'analyse SEO des produits (queries)
+ * Simplifié : lit seo_score directement depuis la table products.
+ * Helpers de statut/couleur/label utilisent les seuils unifiés 5 niveaux.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import { toast } from 'sonner';
+import { getScoreColor, getScoreLabel, getScoreLevelKey } from '@/lib/seo/scoreColors';
+import type { SeoLevelKey } from '@/types/seo';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export interface SeoScore {
-    category: string;
-    score: number;
-    maxScore: number;
-    issues: SeoIssue[];
-}
-
-export interface SeoIssue {
-    type: 'error' | 'warning' | 'success' | 'info';
-    message: string;
-    field?: string;
-    suggestion?: string;
-}
-
-export interface SeoAnalysis {
-    id: string;
-    product_id: string;
-    overall_score: number;
-    title_score: number;
-    description_score: number;
-    meta_score: number;
-    images_score: number;
-    structure_score: number;
-    issues: SeoIssue[];
-    recommendations: string[];
-    focus_keyword?: string;
-    keyword_density?: number;
-    analyzed_at: string;
-    created_at: string;
-    updated_at: string;
-}
-
-export type SeoStatus = 'excellent' | 'good' | 'needs_work' | 'poor' | 'not_analyzed';
+export type SeoStatus = SeoLevelKey | 'not_analyzed';
 
 // ============================================================================
-// HELPERS
+// HELPERS (unified 5-level system)
 // ============================================================================
 
 /**
- * Obtenir le statut SEO basé sur le score
+ * Obtenir le statut SEO basé sur le score (unified 5-level)
  */
 export function getSeoStatus(score: number | null | undefined): SeoStatus {
     if (score === null || score === undefined) return 'not_analyzed';
-    if (score >= 80) return 'excellent';
-    if (score >= 60) return 'good';
-    if (score >= 40) return 'needs_work';
-    return 'poor';
+    return getScoreLevelKey(score);
 }
 
 /**
- * Obtenir la couleur du statut SEO
+ * Obtenir la couleur Tailwind du statut SEO
  */
 export function getSeoColor(status: SeoStatus): string {
-    switch (status) {
-        case 'excellent':
-            return 'text-green-500';
-        case 'good':
-            return 'text-blue-500';
-        case 'needs_work':
-            return 'text-amber-500';
-        case 'poor':
-            return 'text-red-500';
-        default:
-            return 'text-gray-400';
-    }
+    if (status === 'not_analyzed') return 'text-muted-foreground';
+    const scoreMap: Record<SeoLevelKey, number> = {
+        excellent: 95,
+        good: 80,
+        average: 60,
+        poor: 40,
+        critical: 15,
+    };
+    return getScoreColor(scoreMap[status]);
 }
 
 /**
- * Obtenir le badge du statut SEO
+ * Obtenir le label du statut SEO
  */
 export function getSeoLabel(status: SeoStatus): string {
-    switch (status) {
-        case 'excellent':
-            return 'Excellent';
-        case 'good':
-            return 'Bon';
-        case 'needs_work':
-            return 'À améliorer';
-        case 'poor':
-            return 'Faible';
-        default:
-            return 'Non analysé';
-    }
+    if (status === 'not_analyzed') return 'Non analysé';
+    const scoreMap: Record<SeoLevelKey, number> = {
+        excellent: 95,
+        good: 80,
+        average: 60,
+        poor: 40,
+        critical: 15,
+    };
+    return getScoreLabel(scoreMap[status]);
 }
 
 // ============================================================================
@@ -100,74 +62,30 @@ export function getSeoLabel(status: SeoStatus): string {
 // ============================================================================
 
 /**
- * Hook pour récupérer l'analyse SEO d'un produit
+ * Hook pour récupérer le score SEO d'un produit (depuis la colonne seo_score)
  */
-export function useSeoAnalysis(productId?: string) {
+export function useProductSeoScore(productId?: string) {
     const supabase = createClient();
 
-    return useQuery({
-        queryKey: ['seo-analysis', productId],
+    const { data, isLoading } = useQuery({
+        queryKey: ['product-seo-score', productId],
         queryFn: async () => {
             if (!productId) return null;
 
-            const { data, error } = await supabase
-                .from('product_seo_analysis')
-                .select('*')
-                .eq('product_id', productId)
-                .order('analyzed_at', { ascending: false })
-                .limit(1)
+            const { data: product, error } = await supabase
+                .from('products')
+                .select('seo_score')
+                .eq('id', productId)
                 .single();
 
-            if (error && error.code !== 'PGRST116') throw error;
-            return data as SeoAnalysis | null;
+            if (error) return null;
+            return product?.seo_score as number | null;
         },
         enabled: !!productId,
+        staleTime: 60_000,
     });
-}
 
-/**
- * Hook pour déclencher une analyse SEO
- */
-export function useRunSeoAnalysis() {
-    const queryClient = useQueryClient();
-    const supabase = createClient();
-
-    return useMutation({
-        mutationFn: async ({
-            productId,
-            focusKeyword,
-        }: {
-            productId: string;
-            focusKeyword?: string;
-        }) => {
-            const { data, error } = await supabase.functions.invoke('analyze-seo', {
-                body: {
-                    product_id: productId,
-                    focus_keyword: focusKeyword,
-                },
-            });
-
-            if (error) throw error;
-            return data as SeoAnalysis;
-        },
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['seo-analysis', variables.productId] });
-            queryClient.invalidateQueries({ queryKey: ['product', variables.productId] });
-            toast.success('Analyse SEO terminée');
-        },
-        onError: (error: Error) => {
-            toast.error('Erreur d\'analyse', { description: error.message });
-        },
-    });
-}
-
-/**
- * Hook pour récupérer le score SEO rapide d'un produit
- */
-export function useProductSeoScore(productId?: string) {
-    const { data: analysis, isLoading } = useSeoAnalysis(productId);
-
-    const score = analysis?.overall_score ?? null;
+    const score = data ?? null;
     const status = getSeoStatus(score);
 
     return {
@@ -176,13 +94,13 @@ export function useProductSeoScore(productId?: string) {
         color: getSeoColor(status),
         label: getSeoLabel(status),
         isLoading,
-        hasAnalysis: !!analysis,
-        analyzedAt: analysis?.analyzed_at,
+        hasAnalysis: score !== null,
     };
 }
 
 /**
  * Hook pour récupérer les statistiques SEO d'une boutique
+ * Agrège directement depuis products.seo_score
  */
 export function useSeoStats(storeId?: string) {
     const supabase = createClient();
@@ -192,87 +110,49 @@ export function useSeoStats(storeId?: string) {
         queryFn: async () => {
             if (!storeId) return null;
 
-            // Récupérer les analyses SEO des produits de la boutique
             const { data, error } = await supabase
-                .from('product_seo_analysis')
-                .select(`
-                    overall_score,
-                    products!inner(store_id)
-                `)
-                .eq('products.store_id', storeId);
+                .from('products')
+                .select('seo_score')
+                .eq('store_id', storeId);
 
-            if (error) throw error;
+            // If seo_score column doesn't exist yet, return null gracefully
+            if (error) {
+                if (error.message?.includes('seo_score')) return null;
+                throw error;
+            }
 
-            const scores = (data || []).map(d => d.overall_score);
-            const total = scores.length;
+            const products = data || [];
+            const scored = products.filter(p => p.seo_score !== null);
+            const scores = scored.map(p => p.seo_score as number);
+            const total = products.length;
 
-            if (total === 0) {
+            if (scored.length === 0) {
                 return {
-                    total: 0,
+                    total,
                     analyzed: 0,
                     averageScore: 0,
                     excellent: 0,
                     good: 0,
-                    needsWork: 0,
+                    average: 0,
                     poor: 0,
+                    critical: 0,
                 };
             }
 
-            const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / total);
+            const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 
             return {
                 total,
-                analyzed: total,
+                analyzed: scored.length,
                 averageScore,
-                excellent: scores.filter(s => s >= 80).length,
-                good: scores.filter(s => s >= 60 && s < 80).length,
-                needsWork: scores.filter(s => s >= 40 && s < 60).length,
-                poor: scores.filter(s => s < 40).length,
+                excellent: scores.filter(s => s >= 90).length,
+                good: scores.filter(s => s >= 70 && s < 90).length,
+                average: scores.filter(s => s >= 50 && s < 70).length,
+                poor: scores.filter(s => s >= 30 && s < 50).length,
+                critical: scores.filter(s => s < 30).length,
             };
         },
         enabled: !!storeId,
-        staleTime: 60000, // 1 minute
-    });
-}
-
-/**
- * Hook pour l'analyse SEO batch
- */
-export function useBatchSeoAnalysis() {
-    const queryClient = useQueryClient();
-    const supabase = createClient();
-
-    return useMutation({
-        mutationFn: async ({
-            productIds,
-            focusKeyword,
-        }: {
-            productIds: string[];
-            focusKeyword?: string;
-        }) => {
-            const { data, error } = await supabase.functions.invoke('batch-analyze-seo', {
-                body: {
-                    product_ids: productIds,
-                    focus_keyword: focusKeyword,
-                },
-            });
-
-            if (error) throw error;
-            return data;
-        },
-        onSuccess: (_, variables) => {
-            // Invalider toutes les analyses concernées
-            variables.productIds.forEach(id => {
-                queryClient.invalidateQueries({ queryKey: ['seo-analysis', id] });
-                queryClient.invalidateQueries({ queryKey: ['product', id] });
-            });
-            queryClient.invalidateQueries({ queryKey: ['seo-stats'] });
-            toast.success('Analyses SEO terminées', {
-                description: `${variables.productIds.length} produit(s) analysé(s)`,
-            });
-        },
-        onError: (error: Error) => {
-            toast.error('Erreur d\'analyse batch', { description: error.message });
-        },
+        staleTime: 60000,
     });
 }

@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { useWatch } from 'react-hook-form';
 import { Search, Sparkles, Link, Image, AlertCircle, CheckCircle, Check, X, Wand2 } from 'lucide-react';
 
@@ -64,7 +65,7 @@ function GooglePreview({
         <p className="text-xs text-emerald-700 dark:text-emerald-400 truncate">
           {displayUrl}
         </p>
-        <h3 className="text-blue-600 dark:text-blue-400 text-lg font-medium truncate hover:underline cursor-pointer">
+        <h3 className="text-primary dark:text-blue-400 text-lg font-medium truncate hover:underline cursor-pointer">
           {displayTitle}
         </h3>
         <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
@@ -83,7 +84,7 @@ function SeoScoreIndicator({ score }: { score: number }) {
   const getScoreColor = (s: number) => {
     if (s >= 80) return 'text-emerald-500';
     if (s >= 50) return 'text-amber-500';
-    return 'text-red-500';
+    return 'text-destructive';
   };
 
   const getScoreLabel = (s: number) => {
@@ -95,7 +96,7 @@ function SeoScoreIndicator({ score }: { score: number }) {
   const getProgressColor = (s: number) => {
     if (s >= 80) return 'bg-emerald-500';
     if (s >= 50) return 'bg-amber-500';
-    return 'bg-red-500';
+    return 'bg-destructive';
   };
 
   return (
@@ -222,7 +223,7 @@ export function SeoTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                 onClick={() => draftActions.handleAcceptField(field)}
                 disabled={draftActions.isAccepting}
               >
@@ -240,7 +241,7 @@ export function SeoTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="h-6 w-6 p-0 text-destructive hover:text-red-700 hover:bg-destructive/10"
                 onClick={() => draftActions.handleRejectField(field)}
                 disabled={draftActions.isRejecting}
               >
@@ -267,7 +268,7 @@ export function SeoTab() {
           <Wand2 className="h-3 w-3" />
           Suggestion IA
         </div>
-        <div dangerouslySetInnerHTML={{ __html: String(suggestion) }} />
+        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(suggestion)) }} />
       </div>
     );
   };
@@ -339,7 +340,7 @@ export function SeoTab() {
                     className={cn(
                       'text-xs',
                       (field.value?.length || 0) > 60
-                        ? 'text-red-500'
+                        ? 'text-destructive'
                         : 'text-muted-foreground'
                     )}
                   >
@@ -398,7 +399,7 @@ export function SeoTab() {
                     className={cn(
                       'text-xs',
                       (field.value?.length || 0) > 160
-                        ? 'text-red-500'
+                        ? 'text-destructive'
                         : 'text-muted-foreground'
                     )}
                   >

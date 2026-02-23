@@ -130,7 +130,7 @@ export function SaveAsTemplateDialog({
           {/* Name */}
           <div className="space-y-1.5">
             <Label htmlFor="template-name" className="text-xs font-bold">
-              Nom du template <span className="text-red-500">*</span>
+              Nom du template <span className="text-destructive">*</span>
             </Label>
             <Input
               id="template-name"

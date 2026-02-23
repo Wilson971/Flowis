@@ -9,7 +9,7 @@ import { useProductEditContext } from "../../context/ProductEditContext";
 import { SeoScoreGauge } from "@/components/seo/SeoScoreGauge";
 import { cn } from "@/lib/utils";
 import { getProductCardTheme } from "@/lib/design-system";
-import { SeoIssueSeverity } from "@/types/seo";
+import { getScoreBadgeStyle } from "@/lib/seo/scoreColors";
 
 export const SeoSidebarWidget = () => {
     const theme = getProductCardTheme('SeoSidebarWidget');
@@ -52,14 +52,17 @@ export const SeoSidebarWidget = () => {
                         </div>
                         <div className="flex items-center gap-2">
                             {isAnalyzing && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
-                            <span className={cn(
-                                "text-[10px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider",
-                                overallScore >= 80 ? "text-success bg-success/10 border-success/20" :
-                                    overallScore >= 50 ? "text-warning bg-warning/10 border-warning/20" :
-                                        "text-destructive bg-destructive/10 border-destructive/20"
-                            )}>
-                                {overallScore}/100
-                            </span>
+                            {(() => {
+                                const badgeStyle = getScoreBadgeStyle(overallScore);
+                                return (
+                                    <span className={cn(
+                                        "text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wider",
+                                        badgeStyle.text, badgeStyle.bg, badgeStyle.border
+                                    )}>
+                                        {overallScore}/100
+                                    </span>
+                                );
+                            })()}
                         </div>
                     </div>
                 </CardHeader>
