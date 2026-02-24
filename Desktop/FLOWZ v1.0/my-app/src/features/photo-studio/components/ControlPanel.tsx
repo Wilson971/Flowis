@@ -235,7 +235,6 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
 
       machine.finishSuccess();
     } catch (error: any) {
-      console.error('Generation error:', error);
       machine.fail(error.message || 'Une erreur est survenue');
       toast.error('Erreur de generation', {
         description: error instanceof Error ? error.message : 'Une erreur est survenue',
@@ -268,7 +267,11 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
             <p className="text-xs font-medium leading-none uppercase tracking-wide text-primary">Produit Actuel</p>
             <p className="font-medium text-foreground truncate mt-0.5">{productName || 'Sans nom'}</p>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 bg-success/5 text-success hover:bg-success/15 hover:text-success/90 transition-all"
+          >
             <ArrowLeftRight className="w-4 h-4" />
           </Button>
         </div>
@@ -302,8 +305,13 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
                   </div>
                 )}
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedBrandStyle(null)} className="h-7 w-7 rounded-lg hover:bg-primary/20">
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedBrandStyle(null)}
+                className="h-7 w-7 rounded-lg bg-success/5 text-success hover:bg-success/15 hover:text-success/90 transition-all"
+              >
+                <X className="w-3.5 h-3.5" />
               </Button>
             </div>
           )}

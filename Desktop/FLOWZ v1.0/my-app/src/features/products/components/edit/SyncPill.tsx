@@ -29,9 +29,9 @@ const SYNC_STATUS_CONFIG = {
     synced: {
         label: "Synchronis\u00e9",
         shortLabel: "Sync",
-        dotClass: "bg-emerald-500",
-        pillBorder: "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10",
-        textClass: "text-emerald-700 dark:text-emerald-400",
+        dotClass: "bg-success",
+        pillBorder: "border-success/30 bg-success/5 hover:bg-success/10",
+        textClass: "text-success",
         icon: CheckCircle2,
     },
     pending: {

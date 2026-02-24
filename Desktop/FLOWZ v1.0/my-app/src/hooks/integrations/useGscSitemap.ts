@@ -4,6 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 
 export function useGscSitemap(siteId: string | null) {
     const queryClient = useQueryClient();
@@ -17,7 +18,7 @@ export function useGscSitemap(siteId: string | null) {
             return { total: data.total as number };
         },
         enabled: !!siteId,
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 
     const refreshMutation = useMutation({

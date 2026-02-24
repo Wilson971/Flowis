@@ -77,7 +77,7 @@ const STATUS_CONFIG: Record<SyncStatus, {
     synced: {
         label: "Synchronisé",
         icon: CheckCircle2,
-        badgeClass: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+        badgeClass: "bg-success/10 text-success border-success/20",
         description: "Le produit est à jour avec la boutique.",
     },
     pending: {

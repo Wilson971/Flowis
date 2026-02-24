@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import type { GscPageWithProduct } from "@/lib/gsc/types";
 
 export function useGscPagesProducts(siteId: string | null, dateRange: string) {
@@ -16,6 +17,6 @@ export function useGscPagesProducts(siteId: string | null, dateRange: string) {
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 5 * 60_000,
+        staleTime: STALE_TIMES.STATIC,
     });
 }

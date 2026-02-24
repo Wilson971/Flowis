@@ -27,6 +27,7 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 
+import { toast } from "sonner";
 import { useWooManager } from "@/hooks/onboarding/useWooManager";
 import { wooCredentialsSchema, type WooCredentials } from "@/schemas/wooConnectionSchema";
 import { cn } from "@/lib/utils";
@@ -158,6 +159,9 @@ export function WooConnectionCard({
         try {
             connect(data);
         } catch (error) {
+            toast.error('Erreur de connexion', {
+                description: error instanceof Error ? error.message : 'Erreur inconnue',
+            });
             onError?.(error as Error);
         }
     };

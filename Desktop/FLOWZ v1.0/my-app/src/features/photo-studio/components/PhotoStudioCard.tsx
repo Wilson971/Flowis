@@ -42,11 +42,9 @@ export interface PhotoStudioCardProps {
 // ---------------------------------------------------------------------------
 
 function getImageCount(product: Product): number {
-  return (
-    product.working_content?.images?.length ??
-    product.metadata?.images?.length ??
-    (product.image_url ? 1 : 0)
-  );
+  const wcCount = product.working_content?.images?.length ?? 0;
+  const metaCount = product.metadata?.images?.length ?? 0;
+  return Math.max(wcCount, metaCount) || (product.image_url ? 1 : 0);
 }
 
 export type StudioStatus = "running" | "failed" | "done" | "none";

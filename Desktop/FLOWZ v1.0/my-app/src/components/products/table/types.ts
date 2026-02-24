@@ -10,7 +10,10 @@ export type Product = {
   price?: number;
   regular_price?: number;
   sale_price?: number;
-  stock?: number;
+  product_type?: string;
+  stock?: number | null;
+  stock_status?: string;
+  manage_stock?: boolean;
   imported_at: string;
   metadata?: any;
   draft_generated_content?: any;

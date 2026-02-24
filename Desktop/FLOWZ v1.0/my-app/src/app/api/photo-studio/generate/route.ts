@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchImageSafe } from '@/lib/ssrf';
+import { detectPromptInjection } from '@/lib/ai/prompt-safety';
 
 // ============================================================================
 // PHOTO STUDIO - Image Generation API Route
@@ -107,26 +108,8 @@ function classifyError(error: any): (typeof ERROR_CODES)[keyof typeof ERROR_CODE
   return ERROR_CODES.UNKNOWN_ERROR;
 }
 
-// ============================================================================
-// PROMPT INJECTION DETECTION (defense in depth — same patterns as FloWriter)
-// ============================================================================
-
-const SUSPICIOUS_PATTERNS = [
-  /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/i,
-  /disregard\s+(all\s+)?(previous|above|prior)/i,
-  /you\s+are\s+now\s+(a|an)\s+/i,
-  /pretend\s+(to\s+be|you\'?re)\s+/i,
-  /new\s+instructions?:/i,
-  /system\s*prompt:/i,
-  /\[INST\]/i,
-  /\[\/INST\]/i,
-  /<<SYS>>/i,
-  /<\|im_start\|>/i,
-];
-
-function containsInjection(text: string): boolean {
-  return SUSPICIOUS_PATTERNS.some((pattern) => pattern.test(text));
-}
+// Prompt injection detection imported from @/lib/ai/prompt-safety
+const containsInjection = detectPromptInjection;
 
 // ============================================================================
 // REQUEST / RESPONSE TYPES
@@ -209,6 +192,26 @@ export async function POST(request: NextRequest): Promise<NextResponse<GenerateR
         },
       },
       { status: 401 }
+    );
+  }
+
+  // ---- Per-request rate limiting ----
+  const { checkRateLimit, RATE_LIMIT_PHOTO_STUDIO } = await import('@/lib/rate-limit');
+  const rateLimit = checkRateLimit(user.id, 'photo-studio', RATE_LIMIT_PHOTO_STUDIO);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        success: false as const,
+        error: {
+          code: 'RATE_LIMITED',
+          message: 'Trop de requêtes. Veuillez patienter avant de relancer.',
+          retryable: true,
+        },
+      },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+      }
     );
   }
 

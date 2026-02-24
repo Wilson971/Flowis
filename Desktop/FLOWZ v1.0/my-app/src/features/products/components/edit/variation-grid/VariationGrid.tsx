@@ -42,6 +42,9 @@ export function VariationGrid({
 
     const show = (key: string) => cols.has(key);
 
+    // Must be called before any early return to respect Rules of Hooks
+    const attrNames = useMemo(() => getUniqueAttributeNames(variations), [variations]);
+
     if (isLoading) {
         return (
             <div className="flex justify-center p-8">
@@ -61,9 +64,6 @@ export function VariationGrid({
             </div>
         );
     }
-
-    // Extract unique attribute names for column headers (memoized)
-    const attrNames = useMemo(() => getUniqueAttributeNames(variations), [variations]);
 
     return (
         <div className="h-full flex flex-col rounded-xl border border-border shadow-sm overflow-hidden">
@@ -89,8 +89,8 @@ export function VariationGrid({
                         <colgroup>
                             <col style={{ width: '40px' }} />
                             {show("image") && <col style={{ width: '80px' }} />}
-                            {attrNames.map((name, idx) => (
-                                <col key={`col-attr-${idx}`} style={{ minWidth: '80px' }} />
+                            {attrNames.map((name) => (
+                                <col key={`col-attr-${name}`} style={{ minWidth: '80px' }} />
                             ))}
                             {show("sku") && <col style={{ width: '120px' }} />}
                             {show("prix") && <col style={{ width: '110px' }} />}

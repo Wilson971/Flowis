@@ -3,6 +3,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 
 // ============================================================================
@@ -43,6 +44,6 @@ export function useSyncHistory(productId?: string, limit = 20) {
             return (data || []) as SyncHistoryEntry[];
         },
         enabled: !!productId,
-        staleTime: 60000, // 1 minute
+        staleTime: STALE_TIMES.DETAIL,
     });
 }

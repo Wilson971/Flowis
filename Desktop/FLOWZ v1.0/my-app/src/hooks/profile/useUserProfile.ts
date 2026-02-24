@@ -104,12 +104,8 @@ export function useUserProfile() {
             queryClient.invalidateQueries({ queryKey: ['user-profile'] });
             toast.success('Profil mis à jour');
         },
-        onError: (error) => {
+        onError: () => {
             toast.error('Erreur lors de la mise à jour');
-            console.error('Erreur de mise à jour du profil:', error);
-            if (typeof error === 'object' && error !== null && 'message' in error) {
-                console.error('Détails:', (error as any).message);
-            }
         }
     });
 
@@ -146,7 +142,6 @@ export function useUserProfile() {
         },
         onError: (error) => {
             toast.error("Erreur lors de l'upload de l'avatar");
-            console.error(error);
         }
     });
 

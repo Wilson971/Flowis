@@ -81,6 +81,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Non autorisé" }, { status: 401 });
     }
 
+    // Per-request rate limiting
+    const { checkRateLimit, RATE_LIMIT_SEO_SUGGEST } = await import('@/lib/rate-limit');
+    const rateLimit = checkRateLimit(user.id, 'seo-suggest', RATE_LIMIT_SEO_SUGGEST);
+    if (!rateLimit.allowed) {
+        return NextResponse.json(
+            { error: 'Trop de requêtes. Veuillez patienter.', code: 'RATE_LIMITED' },
+            { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } }
+        );
+    }
+
     // Validate body
     let body: z.infer<typeof requestSchema>;
     try {
@@ -171,7 +181,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown, sans backticks, sans texte auto
                 suggestions = JSON.parse(cleanText);
             } catch {
                 return NextResponse.json(
-                    { error: "Réponse IA invalide", raw: text.substring(0, 200) },
+                    { error: "Réponse IA invalide" },
                     { status: 502 }
                 );
             }

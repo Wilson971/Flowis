@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import type { ProductAnalysisResult } from '../constants/productTaxonomy';
 
 // ============================================================================

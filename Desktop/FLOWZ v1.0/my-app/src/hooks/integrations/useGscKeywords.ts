@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import type { GscKeywordData, GscDateRange } from "@/lib/gsc/types";
 
 /**
@@ -23,6 +24,6 @@ export function useGscKeywords(
             return res.json();
         },
         enabled: !!pageUrl,
-        staleTime: 30 * 60 * 1000, // 30 minutes
+        staleTime: STALE_TIMES.ARCHIVE, // 10 minutes (standardized from 30min)
     });
 }

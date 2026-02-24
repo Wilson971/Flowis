@@ -1184,12 +1184,22 @@ Deno.serve(async (req) => {
                                     variations: normalizedVariations
                                 };
 
+                                // Aggregate variation stock to parent product
+                                const aggregatedStock = normalizedVariations.reduce(
+                                    (sum: number, v: any) => sum + (v.stock_quantity ?? 0), 0
+                                );
+                                const allOutOfStock = normalizedVariations.every(
+                                    (v: any) => v.stock_status === 'outofstock'
+                                );
+
                                 const { error: updateError } = await supabase
                                     .from('products')
                                     .update({
                                         metadata: updatedMetadata,
                                         working_content: updatedWorkingContent,
                                         store_snapshot_content: updatedSnapshotContent,
+                                        stock: aggregatedStock,
+                                        stock_status: allOutOfStock ? 'outofstock' : 'instock',
                                         dirty_fields_content: [],
                                         updated_at: new Date().toISOString()
                                     })

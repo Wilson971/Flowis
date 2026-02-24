@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import { useSelectedStore } from "@/contexts/StoreContext";
 import { useProducts } from "@/hooks/products/useProducts";
 import { createClient } from "@/lib/supabase/client";
@@ -34,11 +35,9 @@ export function productToStudioProduct(product: Product): StudioProduct {
 }
 
 export function getImageCount(product: Product): number {
-  return (
-    product.working_content?.images?.length ??
-    product.metadata?.images?.length ??
-    (product.image_url ? 1 : 0)
-  );
+  const wcCount = product.working_content?.images?.length ?? 0;
+  const metaCount = product.metadata?.images?.length ?? 0;
+  return Math.max(wcCount, metaCount) || (product.image_url ? 1 : 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -48,10 +47,11 @@ export function getImageCount(product: Product): number {
 export function usePhotoStudioData() {
   const { selectedStore } = useSelectedStore();
   const {
-    data: products = [],
+    data: productsData,
     isLoading,
     isFetching,
   } = useProducts(selectedStore?.id);
+  const products = productsData?.products ?? [];
 
   // Server-side exact counts via RPC (not limited by PRODUCTS_PAGE_SIZE)
   const { data: serverStats } = useQuery({
@@ -62,10 +62,10 @@ export function usePhotoStudioData() {
         p_store_id: selectedStore!.id,
       });
       if (error) throw error;
-      return data as { total: number; with_images: number; processed: number };
+      return data as { total: number; with_images: number; total_images: number; processed: number };
     },
     enabled: !!selectedStore?.id,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.DETAIL,
   });
 
   // -------------------------------------------------------------------------
@@ -107,13 +107,19 @@ export function usePhotoStudioData() {
       return {
         total: serverStats.total,
         withImages: serverStats.with_images,
+        totalImages: serverStats.total_images,
         processed: serverStats.processed,
       };
     }
     // Fallback to client-side counts while RPC loads
+    const totalImages = products.reduce(
+      (sum, p) => sum + (p.metadata?.images?.length ?? 0),
+      0
+    );
     return {
       total: products.length,
       withImages: products.filter((p) => getImageCount(p) > 0).length,
+      totalImages,
       processed: products.filter((p) => getStudioStatus(p) === "done").length,
     };
   }, [products, serverStats]);

@@ -40,27 +40,24 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${baseUrl}/app/overview?gsc_status=error&gsc_error=auth_required`);
     }
 
-    // Verify state from gsc_oauth_states table
+    // Atomic state verification + deletion (one-time use, prevents race conditions)
+    // Delete returns the row only if it existed — guarantees single use
     const { data: stateRow, error: stateError } = await supabase
         .from('gsc_oauth_states')
-        .select('id, tenant_id, expires_at')
+        .delete()
         .eq('state', stateParam)
         .eq('tenant_id', user.id)
+        .select('id, tenant_id, expires_at')
         .single();
 
     if (stateError || !stateRow) {
         return NextResponse.redirect(`${baseUrl}/app/overview?gsc_status=error&gsc_error=invalid_state`);
     }
 
-    // Check expiry
+    // Check expiry (state already deleted — no cleanup needed)
     if (new Date(stateRow.expires_at) < new Date()) {
-        // Clean up expired state
-        await supabase.from('gsc_oauth_states').delete().eq('id', stateRow.id);
         return NextResponse.redirect(`${baseUrl}/app/overview?gsc_status=error&gsc_error=expired_state`);
     }
-
-    // Delete used state (one-time use)
-    await supabase.from('gsc_oauth_states').delete().eq('id', stateRow.id);
 
     try {
         // Exchange code for tokens
@@ -192,8 +189,14 @@ export async function GET(request: NextRequest) {
 
     } catch (err: any) {
         console.error('[GSC OAuth callback] Error:', err.message);
+        // Sanitize error — don't expose internal details (tokens, URLs) to client
+        const safeError = err.message?.includes('Token exchange')
+            ? 'token_exchange_failed'
+            : err.message?.includes('DB')
+                ? 'database_error'
+                : 'unknown';
         return NextResponse.redirect(
-            `${baseUrl}/app/overview?gsc_status=error&gsc_error=${encodeURIComponent(err.message || 'unknown')}`
+            `${baseUrl}/app/overview?gsc_status=error&gsc_error=${encodeURIComponent(safeError)}`
         );
     }
 }

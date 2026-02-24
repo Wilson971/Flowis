@@ -1,7 +1,8 @@
 /**
  * Products Toolbar Component
  *
- * Modern toolbar with search, filters, and view controls
+ * Clean toolbar: search | status tabs + filters + column toggle
+ * Active filter chips below as a unified row
  */
 
 import { Search, SlidersHorizontal } from "lucide-react";
@@ -44,10 +45,11 @@ export const ProductsToolbar = ({
   className,
 }: ProductsToolbarProps) => {
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        {/* Search Input */}
-        <div className="relative w-full sm:w-96">
+    <div className={cn("flex flex-col gap-3", className)}>
+      {/* Main row: search left, filters + view right */}
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="relative w-full max-w-xs">
           <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-3.5 w-3.5 text-muted-foreground/50" />
           </span>
@@ -56,19 +58,19 @@ export const ProductsToolbar = ({
             placeholder="Rechercher par titre, SKU, ID..."
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-9 pr-4 h-9 w-full bg-muted/50 border-input shadow-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:border-ring transition-all text-xs placeholder:text-muted-foreground rounded-lg transition-colors"
+            className="pl-9 pr-4 h-8 w-full bg-muted/50 border-input shadow-none focus-visible:ring-1 focus-visible:ring-ring text-xs placeholder:text-muted-foreground rounded-lg"
           />
         </div>
 
-        {/* Actions & Filters */}
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        {/* Filter component (status tabs + advanced filters button) */}
+        <div className="flex items-center gap-2 ml-auto">
           {filterComponent}
 
           {onColumnVisibilityChange && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 gap-2">
-                  <SlidersHorizontal className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Vue</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -86,29 +88,28 @@ export const ProductsToolbar = ({
                   seo: "SEO",
                   serp: "SERP",
                   sync: "Sync"
-                }).map(([key, label]) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={key}
-                      className="capitalize"
-                      checked={columnVisibility[key] !== false}
-                      onCheckedChange={(value) =>
-                        onColumnVisibilityChange({
-                          ...columnVisibility,
-                          [key]: !!value,
-                        })
-                      }
-                    >
-                      {label}
-                    </DropdownMenuCheckboxItem>
-                  );
-                })}
+                }).map(([key, label]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    className="capitalize"
+                    checked={columnVisibility[key] !== false}
+                    onCheckedChange={(value) =>
+                      onColumnVisibilityChange({
+                        ...columnVisibility,
+                        [key]: !!value,
+                      })
+                    }
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
         </div>
       </div>
 
+      {/* Active filter chips — single unified row */}
       {activeFilters.length > 0 && onRemoveFilter && onClearAllFilters && (
         <FilterPills
           activeFilters={activeFilters}

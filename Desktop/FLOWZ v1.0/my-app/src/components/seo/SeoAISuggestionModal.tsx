@@ -134,7 +134,6 @@ export function SeoAISuggestionModal({
 
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                console.error("[SeoAISuggestionModal] API error:", data);
                 const details = data.details?.length ? ` (${data.details.join(', ')})` : '';
                 throw new Error((data.error || `Erreur ${res.status}`) + details);
             }

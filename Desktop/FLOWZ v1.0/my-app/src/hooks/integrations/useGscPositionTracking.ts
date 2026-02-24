@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import { useGscDashboard } from "./useGscDashboard";
 import type { GscPositionChange } from "@/lib/gsc/types";
 
@@ -19,7 +20,7 @@ export function useGscPositionTracking(siteId: string | null) {
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 5 * 60_000,
+        staleTime: STALE_TIMES.STATIC,
     });
 
     // Dashboard data for the daily position chart

@@ -8,6 +8,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -81,7 +82,7 @@ export function useArticleSchedules(options: UseArticleSchedulesOptions) {
       return (data || []) as ArticleSchedule[];
     },
     enabled: enabled && !!articleId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: STALE_TIMES.LIST,
   });
 }
 
@@ -115,7 +116,7 @@ export function usePendingSchedules() {
       if (error) throw error;
       return (data || []) as (ArticleSchedule & { blog_articles: { id: string; title: string } })[];
     },
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: STALE_TIMES.DETAIL,
   });
 }
 
@@ -148,7 +149,7 @@ export function useNextScheduledAction(articleId: string, enabled = true) {
       return data as ArticleSchedule;
     },
     enabled: enabled && !!articleId,
-    staleTime: 30 * 1000,
+    staleTime: STALE_TIMES.LIST,
   });
 }
 

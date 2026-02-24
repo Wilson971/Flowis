@@ -184,7 +184,7 @@ export function useGenerateArticle() {
               callbacks?.onComplete?.(fullContent, meta);
             }
           } catch (e) {
-            // Ignore
+            console.warn('[useBlogAI] Failed to parse SSE chunk:', e);
           }
         }
 

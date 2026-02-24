@@ -175,7 +175,6 @@ export function usePushToStore() {
             }
         },
         onError: (error: Error) => {
-            console.error('[usePushToStore] Push failed:', error);
             toast.error('Erreur de synchronisation', {
                 description: error.message,
             });
@@ -265,8 +264,9 @@ export function usePushProductBatch() {
 
     return useMutation({
         mutationFn: async ({ product_ids, force = true }: { product_ids: string[]; force?: boolean }): Promise<PushResponse> => {
-            const { data: session } = await supabase.auth.getSession();
-            if (!session.session?.user) {
+            // Use getUser() to validate + auto-refresh the JWT before invoking the edge function
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
                 throw new Error('Utilisateur non authentifié');
             }
 
@@ -321,7 +321,6 @@ export function usePushProductBatch() {
             queryClient.invalidateQueries({ queryKey: ['product-versions'] });
         },
         onError: (error: Error, variables) => {
-            console.error('[usePushProductBatch] onError:', error);
             const isNetwork = error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch');
             const toastId = variables.product_ids.length > 1 ? 'batch-sync' : undefined;
             toast.error(isNetwork ? 'Connexion perdue' : 'Erreur de synchronisation', {

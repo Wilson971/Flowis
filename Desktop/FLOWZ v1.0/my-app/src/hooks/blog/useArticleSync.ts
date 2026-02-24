@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { blogArticlesKeys } from './useBlogArticles';
@@ -145,7 +146,7 @@ export function useArticleSync(options: UseArticleSyncOptions): UseArticleSyncRe
       return data;
     },
     enabled: enabled && !!articleId,
-    staleTime: 30000, // 30 seconds
+    staleTime: STALE_TIMES.LIST,
   });
 
   // Fetch sync logs
@@ -167,7 +168,7 @@ export function useArticleSync(options: UseArticleSyncOptions): UseArticleSyncRe
       return data as SyncLog[];
     },
     enabled: enabled && !!articleId,
-    staleTime: 60000, // 1 minute
+    staleTime: STALE_TIMES.DETAIL,
   });
 
   // Fetch connected platforms (from store settings)
@@ -199,7 +200,7 @@ export function useArticleSync(options: UseArticleSyncOptions): UseArticleSyncRe
 
       return platforms;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: STALE_TIMES.STATIC,
   });
 
   // ============================================================================

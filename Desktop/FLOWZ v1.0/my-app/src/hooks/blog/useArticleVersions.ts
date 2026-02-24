@@ -9,6 +9,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -80,7 +81,7 @@ export function useArticleVersions(options: UseArticleVersionsOptions) {
       return (data || []) as ArticleVersion[];
     },
     enabled: enabled && !!articleId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: STALE_TIMES.LIST,
   });
 }
 
@@ -170,7 +171,6 @@ export function useCreateArticleVersion() {
       }
     },
     onError: (error: Error) => {
-      console.error('Error creating version:', error);
       toast.error('Erreur', {
         description: 'Impossible de creer la version.',
       });
@@ -247,7 +247,6 @@ export function useRestoreArticleVersion() {
       });
     },
     onError: (error: Error) => {
-      console.error('Error restoring version:', error);
       toast.error('Erreur', {
         description: error.message || 'Impossible de restaurer la version.',
       });

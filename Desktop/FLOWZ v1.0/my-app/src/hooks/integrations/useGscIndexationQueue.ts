@@ -3,6 +3,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import type { GscQueueStats, GscQueueItem } from '@/lib/gsc/types';
 
 interface QueueResponse {
@@ -31,7 +32,7 @@ export function useGscIndexationQueue(
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 15_000,
+        staleTime: STALE_TIMES.REALTIME,
     });
 
     return {

@@ -4,6 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import type {
     GscIndexationOverview,
     GscIndexationUrl,
@@ -37,7 +38,7 @@ export function useGscIndexation(
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 30_000,
+        staleTime: STALE_TIMES.LIST,
     });
 
     // Paginated URL list
@@ -60,7 +61,7 @@ export function useGscIndexation(
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 30_000,
+        staleTime: STALE_TIMES.LIST,
         placeholderData: (prev) => prev,
     });
 

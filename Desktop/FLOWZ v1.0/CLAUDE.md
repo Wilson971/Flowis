@@ -308,6 +308,7 @@ To apply migrations: `supabase db push`
 - `my-app/src/app/api/flowriter/stream/route.ts` - Main AI generation endpoint
 - `my-app/src/schemas/flowriter.ts` - Zod schemas with security validation
 - `my-app/src/lib/design-system/` - FLOWZ design tokens
+- `my-app/src/lib/rate-limit.ts` - Per-user per-endpoint rate limiting (in-memory sliding window)
 - `my-app/src/hooks/blog/` - Blog/article CRUD and AI actions
 - `my-app/src/components/article-editor/` - TipTap editor with AI features
 - `my-app/src/features/photo-studio/` - Photo Studio feature module
@@ -431,6 +432,13 @@ docs/reports/
 
 ### Recent Audits
 
+**[2026-02-24 - Full Codebase Adversarial Review](docs/reports/code-reviews/2026-02-24-adversarial-review-full-codebase.md)**
+- **Scope:** Entire codebase — Security, Performance, Quality, Architecture
+- **Findings:** 61 total (7 CRITICAL, 17 HIGH, 30 MEDIUM, 7 LOW)
+- **CRITICAL fixes applied:** SSRF DNS validation, rate limiting (4 endpoints), IDOR tenant_id, SSE memory leak, batch OOM protection
+- **HIGH fixes applied:** Error info disclosure, CSRF atomic state, polling visibility check (9 hooks), SELECT * reduction, info disclosure sanitization
+- **Status:** All 7 CRITICAL + 11/17 HIGH fixed (4 already mitigated, 2 deferred to feature sprint)
+
 **[2026-02-23 - Adversarial Code Review](docs/reports/code-reviews/2026-02-23-adversarial-review-codebase.md)**
 - **Scope:** API routes, auth/RLS, data flow, performance
 - **Findings:** 12 total (4 HIGH, 8 MEDIUM)
@@ -470,7 +478,7 @@ claude /flowz-perf
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
 | Test Coverage | 0% | 80%+ | 🔴 |
-| Security (OWASP) | 4 HIGH + 8 MEDIUM open | 0 HIGH | 🔴 |
+| Security (OWASP) | 0 CRITICAL, 0 HIGH open (2 deferred) | 0 HIGH | 🟢 |
 | DS Compliance | ~150 violations | 0 | 🟡 |
 | Console.log | ~140 remaining | 0 client-side | 🟡 |
 | Dead Code | Clean (0 broken imports) | Clean | 🟢 |

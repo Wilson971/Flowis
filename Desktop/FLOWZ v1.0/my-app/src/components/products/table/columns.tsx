@@ -164,6 +164,24 @@ export function createColumns({
       ),
       cell: ({ row }) => {
         const product = row.original;
+        const isVariable = product.product_type === 'variable' || product.metadata?.type === 'variable';
+
+        // For variable products, use metadata.price (WooCommerce display price)
+        if (isVariable) {
+          const metaPrice = product.metadata?.price;
+          const displayPrice = metaPrice ? Number(metaPrice) : null;
+          return (
+            <div className="text-sm font-semibold w-[100px] text-right">
+              {displayPrice ? (
+                <span className="text-foreground">À partir de {displayPrice.toFixed(2)} €</span>
+              ) : (
+                <span className="text-muted-foreground">N/A</span>
+              )}
+            </div>
+          );
+        }
+
+        // Simple products
         const regularPrice = product.regular_price ?? product.price;
         const salePrice = product.sale_price;
         const onSale = salePrice && Number(salePrice) > 0 && Number(salePrice) < Number(regularPrice);
@@ -200,18 +218,32 @@ export function createColumns({
       ),
       cell: ({ row }) => {
         const product = row.original;
-        const inStock = product.stock && product.stock > 0;
+        const manageStock = product.manage_stock ?? product.metadata?.manage_stock ?? false;
+        const stockStatus = product.stock_status ?? product.metadata?.stock_status ?? "instock";
+        const stockQty = product.stock;
+
+        // If stock is managed, check quantity; otherwise check stock_status from WooCommerce
+        const inStock = manageStock
+          ? (stockQty !== null && stockQty !== undefined && stockQty > 0)
+          : stockStatus !== "outofstock";
+
+        const label = manageStock && inStock
+          ? `${stockQty} en stock`
+          : inStock
+            ? "En stock"
+            : "Rupture";
+
         return (
           <Badge
             variant="outline"
             className={cn(
               "px-2 py-0.5 text-[10px] font-medium border shadow-none",
               inStock
-                ? "bg-muted text-muted-foreground border-border"
+                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                 : "bg-destructive/10 text-destructive border-destructive/20"
             )}
           >
-            {inStock ? `${product.stock} en stock` : "Rupture"}
+            {label}
           </Badge>
         );
       },
@@ -229,13 +261,16 @@ export function createColumns({
           <ArrowUpDown className="ml-1 h-3 w-3" />
         </Button>
       ),
-      accessorFn: (row) => row.working_content?.commercial_stats?.total_sales || 0,
+      accessorFn: (row) => {
+        const sales = Number(row.metadata?.total_sales) || 0;
+        return sales;
+      },
       cell: ({ row }) => {
         const product = row.original;
-        const sales = product.working_content?.commercial_stats?.total_sales;
-        if (sales === undefined || sales === 0) return <span className="text-xs text-muted-foreground">—</span>;
+        const sales = Number(product.metadata?.total_sales) || 0;
+        if (sales === 0) return <span className="text-xs text-muted-foreground">—</span>;
         return (
-          <Badge variant="outline" className="bg-muted text-muted-foreground border-border font-medium shadow-none px-2 py-0.5">
+          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 font-medium shadow-none px-2 py-0.5">
             {sales} vente{sales > 1 ? 's' : ''}
           </Badge>
         );
@@ -254,11 +289,14 @@ export function createColumns({
           <ArrowUpDown className="ml-1 h-3 w-3" />
         </Button>
       ),
-      accessorFn: (row) => row.working_content?.commercial_stats?.revenue || 0,
+      accessorFn: (row) => {
+        const revenue = row.working_content?.commercial_stats?.revenue;
+        return revenue ?? 0;
+      },
       cell: ({ row }) => {
         const product = row.original;
         const revenue = product.working_content?.commercial_stats?.revenue;
-        if (revenue === undefined || revenue === 0) return <span className="text-xs text-muted-foreground">—</span>;
+        if (revenue === undefined || revenue === null || revenue === 0) return <span className="text-xs text-muted-foreground">—</span>;
         return (
           <div className="flex items-center gap-1">
             <TrendingUp className="h-3.5 w-3.5 text-success" />

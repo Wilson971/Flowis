@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import type {
   DashboardKPIs,
   DashboardContext,
@@ -40,7 +41,6 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
         .rpc('get_dashboard_stats', { p_store_id: effectiveStoreId });
 
       if (rpcError) {
-        console.error('[useDashboardKPIs] RPC error:', rpcError);
         throw rpcError;
       }
 
@@ -132,7 +132,7 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
       return { context, kpis };
     },
     // Refetch when the storeId changes (built into queryKey)
-    staleTime: 30000, // 30 seconds
+    staleTime: STALE_TIMES.LIST,
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
 

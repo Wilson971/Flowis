@@ -81,7 +81,7 @@ function SyncHistoryItem({ entry }: { entry: SyncHistoryEntry }) {
             <div className={cn(
                 "mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0",
                 entry.success
-                    ? "text-emerald-500"
+                    ? "text-success"
                     : "text-destructive"
             )}>
                 {entry.success ? (

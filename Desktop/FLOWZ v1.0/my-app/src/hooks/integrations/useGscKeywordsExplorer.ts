@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import type { GscKeywordsExplorerResponse, GscKeywordsSortBy, GscSortOrder } from "@/lib/gsc/types";
 
 interface Params {
@@ -42,7 +43,7 @@ export function useGscKeywordsExplorer({
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 5 * 60_000,
+        staleTime: STALE_TIMES.STATIC,
         placeholderData: keepPreviousData,
     });
 }

@@ -13,6 +13,7 @@ import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchImageSafe } from '@/lib/ssrf';
 import { batchGenerationRequestSchema } from '@/schemas/batch-generation';
+import { detectPromptInjection } from '@/lib/ai/prompt-safety';
 import {
     buildProductTitlePrompt,
     buildShortDescriptionPrompt,
@@ -24,6 +25,7 @@ import {
     parseGeminiResponse,
 } from '@/lib/ai/product-prompts';
 import type { ModularGenerationSettings } from '@/types/imageGeneration';
+import { calculateProductSeoScore } from '@/lib/seo/analyzer';
 
 // ============================================================================
 // RUNTIME CONFIG
@@ -75,7 +77,10 @@ function classifyError(error: any): { retryable: boolean; code: string; message:
 // IMAGE FETCHING (uses shared SSRF protection from @/lib/ssrf)
 // ============================================================================
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB per image
+const MAX_BATCH_IMAGE_BUDGET = 50 * 1024 * 1024; // 50 MB total per batch
+const MAX_CONCURRENT_IMAGE_FETCHES = 5;
+const MAX_PRODUCTS_PER_BATCH = 100;
 
 // ============================================================================
 // GEMINI CALL WITH RETRY
@@ -137,28 +142,51 @@ interface ProductRow {
     price?: number;
     sku?: string;
     product_type?: string;
-    metadata?: any;
-    working_content?: any;
-    draft_generated_content?: any;
+    metadata?: Record<string, unknown>;
+    working_content?: Record<string, unknown>;
+    draft_generated_content?: Record<string, unknown>;
+}
+
+interface MetadataJsonb {
+    description?: string;
+    short_description?: string;
+    categories?: Array<{ name?: string }>;
+    attributes?: Array<{ name: string; options: string[] }>;
+    price?: string | number;
+    regular_price?: string | number;
+    sku?: string;
+    images?: Array<{ src?: string; url?: string; id?: string | number; alt?: string }>;
+    tags?: Array<{ name?: string }>;
+    [key: string]: unknown;
+}
+
+interface WorkingJsonb {
+    title?: string;
+    description?: string;
+    short_description?: string;
+    images?: Array<{ id?: string | number; src?: string; alt?: string }>;
+    slug?: string;
+    seo?: { title?: string; description?: string };
+    [key: string]: unknown;
 }
 
 function extractProductContext(product: ProductRow) {
-    const meta = product.metadata || {};
-    const working = product.working_content || {};
+    const meta = (product.metadata || {}) as MetadataJsonb;
+    const working = (product.working_content || {}) as WorkingJsonb;
 
     return {
         title: working.title || product.title,
         currentDescription: working.description || meta.description || '',
         shortDescription: working.short_description || meta.short_description || '',
-        categories: meta.categories?.map((c: any) => c.name || c).filter(Boolean) || [],
-        attributes: meta.attributes?.map((a: any) => ({
+        categories: meta.categories?.map((c) => c.name || '').filter(Boolean) || [],
+        attributes: meta.attributes?.map((a) => ({
             name: a.name,
             options: a.options,
         })) || [],
         price: product.price || meta.price || meta.regular_price,
         sku: product.sku || meta.sku,
         imageUrl: product.image_url || meta.images?.[0]?.src,
-        tags: meta.tags?.map((t: any) => t.name || t).filter(Boolean) || [],
+        tags: meta.tags?.map((t) => t.name || '').filter(Boolean) || [],
     };
 }
 
@@ -212,6 +240,19 @@ export async function POST(request: NextRequest) {
         console.error('[batch-generation] Auth failed:', authError?.message);
         return Response.json({ error: 'Non authentifié' }, { status: 401 });
     }
+    // 2b. Per-request rate limiting
+    const { checkRateLimit, RATE_LIMIT_BATCH_GENERATION } = await import('@/lib/rate-limit');
+    const rateLimit = checkRateLimit(user.id, 'batch-generation', RATE_LIMIT_BATCH_GENERATION);
+    if (!rateLimit.allowed) {
+        return Response.json(
+            { error: 'Trop de requêtes batch. Veuillez patienter.' },
+            {
+                status: 429,
+                headers: { 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+            }
+        );
+    }
+
     // 3. Parse and validate request body
     let body: any;
     try {
@@ -230,6 +271,32 @@ export async function POST(request: NextRequest) {
         );
     }
     const { product_ids, content_types, settings, store_id } = validation.data;
+
+    // Prompt injection check on user-provided text fields in settings
+    const settingsRecord = settings as Record<string, unknown>;
+    const textFieldsToCheck = [
+        settingsRecord?.custom_instructions,
+        settingsRecord?.brand_voice,
+        settingsRecord?.target_audience,
+        settingsRecord?.additional_context,
+    ].filter((v): v is string => typeof v === 'string' && v.length > 0);
+
+    for (const field of textFieldsToCheck) {
+        if (detectPromptInjection(field)) {
+            return Response.json(
+                { error: 'Les paramètres contiennent du contenu non autorisé.' },
+                { status: 400 }
+            );
+        }
+    }
+
+    // Validate product count to prevent OOM
+    if (product_ids.length > MAX_PRODUCTS_PER_BATCH) {
+        return Response.json(
+            { error: `Maximum ${MAX_PRODUCTS_PER_BATCH} produits par batch` },
+            { status: 400 }
+        );
+    }
 
     // Verify store ownership (stores table uses tenant_id, not user_id)
     const { data: store, error: storeError } = await supabase
@@ -258,7 +325,7 @@ export async function POST(request: NextRequest) {
         .insert({
             tenant_id: user.id,
             store_id,
-            content_types: content_types as any,
+            content_types: content_types as Record<string, boolean>,
             status: 'pending',
             total_items: product_ids.length,
             processed_items: 0,
@@ -303,11 +370,41 @@ export async function POST(request: NextRequest) {
                 try {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
                 } catch {
+                    // Stream closed — stop heartbeat immediately
                     isClosed = true;
+                    if (heartbeatInterval) {
+                        clearInterval(heartbeatInterval);
+                        heartbeatInterval = null;
+                    }
                 }
             };
 
             try {
+                // Image cache to avoid fetching the same URL multiple times (C6/C7)
+                const imageCache = new Map<string, { data: string; mimeType: string }>();
+                let totalImageBytes = 0;
+
+                async function fetchImageWithBudget(url: string): Promise<{ data: string; mimeType: string } | null> {
+                    // Check cache first (deduplication)
+                    const cached = imageCache.get(url);
+                    if (cached) return cached;
+
+                    // Check total budget
+                    if (totalImageBytes >= MAX_BATCH_IMAGE_BUDGET) {
+                        return null; // Budget exhausted
+                    }
+
+                    try {
+                        const result = await fetchImageSafe(url, MAX_IMAGE_SIZE);
+                        const sizeBytes = Math.ceil(result.data.length * 0.75); // base64 → bytes approx
+                        totalImageBytes += sizeBytes;
+                        imageCache.set(url, result);
+                        return result;
+                    } catch {
+                        return null;
+                    }
+                }
+
                 // Connected event
                 sendEvent({
                     type: 'connected',
@@ -352,12 +449,13 @@ export async function POST(request: NextRequest) {
                         .eq('product_id', productId);
 
                     try {
-                        // Fetch product data
+                        // Fetch product data (with tenant_id check to prevent IDOR)
                         const { data: product, error: prodError } = await supabase
                             .from('products')
                             .select('id, title, image_url, price, sku, product_type, metadata, working_content, draft_generated_content')
                             .eq('id', productId)
                             .eq('store_id', store_id)
+                            .eq('tenant_id', user.id)
                             .single();
 
                         if (prodError || !product) {
@@ -366,10 +464,10 @@ export async function POST(request: NextRequest) {
 
                         const productCtx = extractProductContext(product);
 
-                        // Fetch image if needed for vision
+                        // Fetch image if needed for vision (with cache + budget)
                         let imageBase64: { data: string; mimeType: string } | null = null;
                         if (settings.image_analysis && productCtx.imageUrl) {
-                            imageBase64 = await fetchImageSafe(productCtx.imageUrl, MAX_IMAGE_SIZE).catch(() => null);
+                            imageBase64 = await fetchImageWithBudget(productCtx.imageUrl);
                         }
 
                         // Generate each enabled field
@@ -390,23 +488,23 @@ export async function POST(request: NextRequest) {
                             if (fieldType === 'alt_text') {
                                 // Generate alt text for ALL product images
                                 // UI expects: { images: [{ id, src, alt }] }
-                                const meta = product.metadata || {};
-                                const working = product.working_content || {};
-                                const productImages: Array<{ id?: string | number; src?: string; alt?: string }> =
-                                    working.images || meta.images || [];
+                                const imgMeta = (product.metadata || {}) as MetadataJsonb;
+                                const imgWorking = (product.working_content || {}) as WorkingJsonb;
+                                const productImages: Array<{ id?: string | number; src?: string; url?: string; alt?: string }> =
+                                    imgWorking.images || imgMeta.images || [];
 
                                 if (productImages.length > 0) {
                                     const draftImages: Array<{ id?: string | number; src: string; alt: string }> = [];
 
                                     for (let imgIdx = 0; imgIdx < productImages.length; imgIdx++) {
                                         if (isClosed) break;
-                                        const img = productImages[imgIdx] as any;
+                                        const img = productImages[imgIdx];
                                         const imgSrc = img.src || img.url || '';
 
-                                        // Fetch each image for vision analysis if enabled
+                                        // Fetch each image for vision analysis (with cache + budget)
                                         let imgBase64: { data: string; mimeType: string } | null = null;
                                         if (settings.image_analysis && imgSrc) {
-                                            imgBase64 = await fetchImageSafe(imgSrc, MAX_IMAGE_SIZE).catch(() => null);
+                                            imgBase64 = await fetchImageWithBudget(imgSrc);
                                         }
 
                                         const imgPrompt = buildPromptForField(
@@ -434,7 +532,7 @@ export async function POST(request: NextRequest) {
                                     // Fallback: single image from image_url
                                     let fallbackBase64: { data: string; mimeType: string } | null = null;
                                     if (settings.image_analysis) {
-                                        fallbackBase64 = await fetchImageSafe(productCtx.imageUrl, MAX_IMAGE_SIZE).catch(() => null);
+                                        fallbackBase64 = await fetchImageWithBudget(productCtx.imageUrl);
                                     }
                                     const fallbackPrompt = buildPromptForField('alt_text', productCtx, settings, !!fallbackBase64);
                                     const rawAlt = await callGeminiWithRetry(ai, fallbackPrompt, fallbackBase64);
@@ -494,9 +592,23 @@ export async function POST(request: NextRequest) {
                             mergedDraft.images = draft.images;
                         }
 
+                        // Compute SEO score from merged draft + existing content
+                        const seoMeta = (product.metadata || {}) as MetadataJsonb;
+                        const seoWorking = (product.working_content || {}) as WorkingJsonb;
+                        const seoInput = {
+                            title: mergedDraft.title || seoWorking.title || product.title || '',
+                            short_description: mergedDraft.short_description || seoWorking.short_description || seoMeta.short_description || '',
+                            description: mergedDraft.description || seoWorking.description || seoMeta.description || '',
+                            meta_title: mergedDraft.seo?.title || seoWorking.seo?.title || product.title || '',
+                            meta_description: mergedDraft.seo?.description || seoWorking.seo?.description || '',
+                            slug: seoWorking.slug || seoMeta['slug'] as string || '',
+                            images: (seoWorking.images || seoMeta.images || []).map((img) => ({ src: img.src || '', alt: mergedDraft.images?.find((di) => di.id === img.id)?.alt || img.alt || '' })),
+                        };
+                        const seoScore = calculateProductSeoScore(seoInput).overall;
+
                         await supabase
                             .from('products')
-                            .update({ draft_generated_content: mergedDraft })
+                            .update({ draft_generated_content: mergedDraft, seo_score: seoScore })
                             .eq('id', productId);
 
                         // Mark item as completed (updated_at handled by trigger)

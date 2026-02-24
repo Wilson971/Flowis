@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   Palette,
   TrendingUp,
+  History,
 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
@@ -207,6 +208,12 @@ const navItems = [
         label: "D. Fullscreen",
         href: "/app/design-demo/variation-studio/d",
         icon: Maximize2,
+      },
+      {
+        id: "version-history",
+        label: "Historique versions",
+        href: "/app/design-demo/version-history",
+        icon: History,
       },
     ]
   },

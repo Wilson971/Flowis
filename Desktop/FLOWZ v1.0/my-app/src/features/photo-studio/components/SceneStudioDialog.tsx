@@ -106,7 +106,6 @@ const SceneStudioDialogInner = ({
             .upload(fileName, blob, { contentType: blob.type, upsert: false });
 
           if (uploadError) {
-            console.error('Upload error:', uploadError);
             throw new Error(uploadError.message || "Echec de l'upload vers le storage.");
           }
 
@@ -116,7 +115,6 @@ const SceneStudioDialogInner = ({
 
           imageUrl = publicUrl;
         } catch (uploadErr: any) {
-          console.error('Upload error:', uploadErr);
           if (uploadErr instanceof Error) throw uploadErr;
           throw new Error(uploadErr?.message || "Echec de l'upload de l'image generee vers le cloud.");
         }
@@ -152,7 +150,6 @@ const SceneStudioDialogInner = ({
         await queryClient.invalidateQueries({ queryKey: ["generation-sessions", product.id] });
       }
     } catch (error: any) {
-      console.error('Publish error:', error);
       toast.error('Erreur de publication', { description: error.message || "Impossible de publier l'image" });
     } finally {
       setIsPublishing(false);

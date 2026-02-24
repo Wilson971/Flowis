@@ -42,7 +42,6 @@ export function useSyncManager() {
                         message: 'Timeout occurred, resuming...'
                     };
                 }
-                console.error('Supabase function error:', error);
                 throw new Error(error.message || 'Edge function call failed');
             }
 
@@ -90,8 +89,7 @@ export function useSyncManager() {
                     response = await invokeSync(params);
                 } catch (err: any) {
                     // If retry fails, wait longer and try again
-
-
+                    console.warn('[useSyncManager] Retry failed, will retry again:', err);
                     await new Promise(r => setTimeout(r, 5000));
                     response = { success: true, status: 'in_progress', can_resume: true };
                 }
@@ -109,7 +107,6 @@ export function useSyncManager() {
 
             return response;
         } catch (error: any) {
-            console.error('Sync failed:', error);
             toast.error("Erreur de synchronisation", {
                 description: error.message || "Impossible de synchroniser",
             });
@@ -149,7 +146,6 @@ export function useSyncManager() {
 
             return true;
         } catch (error: any) {
-            console.error('Failed to stop sync:', error);
             toast.error('Erreur', {
                 description: 'Impossible d\'arrêter la synchronisation'
             });
@@ -217,7 +213,6 @@ export function useSyncManager() {
 
             return currentResponse;
         } catch (error: any) {
-            console.error('Force restart sync failed:', error);
             toast.error("Erreur de synchronisation", {
                 description: error.message || "Impossible de synchroniser",
             });

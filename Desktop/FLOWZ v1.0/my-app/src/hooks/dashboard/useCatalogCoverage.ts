@@ -9,6 +9,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 
 export interface CatalogCoverageData {
@@ -34,7 +35,6 @@ export function useCatalogCoverage(storeId: string | null) {
       });
 
       if (error) {
-        console.error('[useCatalogCoverage] RPC error:', error);
         throw error;
       }
 
@@ -49,7 +49,7 @@ export function useCatalogCoverage(storeId: string | null) {
         generatedThisMonth: Number(row.generated_this_month),
       };
     },
-    staleTime: 60_000, // 1 minute
+    staleTime: STALE_TIMES.DETAIL,
     gcTime: 5 * 60_000,
   });
 }

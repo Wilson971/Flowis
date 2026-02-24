@@ -94,9 +94,9 @@ export const SeoSidebarWidget = () => {
                         )}
 
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="w-full text-xs h-8"
+                            className="w-full text-[10px] h-8 font-bold uppercase tracking-wider bg-muted/60 hover:bg-muted/80 border border-border/40 text-muted-foreground hover:text-foreground transition-all shadow-sm"
                             onClick={() => runSeoAnalysis?.()}
                             disabled={isAnalyzing}
                         >

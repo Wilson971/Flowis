@@ -285,7 +285,7 @@ function AttributeSidebarItem({
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     {/* Visible badge */}
                                     {attribute.visible ? (
-                                        <Eye className="h-3 w-3 text-emerald-600" />
+                                        <Eye className="h-3 w-3 text-success" />
                                     ) : (
                                         <EyeOff className="h-3 w-3 text-muted-foreground/50" />
                                     )}

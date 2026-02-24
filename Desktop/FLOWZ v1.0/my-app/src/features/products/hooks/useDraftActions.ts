@@ -148,7 +148,6 @@ export const useDraftActions = ({
                     setPreviewField(null);
                 },
                 onError: (error: any) => {
-                    console.error("Erreur lors de l'acceptation du champ", error);
                     toast.error("Erreur", {
                         description: "Impossible d'accepter la proposition",
                     });
@@ -172,7 +171,6 @@ export const useDraftActions = ({
                     setPreviewField(null);
                 },
                 onError: (error: any) => {
-                    console.error("Erreur lors du rejet du champ", error);
                     toast.error("Erreur", {
                         description: "Impossible de rejeter la proposition",
                     });

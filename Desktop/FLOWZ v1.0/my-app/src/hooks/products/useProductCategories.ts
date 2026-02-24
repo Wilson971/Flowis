@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -119,7 +120,7 @@ export function useCategories(storeId?: string) {
             return (data || []) as Category[];
         },
         enabled: !!storeId,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: STALE_TIMES.STATIC,
     });
 }
 

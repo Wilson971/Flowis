@@ -89,7 +89,7 @@ export const VariationRow = React.memo(function VariationRow({
                                 <div
                                     className={cn(
                                         "h-2 w-2 rounded-full transition-all",
-                                        variation._status === "synced" && "bg-emerald-500",
+                                        variation._status === "synced" && "bg-success",
                                         variation._status === "new" && "bg-primary",
                                         variation._status === "modified" && "bg-amber-500",
                                         variation._status === "deleted" && "bg-destructive"
@@ -238,7 +238,7 @@ export const VariationRow = React.memo(function VariationRow({
                         className={cn(
                             "h-8 text-xs w-20",
                             variation.stockStatus === "outofstock" &&
-                                "border-destructive/50"
+                            "border-destructive/50"
                         )}
                         onBlur={(e) => {
                             const val = e.target.value
@@ -427,7 +427,7 @@ export const VariationRow = React.memo(function VariationRow({
                         <SelectTrigger
                             className={cn(
                                 "h-8 text-xs w-28 border-border/50 font-medium",
-                                variation.status === "publish" && "border-emerald-500/50 bg-emerald-500/5 text-emerald-700",
+                                variation.status === "publish" && "border-success/50 bg-success/5 text-success",
                                 variation.status === "private" && "border-amber-500/50 bg-amber-500/5 text-amber-700",
                                 variation.status === "draft" && "border-muted-foreground/50 bg-muted/30 text-muted-foreground"
                             )}
@@ -435,9 +435,9 @@ export const VariationRow = React.memo(function VariationRow({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="publish" className="text-emerald-700">
+                            <SelectItem value="publish" className="text-success">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                                    <div className="h-2 w-2 rounded-full bg-success" />
                                     Publié
                                 </div>
                             </SelectItem>

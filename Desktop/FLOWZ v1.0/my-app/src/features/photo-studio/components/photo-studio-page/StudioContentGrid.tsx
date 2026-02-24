@@ -56,14 +56,17 @@ export function StudioContentGrid({
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
       >
-        <Card className="border-2 border-dashed border-border bg-muted/10">
-          <CardContent className="p-12 text-center">
+        <Card className="border border-border/50 bg-card/90 backdrop-blur-xl relative overflow-hidden">
+          {/* Glass effect for empty state */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-violet-500/[0.02] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] via-transparent to-transparent pointer-events-none" />
+          <CardContent className="p-12 text-center relative z-10">
             <div className="flex flex-col items-center justify-center max-w-md mx-auto">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 0.5, delay: 0.2, type: "spring" }}
-                className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 ring-8 ring-primary/5"
+                className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6"
               >
                 <ImageIcon className="h-10 w-10 text-primary" />
               </motion.div>
@@ -131,8 +134,10 @@ export function StudioContentGrid({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
       >
-        <Card className="border border-border">
-          <CardContent className="p-0">
+        <Card className="border border-border/50 bg-card/95 backdrop-blur-sm relative overflow-hidden group hover:border-border transition-all duration-300">
+          {/* Subtle gradient */}
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/[0.01] via-transparent to-blue-500/[0.01] pointer-events-none" />
+          <CardContent className="p-0 relative z-10">
             <ProductsPagination
               currentPage={safeCurrentPage}
               totalPages={totalPages}

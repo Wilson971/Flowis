@@ -17,6 +17,7 @@ import { useProductActions } from "../hooks/useProductActions";
 import { useSeoAnalysis } from "../hooks/useSeoAnalysis";
 import { useFormHistory } from "../hooks/useFormHistory";
 import { useFormHistoryKeyboard } from "../hooks/useFormHistoryKeyboard";
+import { useFormStabilization } from "../hooks/useFormStabilization";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { usePushSingleProduct } from "@/hooks/sync/usePushToStore";
 import { useProductVersionManager } from "@/hooks/products/useProductVersions";
@@ -175,94 +176,18 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // FIX: Post-save guard — prevents the stabilization effect from destabilizing the form
-    // when isFetching toggles due to query invalidation after a manual save.
-    const postSaveGuardRef = useRef<boolean>(false);
-
-    // Cleanup timers on unmount
+    // Cleanup save status timer on unmount
     useEffect(() => {
         return () => {
             if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
-            if (formStableTimerRef.current) clearTimeout(formStableTimerRef.current);
-            if (quickStabilizeTimerRef.current) clearTimeout(quickStabilizeTimerRef.current);
         };
     }, []);
 
-    // Form stabilization guard — prevent auto-save during initial form setup.
-    // Uses isFetching signal from TanStack Query instead of an arbitrary 3s timer.
-    // When isFetching goes false, we add a 200ms micro-delay to let the form reset propagate.
-    const formStableRef = useRef(false);
-    const formStableTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const quickStabilizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => {
-        if (!product || isLoading || isFetching) {
-            // FIX: Do NOT destabilize the form when isFetching toggles due to post-save
-            // query invalidation. The save already reset the form — re-running the
-            // stabilization flow would cause TipTap normalization to create false isDirty
-            // state that surfaces as "Non sauvegardé" + disabled Publish button.
-            if (!postSaveGuardRef.current) {
-                formStableRef.current = false;
-            }
-            if (formStableTimerRef.current) {
-                clearTimeout(formStableTimerRef.current);
-                formStableTimerRef.current = null;
-            }
-            return;
-        }
-
-        // If we just saved, the form is already stable — skip the 700ms stabilization.
-        // Just clear the guard and apply a quick normalization reset if needed.
-        if (postSaveGuardRef.current) {
-            postSaveGuardRef.current = false;
-            // Quick normalization: if TipTap normalization made formState dirty
-            // despite no user interaction, re-reset to absorb the normalized values.
-            if (quickStabilizeTimerRef.current) {
-                clearTimeout(quickStabilizeTimerRef.current);
-            }
-            quickStabilizeTimerRef.current = setTimeout(() => {
-                quickStabilizeTimerRef.current = null;
-                const { isDirty: formIsDirty, touchedFields } = methods.formState;
-                if (formIsDirty && Object.keys(touchedFields).length === 0) {
-                    const currentValues = methods.getValues();
-                    methods.reset(currentValues, { keepDefaultValues: false });
-                    history.markAsSaved();
-                }
-            }, 200);
-            return () => {
-                if (quickStabilizeTimerRef.current) {
-                    clearTimeout(quickStabilizeTimerRef.current);
-                    quickStabilizeTimerRef.current = null;
-                }
-            };
-        }
-
-        // Data arrived and query is idle — wait for form reset + TipTap stabilization.
-        // useProductForm does a re-reset at 500ms to absorb TipTap HTML normalization,
-        // so we wait 700ms before marking the form as stable and saved.
-        formStableTimerRef.current = setTimeout(() => {
-            formStableRef.current = true;
-            // Mark history as saved once form is stable — prevents false "NON SAUVEGARDÉ"
-            // caused by form reset creating spurious history entries during initialization
-            history.markAsSaved();
-
-            // FIX: After re-stabilization (e.g. post-save refetch), the form may have
-            // transient isDirty from component normalization (TipTap HTML, zodResolver
-            // async overwrite). If no user interaction happened since the last reset,
-            // re-reset with current (normalized) values to clear the false dirty state.
-            const { isDirty: formIsDirty, touchedFields } = methods.formState;
-            if (formIsDirty && Object.keys(touchedFields).length === 0) {
-                const currentValues = methods.getValues();
-                methods.reset(currentValues, { keepDefaultValues: false });
-                history.markAsSaved();
-            }
-        }, 700);
-
-        return () => {
-            if (formStableTimerRef.current) clearTimeout(formStableTimerRef.current);
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [product?.id, product?.last_synced_at, isLoading, isFetching]);
+    // Form stabilization guard — extracted to dedicated hook for clarity.
+    // Prevents false dirty state during initial form setup and post-save refetch cycles.
+    const { formStableRef, postSaveGuardRef } = useFormStabilization({
+        product, isLoading, isFetching, methods, history,
+    });
 
 
     // Calculate dirty state
@@ -300,7 +225,6 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                     await variationSaveRef.current();
                 } catch (varErr) {
                     variationSaveOk = false;
-                    console.error('Variation save failed:', varErr);
                     toast.error("Erreur de sauvegarde des variations", {
                         description: varErr instanceof Error ? varErr.message : "Les variations n'ont pas pu être sauvegardées.",
                     });
@@ -344,12 +268,20 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         methods.handleSubmit(handleManualSave)();
     }, [actions.isSaving, methods, handleManualSave]);
 
+    // FIX H13: Use a ref to avoid stale closure in keyboard listener.
+    // useFormHistoryKeyboard registers a keydown listener that could capture
+    // a stale handleKeyboardSave reference between effect cleanup cycles.
+    const handleKeyboardSaveRef = useRef(handleKeyboardSave);
+    useEffect(() => {
+        handleKeyboardSaveRef.current = handleKeyboardSave;
+    }, [handleKeyboardSave]);
+
     useFormHistoryKeyboard({
         undo: history.undo,
         redo: history.redo,
         canUndo: history.canUndo,
         canRedo: history.canRedo,
-        onSave: handleKeyboardSave,
+        onSave: () => handleKeyboardSaveRef.current(),
         enabled: !isLoading && !!product,
     });
 

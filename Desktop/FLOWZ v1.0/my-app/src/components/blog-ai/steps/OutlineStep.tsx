@@ -448,7 +448,7 @@ export function OutlineStep({
     // 1. Find item and context immediately using the snapshot (no waiting for state update)
     const index = snapshot.findIndex(i => i.id === newItemId);
     if (index === -1) {
-      console.error("❌ Could not find new item in snapshot:", newItemId);
+      // Item not found in snapshot
       return;
     }
 
@@ -498,7 +498,7 @@ export function OutlineStep({
       onUpdateOutline(updatedItems);
 
     } catch (error) {
-      console.error("❌ AI Generation failed", error);
+      // AI Generation failed — apply fallback
       // Fallback update
       let currentItems = latestOutlineRef.current;
       if (!currentItems.some(i => i.id === newItemId)) {

@@ -79,7 +79,6 @@ export function useBatchGeneration() {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
-                console.error('[useBatchGeneration] HTTP Error:', response.status, errorData);
                 throw new Error(errorData.error || `HTTP ${response.status}`);
             }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import type { GscConnectionView } from "@/lib/gsc/types";
 
 interface GscSitesResponse {
@@ -23,7 +24,7 @@ export function useGscConnection(options?: { linkedOnly?: boolean }) {
             if (!res.ok) throw new Error("Failed to fetch GSC connections");
             return res.json();
         },
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 
     const syncMutation = useMutation({

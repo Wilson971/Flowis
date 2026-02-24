@@ -2,6 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { detectPromptInjection, sanitizeUserInput } from '@/lib/ai/prompt-safety';
 
 // ============================================================================
 // FLOWRITER v2.0 - Node.js Runtime for Extended Timeout Support
@@ -244,39 +245,9 @@ const SANITIZE_CONFIG = {
     maxCustomInstructionsLength: 1000,
 };
 
-// Patterns that could indicate prompt injection attempts
-const SUSPICIOUS_PATTERNS = [
-    /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/i,
-    /disregard\s+(all\s+)?(previous|above|prior)/i,
-    /you\s+are\s+now\s+(a|an)\s+/i,
-    /new\s+instructions?:/i,
-    /system\s*prompt:/i,
-    /\[INST\]/i,
-    /\[\/INST\]/i,
-    /<<SYS>>/i,
-    /<\|im_start\|>/i,
-];
-
-function sanitizeInput(text: string, maxLength: number = 1000): string {
-    if (typeof text !== 'string') return '';
-
-    // Trim and limit length
-    let sanitized = text.trim().slice(0, maxLength);
-
-    // Remove control characters except newlines and tabs
-    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-
-    // Escape characters that could break prompt structure
-    sanitized = sanitized
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"');
-
-    return sanitized;
-}
-
-function detectSuspiciousInput(text: string): boolean {
-    return SUSPICIOUS_PATTERNS.some(pattern => pattern.test(text));
-}
+// Aliases for backward compatibility within this file
+const sanitizeInput = sanitizeUserInput;
+const detectSuspiciousInput = detectPromptInjection;
 
 // Validate and sanitize request body
 function validateRequest(body: any): { valid: boolean; error?: string; code?: string } {
@@ -505,7 +476,25 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    // ---- Rate limiting: check token usage ----
+    // ---- Per-request rate limiting ----
+    const { checkRateLimit, RATE_LIMIT_FLOWRITER } = await import('@/lib/rate-limit');
+    const rateLimit = checkRateLimit(user.id, 'flowriter', RATE_LIMIT_FLOWRITER);
+    if (!rateLimit.allowed) {
+        return new Response(JSON.stringify({
+            error: 'Trop de requêtes. Veuillez patienter avant de relancer une génération.',
+            code: 'RATE_LIMITED',
+            remaining: rateLimit.remaining,
+            resetAt: new Date(rateLimit.resetAt).toISOString(),
+        }), {
+            status: 429,
+            headers: {
+                'Content-Type': 'application/json',
+                'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+            },
+        });
+    }
+
+    // ---- Monthly token quota check ----
     const tokenCheck = await checkTokenLimit(user.id);
     if (!tokenCheck.allowed) {
         return new Response(JSON.stringify({
@@ -660,8 +649,13 @@ GÉNÈRE MAINTENANT l'article complet en suivant EXACTEMENT cette structure:`;
                 try {
                     const text = `data: ${JSON.stringify(data)}\n\n`;
                     controller.enqueue(encoder.encode(text));
-                } catch (e) {
-                    console.error("Failed to send event:", e);
+                } catch {
+                    // Stream closed — mark as closed to stop heartbeat
+                    isClosed = true;
+                    if (heartbeatInterval) {
+                        clearInterval(heartbeatInterval);
+                        heartbeatInterval = null;
+                    }
                 }
             };
 
@@ -698,7 +692,7 @@ GÉNÈRE MAINTENANT l'article complet en suivant EXACTEMENT cette structure:`;
                     message: errorInfo.message,
                     code: errorInfo.code,
                     retryable: errorInfo.retryable,
-                    details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                    // Error details intentionally omitted — use server logs for debugging
                 });
             } finally {
                 isClosed = true;

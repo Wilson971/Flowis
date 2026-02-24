@@ -60,10 +60,10 @@ export const PresetGrid = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="h-6 w-6 bg-success/5 text-success hover:bg-success/15 hover:text-success/90 transition-all"
             onClick={onOpenModal}
           >
-            <SlidersHorizontal className="w-4 h-4" />
+            <SlidersHorizontal className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>

@@ -8,6 +8,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ContentData, ProductContentBuffer } from '@/types/productContent';
@@ -122,7 +123,7 @@ export function useProductContent(productId: string | null) {
             };
         },
         enabled: !!productId,
-        staleTime: 30_000, // 30s — dedup rapid mounts; realtime/invalidation covers live updates
+        staleTime: STALE_TIMES.LIST, // dedup rapid mounts; realtime/invalidation covers live updates
         refetchOnMount: true,
         refetchOnWindowFocus: true, // Safe: content data doesn't overwrite form state
     });

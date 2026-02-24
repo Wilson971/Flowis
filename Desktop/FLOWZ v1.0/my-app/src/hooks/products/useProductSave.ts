@@ -7,7 +7,6 @@
  * - Fix: Comparaison stable des arrays (tri avant comparaison)
  */
 
-import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -270,10 +269,12 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
 
             const currentWorking = (currentProduct.working_content as ContentData) || {};
             const snapshot = currentProduct.store_snapshot_content as ContentData;
+            // ContentData has product_type but legacy data may have a `type` field
+            const workingRecord = currentWorking as ContentData & Record<string, unknown>;
             let resolvedProductType =
                 (formData.product_type && formData.product_type.length > 0) ? formData.product_type
-                : (currentWorking.product_type && (currentWorking.product_type as string).length > 0) ? currentWorking.product_type as string
-                : ((currentWorking as any).type && ((currentWorking as any).type as string).length > 0) ? (currentWorking as any).type as string
+                : (currentWorking.product_type && String(currentWorking.product_type).length > 0) ? String(currentWorking.product_type)
+                : (typeof workingRecord.type === 'string' && workingRecord.type.length > 0) ? workingRecord.type
                 : PRODUCT_TYPE_DEFAULT;
 
             // Build new working_content by merging formData over currentWorking.
@@ -294,9 +295,9 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
 
             const newWorkingContent: ContentData = { ...currentWorking, product_type: resolvedProductType };
             for (const field of MERGE_FIELDS) {
-                const formVal = (formData as any)[field];
+                const formVal = formData[field as keyof ProductSavePayload];
                 if (formVal !== undefined && formVal !== null) {
-                    (newWorkingContent as any)[field] = formVal;
+                    (newWorkingContent as Record<string, unknown>)[field] = formVal;
                 }
             }
             // SEO is nested — merge subfields
@@ -319,7 +320,7 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 ] as const;
                 for (const field of snapshotPreservableFields) {
                     if (!dirtyFields.includes(field) && snapshot[field] != null) {
-                        (newWorkingContent as any)[field] = snapshot[field];
+                        (newWorkingContent as Record<string, unknown>)[field] = snapshot[field];
                     }
                 }
                 // Also preserve product_type from snapshot if not dirty
@@ -359,7 +360,7 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 product_type: resolvedProductType,
             };
             for (const [metaKey, formKey] of META_FIELD_MAP) {
-                mergedMetadata[metaKey] = (formData as any)[formKey];
+                mergedMetadata[metaKey] = formData[formKey as keyof ProductSavePayload];
             }
 
             // SKU uniqueness check (before writing to DB)
@@ -370,16 +371,16 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
 
             // Calculate SEO score for persistence
             const seoResult = calculateProductSeoScore({
-                title: (newWorkingContent as any).title ?? formData.title ?? '',
-                short_description: (newWorkingContent as any).short_description ?? formData.short_description ?? '',
-                description: (newWorkingContent as any).description ?? formData.description ?? '',
-                meta_title: (newWorkingContent as any).seo?.title ?? formData.seo?.title ?? '',
-                meta_description: (newWorkingContent as any).seo?.description ?? formData.seo?.description ?? '',
-                slug: (newWorkingContent as any).slug ?? formData.slug ?? '',
-                images: Array.isArray((newWorkingContent as any).images)
-                    ? (newWorkingContent as any).images.map((img: any) => ({ src: img.src, alt: img.alt }))
+                title: newWorkingContent.title ?? formData.title ?? '',
+                short_description: newWorkingContent.short_description ?? formData.short_description ?? '',
+                description: newWorkingContent.description ?? formData.description ?? '',
+                meta_title: newWorkingContent.seo?.title ?? formData.seo?.title ?? '',
+                meta_description: newWorkingContent.seo?.description ?? formData.seo?.description ?? '',
+                slug: newWorkingContent.slug ?? formData.slug ?? '',
+                images: Array.isArray(newWorkingContent.images)
+                    ? newWorkingContent.images.map((img) => ({ src: img.src, alt: img.alt }))
                     : [],
-                focus_keyword: (newWorkingContent as any).seo?.focus_keyword ?? formData.seo?.focus_keyword,
+                focus_keyword: newWorkingContent.seo?.focus_keyword ?? formData.seo?.focus_keyword,
             });
 
             const now = new Date().toISOString();
@@ -477,127 +478,4 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
         isAutoSyncing,
         isSaving: mutation.isPending || isAutoSyncing,
     };
-}
-
-/**
- * Hook pour sauvegarde automatique (debounced)
- * Version 2.1 - Fix memory leak avec useRef et useEffect cleanup
- */
-export function useAutoSaveProduct() {
-    const saveProduct = useProductSave({ autoSync: false }); // Pas d'auto-sync pour auto-save
-    const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-    const isMountedRef = React.useRef(true);
-
-    // FIX B2: Stabilize mutate/mutateAsync via refs so useCallback deps don't change
-    // every render. Without this, debouncedSave is recreated every cycle, breaking debounce.
-    const mutateRef = React.useRef(saveProduct.mutate);
-    const mutateAsyncRef = React.useRef(saveProduct.mutateAsync);
-    React.useEffect(() => {
-        mutateRef.current = saveProduct.mutate;
-        mutateAsyncRef.current = saveProduct.mutateAsync;
-    });
-
-    // Cleanup on unmount
-    React.useEffect(() => {
-        isMountedRef.current = true;
-        return () => {
-            isMountedRef.current = false;
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-                timeoutRef.current = null;
-            }
-        };
-    }, []);
-
-    const debouncedSave = React.useCallback((productId: string, data: ProductSavePayload, delay = 2000) => {
-        // Cancel previous timeout
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-        }
-
-        timeoutRef.current = setTimeout(() => {
-            // Only save if component is still mounted and no save is already in-flight
-            if (isMountedRef.current && !saveProduct.isPending) {
-                mutateRef.current({ productId, data });
-            }
-            timeoutRef.current = null;
-        }, delay);
-    }, [saveProduct.isPending]); // Re-create when isPending changes
-
-    const cancelAutoSave = React.useCallback(() => {
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
-        }
-    }, []);
-
-    const flushAutoSave = React.useCallback(async (productId: string, data: ProductSavePayload) => {
-        // Cancel pending auto-save and save immediately
-        cancelAutoSave();
-        if (isMountedRef.current) {
-            return mutateAsyncRef.current({ productId, data });
-        }
-    }, [cancelAutoSave]); // Stable: cancelAutoSave has no deps
-
-    return {
-        ...saveProduct,
-        debouncedSave,
-        cancelAutoSave,
-        flushAutoSave,
-        hasPendingAutoSave: timeoutRef.current !== null,
-    };
-}
-
-/**
- * Hook pour mise à jour partielle rapide
- */
-export function useQuickUpdateProduct() {
-    const queryClient = useQueryClient();
-    const supabase = createClient();
-
-    return useMutation({
-        mutationFn: async ({
-            productId,
-            field,
-            value,
-        }: {
-            productId: string;
-            field: keyof ProductSavePayload;
-            value: unknown;
-        }) => {
-            // Récupérer et mettre à jour le working_content
-            const { data: product } = await supabase
-                .from('products')
-                .select('working_content, store_snapshot_content')
-                .eq('id', productId)
-                .single();
-
-            const working = (product?.working_content || {}) as ContentData;
-            const snapshot = product?.store_snapshot_content as ContentData;
-
-            const updatedWorking = { ...working, [field]: value };
-            const dirtyFields = computeDirtyFields(updatedWorking, snapshot);
-
-            // Defense-in-depth: scope update to authenticated user's tenant
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Authentication required');
-
-            const { error } = await supabase
-                .from('products')
-                .update({
-                    working_content: updatedWorking,
-                    dirty_fields_content: dirtyFields,
-                    working_content_updated_at: new Date().toISOString(),
-                })
-                .eq('id', productId)
-                .eq('tenant_id', user.id);
-
-            if (error) throw error;
-            return { field, value };
-        },
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['product', variables.productId] });
-            queryClient.invalidateQueries({ queryKey: ['product-content', variables.productId] });
-        },
-    });
 }

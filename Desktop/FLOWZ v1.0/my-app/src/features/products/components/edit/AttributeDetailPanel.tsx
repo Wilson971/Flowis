@@ -190,7 +190,7 @@ export function AttributeDetailPanel({
                         className={cn(
                             "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-all cursor-pointer",
                             isVisible
-                                ? "bg-emerald-500/10 border-emerald-500/30 shadow-sm"
+                                ? "bg-success/10 border-success/30 shadow-sm"
                                 : "bg-muted/20 border-border/50 hover:border-border"
                         )}
                         onClick={() =>
@@ -203,7 +203,7 @@ export function AttributeDetailPanel({
                             className={cn(
                                 "h-4 w-4 transition-colors shrink-0",
                                 isVisible
-                                    ? "text-emerald-600"
+                                    ? "text-success"
                                     : "text-muted-foreground"
                             )}
                         />
@@ -259,7 +259,7 @@ export function AttributeDetailPanel({
                 {/* Help Text */}
                 <div className={cn(
                     "p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2",
-                    isVisible && isVariation && "bg-emerald-500/5 border-emerald-500/20 text-emerald-700 dark:text-emerald-400",
+                    isVisible && isVariation && "bg-success/5 border-success/20 text-success",
                     isVisible && !isVariation && "bg-primary/5 border-primary/20 text-blue-700 dark:text-blue-400",
                     !isVisible && isVariation && "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400",
                     !isVisible && !isVariation && "bg-muted/30 border-border/50 text-muted-foreground"
@@ -330,7 +330,7 @@ export function AttributeDetailPanel({
                                 {options.map((term: string, idx: number) => {
                                     // Detect if this is a color attribute
                                     const isColorAttr = attributeName?.toLowerCase().includes("couleur") ||
-                                                       attributeName?.toLowerCase().includes("color");
+                                        attributeName?.toLowerCase().includes("color");
                                     const colorPreview = isColorAttr ? getColorPreview(term) : null;
 
                                     return (

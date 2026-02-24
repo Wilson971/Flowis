@@ -3,6 +3,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+import { STALE_TIMES } from '@/lib/query-config'
 import { createClient } from '@/lib/supabase/client'
 import { PLAN_DEFINITIONS } from '@/constants/plans'
 import type { WorkspaceUsage, WorkspacePlan } from '@/types/workspace'
@@ -98,6 +99,6 @@ export function useWorkspacePlan(workspaceId: string | undefined) {
       }
     },
     enabled: !!workspaceId,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.DETAIL,
   })
 }

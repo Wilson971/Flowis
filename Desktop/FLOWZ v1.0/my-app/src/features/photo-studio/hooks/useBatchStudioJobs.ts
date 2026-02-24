@@ -220,6 +220,7 @@ export function useBatchProgress(batchId: string | null) {
     },
     enabled: !!batchId,
     refetchInterval: (query) => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
       const result = query.state.data as BatchProgressData | undefined;
       if (!result || result.isComplete) return false;
       return 3000;

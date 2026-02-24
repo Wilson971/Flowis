@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 
 export interface SeoGlobalScoreData {
@@ -61,7 +62,7 @@ export function useSeoGlobalScore(storeId: string | null) {
             };
         },
         enabled: isValidId,
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
         placeholderData: DEFAULT_DATA,
     });
 

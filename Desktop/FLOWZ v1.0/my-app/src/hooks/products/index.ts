@@ -15,9 +15,12 @@ export {
 
 export {
     useProductSave,
-    useAutoSaveProduct,
     type ProductSavePayload,
 } from './useProductSave';
+
+export { useAutoSaveProduct } from './useAutoSaveProduct';
+
+export { useQuickUpdateProduct } from './useQuickUpdateProduct';
 
 // ============================================================================
 // VARIATIONS

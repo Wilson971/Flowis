@@ -4,6 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { STALE_TIMES } from '@/lib/query-config'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { useAuth } from '@/lib/auth/AuthContext'
@@ -43,7 +44,7 @@ export function useWebhooks() {
       return (data || []) as Webhook[]
     },
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: STALE_TIMES.LIST,
   })
 }
 

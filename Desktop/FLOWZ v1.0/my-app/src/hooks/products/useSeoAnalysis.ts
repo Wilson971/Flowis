@@ -5,6 +5,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { getScoreColor, getScoreLabel, getScoreLevelKey } from '@/lib/seo/scoreColors';
 import type { SeoLevelKey } from '@/types/seo';
@@ -82,7 +83,7 @@ export function useProductSeoScore(productId?: string) {
             return product?.seo_score as number | null;
         },
         enabled: !!productId,
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 
     const score = data ?? null;
@@ -153,6 +154,6 @@ export function useSeoStats(storeId?: string) {
             };
         },
         enabled: !!storeId,
-        staleTime: 60000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 }

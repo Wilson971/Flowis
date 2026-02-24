@@ -15,11 +15,11 @@ import {
     Loader2,
     RefreshCw,
     AlertCircle,
-    Maximize2,
     ArrowLeft,
     Save,
     SlidersHorizontal,
     LayoutGrid,
+    Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -42,7 +42,7 @@ import type { VariationImage } from "@/hooks/products/useProductVariations";
 // ============================================================================
 
 const TAB_ACCENTS = [
-    { border: "border-l-emerald-500", bg: "bg-emerald-500/5", dot: "bg-emerald-500", text: "text-emerald-600", badgeBg: "bg-emerald-500/10" },
+    { border: "border-l-success", bg: "bg-success/5", dot: "bg-success", text: "text-success", badgeBg: "bg-success/10" },
     { border: "border-l-amber-500", bg: "bg-amber-500/5", dot: "bg-amber-500", text: "text-amber-600", badgeBg: "bg-amber-500/10" },
     { border: "border-l-sky-500", bg: "bg-sky-500/5", dot: "bg-sky-500", text: "text-sky-600", badgeBg: "bg-sky-500/10" },
     { border: "border-l-purple-500", bg: "bg-purple-500/5", dot: "bg-purple-500", text: "text-purple-600", badgeBg: "bg-purple-500/10" },
@@ -242,11 +242,13 @@ export function ProductVariationsTab({
 
                         <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => setDialogOpen(true)}
-                            className="rounded-lg"
+                            className="gap-2 bg-success/5 text-success border-success/[0.02] hover:bg-success/15 hover:text-success/90 hover:border-success/20 transition-all ml-auto h-8 px-3 text-xs"
                         >
-                            <Maximize2 className="mr-2 h-4 w-4" />
-                            Ouvrir le Studio
+                            <Settings2 className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Gérer les Variations</span>
                         </Button>
                     </div>
 

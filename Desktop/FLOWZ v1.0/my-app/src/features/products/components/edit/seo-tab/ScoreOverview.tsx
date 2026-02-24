@@ -84,7 +84,7 @@ export const ScoreOverview = ({
                         </div>
                     )}
                     {criticalCount === 0 && warningCount === 0 && overallScore >= 70 && (
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/10">
+                        <div className="flex items-center gap-1.5 text-xs text-success bg-success/5 px-2.5 py-1 rounded-lg border border-success/10">
                             <CheckCircle2 className="h-3 w-3" />
                             <span>Bon travail ! Votre fiche est bien optimisée.</span>
                         </div>

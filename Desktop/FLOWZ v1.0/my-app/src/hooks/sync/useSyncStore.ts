@@ -129,7 +129,6 @@ export function useSyncStore() {
             });
 
             if (error) {
-                console.error('[useSyncStore] Edge function error:', error);
                 throw new Error(error.message || 'Sync failed');
             }
 

@@ -8,6 +8,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -117,7 +118,7 @@ export function useArticleTemplates(options: UseArticleTemplatesOptions = {}) {
       return (data || []) as ArticleTemplate[];
     },
     enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: STALE_TIMES.STATIC, // 5 minutes
   });
 }
 
@@ -453,6 +454,6 @@ export function useTemplateCategories() {
       const categories = [...new Set(data?.map((t) => t.category).filter(Boolean))] as string[];
       return categories.sort();
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: STALE_TIMES.STATIC,
   });
 }

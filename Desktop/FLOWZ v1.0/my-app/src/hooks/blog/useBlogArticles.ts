@@ -5,6 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { BlogArticle, BlogFilters, ArticleStatus } from '@/types/blog';
@@ -89,7 +90,7 @@ export function useBlogArticles(options: UseBlogArticlesOptions = {}) {
       };
     },
     enabled: enabled && !!storeId,
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: STALE_TIMES.LIST,
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -145,7 +146,7 @@ export function useBlogStats(storeId?: string) {
       };
     },
     enabled: !!storeId,
-    staleTime: 15 * 1000, // 15 seconds
+    staleTime: STALE_TIMES.REALTIME,
     refetchInterval: false,
     refetchOnWindowFocus: true,
   });

@@ -275,6 +275,7 @@ export function useSyncEngine(): SyncContextValue {
             await pauseMutation.mutateAsync(activeJobId);
             toast.info('Synchronisation mise en pause');
         } catch (error) {
+            console.warn('[useSyncEngine] Pause failed, reverting state:', error);
             // Revert state
             if (activeJob) {
                 dispatch({ type: 'JOB_UPDATE', job: activeJob });

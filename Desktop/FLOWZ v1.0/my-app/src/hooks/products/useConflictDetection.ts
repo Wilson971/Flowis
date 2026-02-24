@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ContentData } from '@/types/productContent';
@@ -195,7 +196,7 @@ export function useConflictDetection(productId?: string) {
             );
         },
         enabled: !!productId,
-        staleTime: 30000, // 30 secondes
+        staleTime: STALE_TIMES.LIST,
     });
 }
 

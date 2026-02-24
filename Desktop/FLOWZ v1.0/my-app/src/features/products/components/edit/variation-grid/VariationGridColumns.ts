@@ -53,7 +53,7 @@ export const statusBorderColors: Record<VariationStatus, string> = {
 };
 
 export const statusBgColors: Record<VariationStatus, string> = {
-    synced: "bg-emerald-500/5",
+    synced: "bg-success/5",
     new: "bg-primary/5",
     modified: "bg-amber-500/5",
     deleted: "bg-destructive/5",

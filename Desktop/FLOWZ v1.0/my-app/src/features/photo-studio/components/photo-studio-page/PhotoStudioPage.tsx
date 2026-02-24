@@ -19,6 +19,7 @@ import {
   Camera,
   Package,
   Images,
+  ImageIcon,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,7 +69,7 @@ function PhotoStudioSkeleton() {
       {/* Stats skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="border border-border">
+          <Card key={i} className="border border-border/50 bg-card/95 backdrop-blur-sm">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-10 w-10 rounded-lg" />
@@ -82,7 +83,7 @@ function PhotoStudioSkeleton() {
         ))}
       </div>
       {/* Toolbar skeleton */}
-      <Card className="border border-border">
+      <Card className="border border-border/50 bg-card/95 backdrop-blur-lg">
         <CardContent className="p-6">
           <Skeleton className="h-9 w-full max-w-sm" />
         </CardContent>
@@ -132,10 +133,10 @@ export function PhotoStudioPage() {
   // =======================================================================
   if (!data.selectedStore) {
     return (
-      <Card className="border-2 border-dashed border-border bg-muted/10">
+      <Card className="border border-border">
         <CardContent className="p-12 text-center">
           <div className="flex flex-col items-center justify-center max-w-md mx-auto">
-            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 ring-8 ring-primary/5">
+            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
               <Camera className="h-10 w-10 text-primary" />
             </div>
             <h3 className="text-xl font-semibold mb-2 text-foreground">
@@ -194,7 +195,7 @@ export function PhotoStudioPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StudioStatCard
             title="Total Produits"
             value={data.studioStats.total}
@@ -211,6 +212,12 @@ export function PhotoStudioPage() {
                 : undefined
             }
             subText="produits avec visuels"
+          />
+          <StudioStatCard
+            title="Images galerie"
+            value={data.studioStats.totalImages}
+            icon={ImageIcon}
+            subText="photos au total"
           />
           <StudioStatCard
             title="Traites par l'IA"
@@ -237,8 +244,12 @@ export function PhotoStudioPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <Card className="border border-border">
-          <CardContent className="p-6">
+        <Card className="border border-border/50 bg-card/95 backdrop-blur-lg relative overflow-hidden group hover:border-border transition-all duration-500">
+          {/* Glass reflection */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent pointer-events-none" />
+          {/* Subtle gradient accent */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.02] via-transparent to-violet-500/[0.02] pointer-events-none" />
+          <CardContent className="p-6 relative z-10">
             <StudioToolbar
               search={data.search}
               onSearchChange={data.setSearch}

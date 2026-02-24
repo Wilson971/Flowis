@@ -3,6 +3,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import type { StoreKPIs } from '@/types/store';
 
@@ -92,7 +93,7 @@ export function useStoreKPIs(storeId: string | null) {
             };
         },
         enabled: !!storeId,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: STALE_TIMES.STATIC,
     });
 }
 
@@ -141,6 +142,6 @@ export function useAllStoresKPIs() {
                     : 0,
             };
         },
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: STALE_TIMES.STATIC,
     });
 }

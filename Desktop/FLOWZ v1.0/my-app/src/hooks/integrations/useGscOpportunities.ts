@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import type { GscOpportunitiesResponse } from "@/lib/gsc/types";
 
 export function useGscOpportunities(siteId: string | null, dateRange: string) {
@@ -16,6 +17,6 @@ export function useGscOpportunities(siteId: string | null, dateRange: string) {
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 10 * 60_000,
+        staleTime: STALE_TIMES.ARCHIVE,
     });
 }

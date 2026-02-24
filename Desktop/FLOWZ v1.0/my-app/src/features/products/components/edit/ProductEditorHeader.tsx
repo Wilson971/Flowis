@@ -148,7 +148,7 @@ export const ProductEditorHeader = ({
                             </Badge>
                         )}
                         {saveStatus === 'saved' && !isDirty && !isPublishing && !isSaving && (
-                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 uppercase tracking-widest shrink-0">
+                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-success/10 text-success border-success/20 uppercase tracking-widest shrink-0">
                                 <Check className="w-2.5 h-2.5 mr-1" />
                                 Sauvegardé
                             </Badge>
@@ -258,7 +258,8 @@ export const ProductEditorHeader = ({
                 <Button
                     onClick={onSave}
                     disabled={isSaving}
-                    className="h-10 px-6 font-extrabold text-xs uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground transition-all"
+                    variant="outline"
+                    className="h-10 px-6 font-extrabold text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-primary/20"
                 >
                     {isSaving ? (
                         <>

@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import type { GscIndexationSettings } from '@/lib/gsc/types';
 
 export function useGscIndexationSettings(siteId: string | null) {
@@ -16,7 +17,7 @@ export function useGscIndexationSettings(siteId: string | null) {
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 
     const updateMutation = useMutation({

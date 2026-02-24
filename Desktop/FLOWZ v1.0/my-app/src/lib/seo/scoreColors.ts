@@ -104,15 +104,15 @@ export const getScoreBadgeStyle = (score: number): ScoreBadgeStyle => {
 
     const styles: Record<SeoLevelKey, ScoreBadgeStyle> = {
         excellent: {
-            bg: 'bg-emerald-500/10',
-            text: 'text-emerald-500',
-            border: 'border-emerald-500/20',
+            bg: 'bg-success/10',
+            text: 'text-success',
+            border: 'border-success/20',
             label: 'Excellent',
         },
         good: {
-            bg: 'bg-green-500/10',
-            text: 'text-green-500',
-            border: 'border-green-500/20',
+            bg: 'bg-success/10',
+            text: 'text-success',
+            border: 'border-success/20',
             label: 'Bon',
         },
         average: {
@@ -166,16 +166,16 @@ export const getSeoStatusColors = (score: number | null): SeoStatusColors => {
 
     const colorMap: Record<SeoLevelKey, SeoStatusColors> = {
         excellent: {
-            bg: 'bg-emerald-100 dark:bg-emerald-900/30',
-            text: 'text-emerald-700 dark:text-emerald-400',
-            border: 'border-emerald-300 dark:border-emerald-700',
-            progress: 'bg-emerald-500',
+            bg: 'bg-success/15',
+            text: 'text-success',
+            border: 'border-success/30',
+            progress: 'bg-success',
         },
         good: {
-            bg: 'bg-green-100 dark:bg-green-900/30',
-            text: 'text-green-700 dark:text-green-400',
-            border: 'border-green-300 dark:border-green-700',
-            progress: 'bg-green-500',
+            bg: 'bg-success/15',
+            text: 'text-success',
+            border: 'border-success/30',
+            progress: 'bg-success',
         },
         average: {
             bg: 'bg-amber-100 dark:bg-amber-900/30',

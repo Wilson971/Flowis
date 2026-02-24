@@ -2,9 +2,13 @@
  * Shared SSRF protection utilities.
  * Validates external URLs to prevent Server-Side Request Forgery attacks.
  *
- * Key protection: redirect: "error" rejects all redirects to prevent
- * SSRF bypass via open redirectors (attacker.com -> 169.254.169.254).
+ * Protections:
+ * 1. Hostname/IP pattern blocklist (pre-DNS)
+ * 2. DNS resolution + resolved IP validation (prevents DNS rebinding)
+ * 3. redirect: "error" rejects all redirects (prevents open redirector bypass)
  */
+
+import dns from 'node:dns/promises';
 
 const BLOCKED_IP_PATTERNS = [
   /^127\./,
@@ -29,6 +33,13 @@ const BLOCKED_HOSTNAMES = [
   'kubernetes.default.svc',
 ];
 
+/**
+ * Check if an IP address is in a blocked private/reserved range.
+ */
+function isBlockedIp(ip: string): boolean {
+  return BLOCKED_IP_PATTERNS.some((pattern) => pattern.test(ip));
+}
+
 export function validateExternalUrl(url: string): { valid: boolean; error?: string } {
   try {
     const parsed = new URL(url);
@@ -42,10 +53,9 @@ export function validateExternalUrl(url: string): { valid: boolean; error?: stri
       return { valid: false, error: 'Blocked hostname' };
     }
 
-    for (const pattern of BLOCKED_IP_PATTERNS) {
-      if (pattern.test(hostname)) {
-        return { valid: false, error: 'Blocked IP range' };
-      }
+    // Pre-DNS check: if hostname looks like an IP, validate it directly
+    if (isBlockedIp(hostname)) {
+      return { valid: false, error: 'Blocked IP range' };
     }
 
     return { valid: true };
@@ -55,8 +65,43 @@ export function validateExternalUrl(url: string): { valid: boolean; error?: stri
 }
 
 /**
+ * Resolve hostname DNS and validate that all resolved IPs are public.
+ * Prevents DNS rebinding attacks where hostname resolves to private IP.
+ */
+async function validateDnsResolution(hostname: string): Promise<void> {
+  // Skip DNS check for direct IP addresses (already validated by pattern check)
+  if (/^[\d.]+$/.test(hostname) || hostname.includes(':')) return;
+
+  try {
+    const addresses = await dns.resolve4(hostname);
+    for (const addr of addresses) {
+      if (isBlockedIp(addr)) {
+        throw new Error(`DNS resolved to blocked IP: ${addr}`);
+      }
+    }
+  } catch (err: any) {
+    if (err.message?.includes('blocked IP')) throw err;
+    // DNS resolution failure — allow fetch to fail naturally
+  }
+
+  // Also check IPv6
+  try {
+    const addresses = await dns.resolve6(hostname);
+    for (const addr of addresses) {
+      if (isBlockedIp(addr)) {
+        throw new Error(`DNS resolved to blocked IPv6: ${addr}`);
+      }
+    }
+  } catch (err: any) {
+    if (err.message?.includes('blocked IP')) throw err;
+    // No AAAA records is fine
+  }
+}
+
+/**
  * Fetch an external URL with SSRF protection.
- * Uses redirect: "error" to prevent redirect-based SSRF bypass.
+ * Validates hostname, resolves DNS to check for private IPs,
+ * and uses redirect: "error" to prevent redirect-based SSRF bypass.
  */
 export async function fetchExternalUrl(
   url: string,
@@ -66,6 +111,10 @@ export async function fetchExternalUrl(
   if (!validation.valid) {
     throw new Error(`SSRF blocked: ${validation.error}`);
   }
+
+  // DNS rebinding protection: resolve hostname and validate IPs
+  const parsed = new URL(url);
+  await validateDnsResolution(parsed.hostname);
 
   const { timeoutMs = 10_000, ...fetchOptions } = options || {};
   const controller = new AbortController();

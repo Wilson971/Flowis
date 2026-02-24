@@ -10,6 +10,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ProductFormValues } from '@/features/products/schemas/product-schema';
@@ -94,7 +95,7 @@ export function useProductVersions(options: UseProductVersionsOptions) {
             return (data || []) as ProductVersion[];
         },
         enabled: enabled && !!productId,
-        staleTime: 30_000,
+        staleTime: STALE_TIMES.LIST,
     });
 }
 
@@ -234,7 +235,6 @@ export function useRestoreProductVersion() {
             });
         },
         onError: (error: Error) => {
-            console.error('Error restoring product version:', error);
             toast.error('Erreur', {
                 description: error.message || 'Impossible de restaurer la version.',
             });

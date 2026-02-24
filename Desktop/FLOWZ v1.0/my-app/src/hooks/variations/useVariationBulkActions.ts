@@ -67,7 +67,6 @@ export function useVariationBulkActions() {
         },
         onError: (error) => {
             toast.error('Erreur lors de l\'application des actions');
-            console.error(error);
         }
     });
 

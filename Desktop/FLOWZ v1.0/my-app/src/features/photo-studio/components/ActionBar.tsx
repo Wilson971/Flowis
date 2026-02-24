@@ -31,8 +31,13 @@ export const ActionBar = ({
     <div className="flex items-center justify-between px-4 h-full">
       <div className="flex items-center gap-3">
         {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
-            <ArrowLeft className="w-4 h-4" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="gap-2 bg-success/5 text-success hover:bg-success/15 hover:text-success/90 transition-all h-8 px-3 text-xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
             Retour
           </Button>
         )}

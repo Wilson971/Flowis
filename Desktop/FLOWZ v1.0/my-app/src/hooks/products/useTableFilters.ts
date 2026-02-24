@@ -14,11 +14,17 @@ type PersistedFilters = {
     ai_status?: string;
     sync_status?: string;
     stock?: string;
+    price_range?: string;
+    price_min?: string;
+    price_max?: string;
+    sales?: string;
+    seo_score?: string;
 };
 
 const ALL_FILTER_KEYS: Array<keyof PersistedFilters> = [
     'search', 'page', 'pageSize', 'status', 'type',
     'category', 'ai_status', 'sync_status', 'stock',
+    'price_range', 'price_min', 'price_max', 'sales', 'seo_score',
 ];
 
 function saveFiltersToStorage(params: URLSearchParams): void {
@@ -31,6 +37,11 @@ function saveFiltersToStorage(params: URLSearchParams): void {
             ai_status:    params.get('ai_status')   ?? undefined,
             sync_status:  params.get('sync_status') ?? undefined,
             stock:        params.get('stock')       ?? undefined,
+            price_range:  params.get('price_range') ?? undefined,
+            price_min:    params.get('price_min')   ?? undefined,
+            price_max:    params.get('price_max')   ?? undefined,
+            sales:        params.get('sales')       ?? undefined,
+            seo_score:    params.get('seo_score')   ?? undefined,
             page:         params.has('page')     ? Number(params.get('page'))     : undefined,
             pageSize:     params.has('pageSize') ? Number(params.get('pageSize')) : undefined,
         };
@@ -126,8 +137,12 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Intentionnellement vide — exécuté une seule fois au mount
 
+    // Use a ref to always have fresh searchParams without causing callback identity changes
+    const searchParamsRef = useRef(searchParams);
+    searchParamsRef.current = searchParams;
+
     const updateParams = useCallback((updates: Record<string, any>) => {
-        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        const current = new URLSearchParams(Array.from(searchParamsRef.current.entries()));
 
         Object.entries(updates).forEach(([key, value]) => {
             if (value === undefined || value === null) {
@@ -142,7 +157,7 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
         const searchString = current.toString();
         const query = searchString ? `?${searchString}` : '';
         router.replace(`${pathname}${query}`);
-    }, [router, pathname, searchParams]);
+    }, [router, pathname]);
 
     const setSearch = useCallback((value: string) => {
         updateParams({ search: value || undefined, page: 1 });

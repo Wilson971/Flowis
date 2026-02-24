@@ -139,6 +139,7 @@ interface WorkingContent {
     short_description?: string;
     sku?: string;
     status?: string;
+    product_type?: string;
     regular_price?: string | number;
     sale_price?: string | number;
     manage_stock?: boolean;
@@ -165,6 +166,7 @@ interface WorkingContent {
     meta_description?: string;
     seo_description?: string;
     seo?: SeoData;
+    [key: string]: unknown;
 }
 
 /** Dimensions structure */
@@ -231,6 +233,7 @@ interface WooProductPayload {
     tax_status?: string;
     tax_class?: string;
     catalog_visibility?: string;
+    type?: string;
     virtual?: boolean;
     downloadable?: boolean;
     categories?: Array<{ id: number }>;
@@ -717,14 +720,22 @@ async function pushDirtyVariations(
                 createDbIds.push(v.id);
                 break;
             case 'updated':
-                if (v.external_id && !v.external_id.startsWith('local_')) {
+                if (v.external_id && !String(v.external_id).startsWith('local_')) {
                     toUpdate.push({ id: Number(v.external_id), ...variationPayload });
                     updateDbIds.push(v.id);
+                } else {
+                    // Variation was created locally and then updated before syncing
+                    toCreate.push(variationPayload);
+                    createDbIds.push(v.id);
                 }
                 break;
             case 'deleted':
-                if (v.external_id && !v.external_id.startsWith('local_')) {
+                if (v.external_id && !String(v.external_id).startsWith('local_')) {
                     toDeleteIds.push(Number(v.external_id));
+                    deleteDbIds.push(v.id);
+                } else {
+                    // Variation was created locally and deleted before syncing
+                    // We just need to remove it from DB
                     deleteDbIds.push(v.id);
                 }
                 break;
@@ -744,14 +755,22 @@ async function pushDirtyVariations(
     const batchUrl = `${baseUrl}/wp-json/wc/v3/products/${platformProductId}/variations/batch`;
     const authHeader = 'Basic ' + btoa(`${credentials.consumerKey}:${credentials.consumerSecret}`);
 
-    const response = await fetch(batchUrl, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': authHeader,
-        },
-        body: JSON.stringify(batchBody),
-    });
+    const variationAbortController = new AbortController();
+    const variationTimeoutId = setTimeout(() => variationAbortController.abort(), 25000);
+    let response: Response;
+    try {
+        response = await fetch(batchUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader,
+            },
+            body: JSON.stringify(batchBody),
+            signal: variationAbortController.signal,
+        });
+    } finally {
+        clearTimeout(variationTimeoutId);
+    }
 
     if (!response.ok) {
         const errorText = await response.text();
@@ -907,6 +926,12 @@ function buildWooProductPayload(
         payload.status = status === 'published' ? 'publish' : String(status);
     }
 
+    // Type mapping
+    const productType = getValue(['product_type', 'type']);
+    if (productType) {
+        payload.type = String(productType);
+    }
+
     // Pricing
     const regularPrice = getValue(['regular_price']);
     if (regularPrice !== undefined && regularPrice !== null) {
@@ -1024,14 +1049,22 @@ async function pushToWooCommerce(
 
         const auth = btoa(`${credentials.consumerKey}:${credentials.consumerSecret}`);
 
-        const response = await fetch(endpoint.toString(), {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${auth}`,
-            },
-            body: JSON.stringify(payload),
-        });
+        const productAbortController = new AbortController();
+        const productTimeoutId = setTimeout(() => productAbortController.abort(), 25000);
+        let response: Response;
+        try {
+            response = await fetch(endpoint.toString(), {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${auth}`,
+                },
+                body: JSON.stringify(payload),
+                signal: productAbortController.signal,
+            });
+        } finally {
+            clearTimeout(productTimeoutId);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -1285,7 +1318,26 @@ async function handleProductPush(
         // Build and validate payload
         const payload = buildWooProductPayload(workingContent, metadata);
 
+        // Determine if this is a variable product (needed for variation push regardless of product payload)
+        const isVariable = (payload as Record<string, unknown>).type === 'variable' ||
+            workingContent.product_type === 'variable' ||
+            metadata.type === 'variable';
+
         if (Object.keys(payload).length === 0) {
+            // No product-level changes, but still push dirty variations if variable product
+            if (isVariable) {
+                try {
+                    await pushDirtyVariations(
+                        supabase,
+                        credentials,
+                        product.id,
+                        product.platform_product_id,
+                        store.id
+                    );
+                } catch (variationError) {
+                    console.error('[push] Variation push error (no-payload path):', variationError);
+                }
+            }
             results.push({
                 id: product.id,
                 platformId: product.platform_product_id,
@@ -1332,24 +1384,21 @@ async function handleProductPush(
             } catch (updateError) {
                 console.error('[push] Failed to update product after push:', updateError);
             }
+        }
 
-            // ================================================================
-            // PUSH DIRTY VARIATIONS TO WOOCOMMERCE (Batch API)
-            // ================================================================
+        // ================================================================
+        // PUSH DIRTY VARIATIONS TO WOOCOMMERCE (Batch API)
+        // Always attempt variation push regardless of product push result.
+        // ================================================================
+        if (isVariable) {
             try {
-                const isVariable = payload.type === 'variable' ||
-                    workingContent.product_type === 'variable' ||
-                    metadata.type === 'variable';
-
-                if (isVariable) {
-                    await pushDirtyVariations(
-                        supabase,
-                        credentials,
-                        product.id,
-                        product.platform_product_id,
-                        store.id
-                    );
-                }
+                await pushDirtyVariations(
+                    supabase,
+                    credentials,
+                    product.id,
+                    product.platform_product_id,
+                    store.id
+                );
             } catch (variationError) {
                 console.error('[push] Variation push error (non-blocking):', variationError);
                 // Variation push failure should not block the main product push result

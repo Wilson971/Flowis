@@ -110,7 +110,6 @@ export function useUnifiedSync() {
         .in('id', productIds);
 
       if (fetchError) {
-        console.error('[useUnifiedSync] Failed to fetch products:', fetchError);
         throw new Error(`Failed to fetch products: ${fetchError.message}`);
       }
 
@@ -173,7 +172,6 @@ export function useUnifiedSync() {
         .select('id, product_id, status');
 
       if (insertError) {
-        console.error('[useUnifiedSync] Failed to insert jobs:', insertError);
         throw new Error(`Failed to queue sync: ${insertError.message}`);
       }
 

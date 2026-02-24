@@ -10,6 +10,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import type {
   Product,
@@ -18,55 +19,216 @@ import type {
   BatchJobItem,
 } from '@/types/product';
 
-/** Max products per page for list views */
-const PRODUCTS_PAGE_SIZE = 200;
-
 /**
  * List columns for product list views (excludes heavy JSONB fields).
  * Full metadata/working_content/draft_generated_content are loaded per-product via useProduct().
  */
-const LIST_COLUMNS = 'id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content, last_synced_at, stock, store_id, imported_at, updated_at, status, platform, tenant_id';
+const LIST_COLUMNS = 'id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content, last_synced_at, stock, stock_status, manage_stock, store_id, imported_at, updated_at, status, platform, tenant_id, price, regular_price, sale_price, product_type, metadata, draft_generated_content';
+
+/** Server-side filter parameters for product list queries */
+export interface ProductListFilters {
+  search?: string;
+  status?: string;
+  type?: string;
+  ai_status?: string;
+  sync_status?: string;
+  stock?: string;
+  price_range?: string;
+  price_min?: string;
+  price_max?: string;
+  seo_score?: string;
+  sales?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/** Result shape for paginated product queries */
+export interface ProductListResult {
+  products: Product[];
+  totalCount: number;
+}
 
 /**
- * Fetch products for a store with server-side pagination.
- * Heavy JSONB columns (metadata, working_content, draft_generated_content) are excluded
- * from list queries to prevent OOM on large catalogs.
+ * Apply server-side filters to a Supabase products query.
+ * Uses `any` for the query builder because Supabase's chained generic types
+ * are not inferrable across filter branches.
  */
-export function useProducts(storeId?: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyServerFilters(query: any, filters: ProductListFilters) {
+  // Text search (title or platform_product_id)
+  if (filters.search) {
+    query = query.or(`title.ilike.%${filters.search}%,platform_product_id.ilike.%${filters.search}%`);
+  }
+
+  // Status filter (uses metadata->status via JSONB operator)
+  if (filters.status && filters.status !== 'all') {
+    query = query.eq('metadata->>status', filters.status);
+  }
+
+  // Product type filter
+  if (filters.type && filters.type !== 'all') {
+    query = query.eq('product_type', filters.type);
+  }
+
+  // AI status filter
+  if (filters.ai_status && filters.ai_status !== 'all') {
+    switch (filters.ai_status) {
+      case 'optimized':
+        query = query.eq('ai_enhanced', true);
+        break;
+      case 'not_optimized':
+        query = query.eq('ai_enhanced', false);
+        break;
+      case 'has_draft':
+        query = query.not('draft_generated_content', 'is', null);
+        break;
+    }
+  }
+
+  // Sync status filter
+  if (filters.sync_status && filters.sync_status !== 'all') {
+    switch (filters.sync_status) {
+      case 'synced':
+        query = query.not('last_synced_at', 'is', null);
+        // Synced = last_synced_at exists AND no dirty fields
+        query = query.or('dirty_fields_content.is.null,dirty_fields_content.eq.[]');
+        break;
+      case 'pending':
+        query = query.not('dirty_fields_content', 'is', null).not('dirty_fields_content', 'eq', '[]');
+        break;
+      case 'never':
+        query = query.is('last_synced_at', null);
+        break;
+    }
+  }
+
+  // Stock filter
+  if (filters.stock && filters.stock !== 'all') {
+    switch (filters.stock) {
+      case 'in_stock':
+        query = query.gt('stock', 0);
+        break;
+      case 'low_stock':
+        query = query.gt('stock', 0).lte('stock', 10);
+        break;
+      case 'out_of_stock':
+        query = query.lte('stock', 0);
+        break;
+    }
+  }
+
+  // Price filter
+  if (filters.price_range && filters.price_range !== 'all') {
+    if (filters.price_range === 'custom') {
+      const min = filters.price_min ? Number(filters.price_min) : 0;
+      const max = filters.price_max ? Number(filters.price_max) : undefined;
+      query = query.gte('price', min);
+      if (max !== undefined) query = query.lte('price', max);
+    } else if (filters.price_range === '500+') {
+      query = query.gte('price', 500);
+    } else {
+      const [min, max] = filters.price_range.split('-').map(Number);
+      query = query.gte('price', min).lt('price', max);
+    }
+  }
+
+  // SEO score filter
+  if (filters.seo_score && filters.seo_score !== 'all') {
+    switch (filters.seo_score) {
+      case 'excellent':
+        query = query.gte('seo_score', 80);
+        break;
+      case 'good':
+        query = query.gte('seo_score', 50).lt('seo_score', 80);
+        break;
+      case 'low':
+        query = query.lt('seo_score', 50).not('seo_score', 'is', null);
+        break;
+      case 'none':
+        query = query.is('seo_score', null);
+        break;
+    }
+  }
+
+  // Sales filter (JSONB metadata->total_sales, cast to int)
+  if (filters.sales && filters.sales !== 'all') {
+    switch (filters.sales) {
+      case 'no_sales':
+        query = query.or('metadata->total_sales.is.null,metadata->total_sales.eq.0');
+        break;
+      case '1-10':
+        query = query.gte('metadata->total_sales', 1).lte('metadata->total_sales', 10);
+        break;
+      case '11-50':
+        query = query.gte('metadata->total_sales', 11).lte('metadata->total_sales', 50);
+        break;
+      case '50+':
+        query = query.gte('metadata->total_sales', 50);
+        break;
+    }
+  }
+
+  return query;
+}
+
+/**
+ * Fetch products for a store with server-side pagination and filtering.
+ * Uses Supabase count:'exact' + .range() for true server-side pagination.
+ */
+export function useProducts(storeId?: string, filters: ProductListFilters = {}) {
+  const page = filters.page || 1;
+  const pageSize = filters.pageSize || 25;
+
   return useQuery({
-    queryKey: ['products', storeId],
-    queryFn: async () => {
-      if (!storeId) return [];
+    queryKey: ['products', storeId, filters],
+    queryFn: async (): Promise<ProductListResult> => {
+      if (!storeId) return { products: [], totalCount: 0 };
       const supabase = createClient();
 
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       // Try with seo_score column; fall back if migration not yet applied
-      let { data, error } = await supabase
+      let query = supabase
         .from('products')
-        .select(`${LIST_COLUMNS}, seo_score`)
-        .eq('store_id', storeId)
+        .select(`${LIST_COLUMNS}, seo_score`, { count: 'exact' })
+        .eq('store_id', storeId);
+
+      query = applyServerFilters(query, filters) as typeof query;
+
+      let { data, error, count } = await query
         .order('imported_at', { ascending: false })
         .order('title', { ascending: true })
         .order('id', { ascending: true })
-        .limit(PRODUCTS_PAGE_SIZE);
+        .range(from, to);
 
       if (error && error.message?.includes('seo_score')) {
-        const retry = await supabase
+        let fallbackQuery = supabase
           .from('products')
-          .select(LIST_COLUMNS)
-          .eq('store_id', storeId)
+          .select(LIST_COLUMNS, { count: 'exact' })
+          .eq('store_id', storeId);
+
+        fallbackQuery = applyServerFilters(fallbackQuery, filters) as typeof fallbackQuery;
+
+        const retry = await fallbackQuery
           .order('imported_at', { ascending: false })
           .order('title', { ascending: true })
           .order('id', { ascending: true })
-          .limit(PRODUCTS_PAGE_SIZE);
+          .range(from, to);
         data = retry.data;
         error = retry.error;
+        count = retry.count;
       }
 
       if (error) throw error;
-      return (data || []) as Product[];
+      return {
+        products: (data || []) as Product[],
+        totalCount: count ?? 0,
+      };
     },
     enabled: !!storeId,
-    staleTime: 30000, // 30 seconds
+    staleTime: STALE_TIMES.LIST,
+    placeholderData: (prev) => prev, // Keep previous data while loading new page
   });
 }
 
@@ -82,10 +244,19 @@ export function useProduct(productId: string) {
         .from('products')
         .select(
           `
-          *,
-          studio_jobs:studio_jobs(*),
-          product_seo_analysis:product_seo_analysis(*),
-          product_serp_analysis:product_serp_analysis(*)
+          id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content,
+          last_synced_at, stock, stock_status, manage_stock, store_id, imported_at,
+          updated_at, status, platform, tenant_id, price, regular_price, sale_price,
+          product_type, sku, metadata, working_content, draft_generated_content, seo_score,
+          studio_jobs:studio_jobs(id, action, status, output_urls, error_message, created_at, batch_id)
+            .order(created_at, { ascending: false })
+            .limit(10),
+          product_seo_analysis:product_seo_analysis(id, score, title_score, description_score, created_at)
+            .order(created_at, { ascending: false })
+            .limit(1),
+          product_serp_analysis:product_serp_analysis(id, keyword, position, url, created_at)
+            .order(created_at, { ascending: false })
+            .limit(5)
         `
         )
         .eq('id', productId)
@@ -95,7 +266,7 @@ export function useProduct(productId: string) {
       return data as Product;
     },
     enabled: !!productId,
-    staleTime: 5 * 60 * 1000, // 5 minutes — avoid re-fetching during edit session
+    staleTime: STALE_TIMES.STATIC, // avoid re-fetching during edit session
     refetchOnWindowFocus: false, // Don't refetch on tab switch during editing
   });
 }
@@ -149,7 +320,7 @@ export function useProductStats(storeId?: string) {
       } as ProductStats;
     },
     enabled: !!storeId,
-    staleTime: 60000, // 1 minute
+    staleTime: STALE_TIMES.DETAIL,
   });
 }
 
@@ -203,7 +374,10 @@ export function useBatchJobItems(batchJobId: string | null, enabled: boolean = t
       return (data || []) as BatchJobItem[];
     },
     enabled: enabled && !!batchJobId,
-    staleTime: 1000, // Deduplicate concurrent poll requests
-    refetchInterval: 2000, // Poll every 2 seconds
+    staleTime: STALE_TIMES.POLLING, // Deduplicate concurrent poll requests
+    refetchInterval: () => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      return 2000;
+    },
   });
 }

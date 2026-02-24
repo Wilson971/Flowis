@@ -5,6 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { blogArticlesKeys } from './useBlogArticles';
@@ -37,7 +38,7 @@ export function useBlogArticle(id?: string, options: UseBlogArticleOptions = {})
       return data as BlogArticle;
     },
     enabled: enabled && !!id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: STALE_TIMES.STATIC,
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
@@ -46,9 +47,17 @@ export function useBlogArticle(id?: string, options: UseBlogArticleOptions = {})
 // UPDATE ARTICLE
 // ============================================================================
 
+export class StaleArticleError extends Error {
+  constructor() {
+    super('L\'article a été modifié par un autre utilisateur. Veuillez recharger la page.');
+    this.name = 'StaleArticleError';
+  }
+}
+
 interface UpdateArticleParams {
   id: string;
   updates: Partial<BlogFormData>;
+  expectedUpdatedAt?: string;
 }
 
 // Valid blog_articles DB columns (excludes id, created_at which are immutable)
@@ -68,7 +77,7 @@ export function useUpdateBlogArticle() {
   const supabase = createClient();
 
   return useMutation({
-    mutationFn: async ({ id, updates }: UpdateArticleParams) => {
+    mutationFn: async ({ id, updates, expectedUpdatedAt }: UpdateArticleParams) => {
       // Filter to valid DB columns only (form may have extra UI-only fields)
       const updateData: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(updates)) {
@@ -96,15 +105,27 @@ export function useUpdateBlogArticle() {
 
       updateData.updated_at = new Date().toISOString();
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('blog_articles')
         .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
+
+      if (expectedUpdatedAt) {
+        query = query.eq('updated_at', expectedUpdatedAt);
+      }
+
+      const { data, error } = await query.select();
 
       if (error) throw error;
-      return data as BlogArticle;
+
+      if (!data || data.length === 0) {
+        if (expectedUpdatedAt) {
+          throw new StaleArticleError();
+        }
+        throw new Error('Article introuvable.');
+      }
+
+      return data[0] as BlogArticle;
     },
     onMutate: async ({ id, updates }) => {
       // Cancel outgoing refetches

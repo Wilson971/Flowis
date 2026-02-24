@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import type { GscDashboardResponse } from "@/lib/gsc/types";
 
 /**
@@ -19,6 +20,6 @@ export function useGscDashboard(siteId: string | null, days = 28) {
             return res.json();
         },
         enabled: !!siteId,
-        staleTime: 5 * 60_000,
+        staleTime: STALE_TIMES.STATIC,
     });
 }
