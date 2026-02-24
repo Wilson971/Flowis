@@ -43,8 +43,12 @@ interface DataTableProps<TData, TValue> {
     searchKey?: string;
     searchPlaceholder?: string;
     enableColumnVisibility?: boolean;
+    columnVisibility?: VisibilityState;
+    onColumnVisibilityChange?: React.Dispatch<React.SetStateAction<VisibilityState>> | ((visibility: VisibilityState) => void);
     enablePagination?: boolean;
     pageSize?: number;
+    sorting?: SortingState;
+    onSortingChange?: React.Dispatch<React.SetStateAction<SortingState>>;
     getRowClassName?: (row: TData) => string;
     /** Rendu d'un overlay sur la ligne (pour animations de génération) */
     renderRowOverlay?: (row: TData) => React.ReactNode;
@@ -59,16 +63,31 @@ export function DataTable<TData, TValue>({
     searchKey,
     searchPlaceholder = "Search...",
     enableColumnVisibility = true,
+    columnVisibility: externalColumnVisibility,
+    onColumnVisibilityChange: setExternalColumnVisibility,
     enablePagination = true,
     pageSize = 10,
+    sorting: externalSorting,
+    onSortingChange: setExternalSorting,
     getRowClassName,
     renderRowOverlay,
     isRowGenerating,
     onTableReady,
 }: DataTableProps<TData, TValue>) {
-    const [sorting, setSorting] = React.useState<SortingState>([]);
+    const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
+
+    // Use external state if provided, otherwise fallback to internal state
+    const sorting = externalSorting !== undefined ? externalSorting : internalSorting;
+    const setSorting = setExternalSorting || setInternalSorting;
+
+
+    const [internalColumnVisibility, setInternalColumnVisibility] = React.useState<VisibilityState>({});
+
+    // Use external state if provided, otherwise fallback to internal state
+    const columnVisibility = externalColumnVisibility !== undefined ? externalColumnVisibility : internalColumnVisibility;
+    const setColumnVisibility = setExternalColumnVisibility || setInternalColumnVisibility;
+
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-    const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = React.useState({});
 
     const table = useReactTable({

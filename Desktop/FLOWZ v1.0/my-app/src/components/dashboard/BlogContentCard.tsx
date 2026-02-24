@@ -1,73 +1,138 @@
-import { FileText, PenTool, Sparkles, ArrowRight } from "lucide-react";
-import { cn } from "../../lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+"use client";
+
+import { motion } from "framer-motion";
+import { FileText, ArrowRight, PenLine } from "lucide-react";
+import { motionTokens, styles } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
+import { AnimatedCounter } from "./AnimatedCounter";
 import { Button } from "../ui/button";
-import { Progress } from "../ui/progress";
 
 type BlogContentCardProps = {
-    publishedCount: number;
-    draftsCount: number;
-    lastCreated: string;
-    onCreateArticle?: () => void;
+  publishedCount: number;
+  draftsCount: number;
+  lastCreated: string;
+  onCreateArticle?: () => void;
 };
 
+/**
+ * BlogContentCard - Premium blog statistics card
+ *
+ * Features: mini donut chart for ratio, animated counters,
+ * clean metric layout with premium hover states.
+ */
 export const BlogContentCard = ({
-    publishedCount,
-    draftsCount,
-    lastCreated,
-    onCreateArticle
+  publishedCount,
+  draftsCount,
+  lastCreated,
+  onCreateArticle,
 }: BlogContentCardProps) => {
-    const total = publishedCount + draftsCount;
-    const progress = total > 0 ? (publishedCount / total) * 100 : 0;
+  const total = publishedCount + draftsCount;
+  const publishedRatio = total > 0 ? (publishedCount / total) * 100 : 0;
 
-    return (
-        <div className="h-full p-5 flex flex-col justify-between group">
-            <div>
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 group-hover:text-foreground transition-colors border border-border">
-                        <FileText className="h-5 w-5" />
-                    </div>
-                    <div>
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider truncate">
-                            Contenu Blog
-                        </p>
-                        <h3 className="text-xl font-bold tracking-tight text-foreground">Aperçu</h3>
-                    </div>
-                </div>
-            </div>
-            <div>
-                <div className="mt-2 space-y-4">
-                    <div className="flex items-baseline justify-between">
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold tracking-tight tabular-nums text-foreground">{publishedCount}</span>
-                            <span className="text-xs text-muted-foreground font-medium">publiés</span>
-                        </div>
-                        <div className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md">
-                            {draftsCount} brouillons
-                        </div>
-                    </div>
+  // Mini donut chart calculations
+  const donutSize = 48;
+  const donutStroke = 5;
+  const donutRadius = (donutSize - donutStroke) / 2;
+  const donutCircumference = 2 * Math.PI * donutRadius;
+  const donutOffset = donutCircumference - (publishedRatio / 100) * donutCircumference;
 
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                            <span>Ratio de publication</span>
-                            <span className="tabular-nums">{Math.round(progress)}%</span>
-                        </div>
-                        <Progress value={progress} className="h-1.5 bg-muted" />
-                    </div>
-
-                    <div className="pt-4 flex items-center justify-between border-t border-border mt-4">
-                        <span className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
-                            <Sparkles className="h-3 w-3 text-amber-500" />
-                            <span className="truncate max-w-[120px]">Dernier: {lastCreated}</span>
-                        </span>
-                        {onCreateArticle && (
-                            <Button size="sm" variant="ghost" className="h-7 text-xs font-semibold gap-1 hover:text-primary p-0 hover:bg-transparent" onClick={onCreateArticle}>
-                                Rédiger <ArrowRight className="h-3 w-3" />
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="h-full p-4 flex flex-col justify-between group">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-2">
+        <div className={cn(styles.iconContainer.md, styles.iconContainer.muted, "border border-border group-hover:text-foreground transition-colors")}>
+          <FileText className="h-5 w-5 text-muted-foreground" />
         </div>
-    );
+        <div>
+          <p className={cn(styles.text.labelSmall)}>
+            Blog
+          </p>
+          <h3 className={styles.text.h4}>
+            Contenu
+          </h3>
+        </div>
+      </div>
+
+      {/* Main content: Donut + Metrics */}
+      <div className="flex items-center gap-4 mb-2">
+        {/* Mini donut chart */}
+        <div className="relative shrink-0">
+          <svg width={donutSize} height={donutSize} viewBox={`0 0 ${donutSize} ${donutSize}`} className="-rotate-90">
+            <circle
+              cx={donutSize / 2}
+              cy={donutSize / 2}
+              r={donutRadius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={donutStroke}
+              className="text-muted/30"
+            />
+            <motion.circle
+              cx={donutSize / 2}
+              cy={donutSize / 2}
+              r={donutRadius}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={donutStroke}
+              strokeLinecap="round"
+              className="text-primary"
+              strokeDasharray={donutCircumference}
+              initial={{ strokeDashoffset: donutCircumference }}
+              animate={{ strokeDashoffset: donutOffset }}
+              transition={{
+                duration: motionTokens.durations.slowest + motionTokens.durations.slow,
+                delay: motionTokens.durations.slow,
+                ease: motionTokens.easings.smooth,
+              }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-xs font-bold tabular-nums text-foreground">
+              {Math.round(publishedRatio)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Metrics */}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-baseline gap-2">
+            <AnimatedCounter
+              value={publishedCount}
+              delay={motionTokens.durations.slow}
+              className="text-2xl text-foreground"
+            />
+            <span className="text-xs text-muted-foreground font-medium">publiés</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <PenLine className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              <AnimatedCounter
+                value={draftsCount}
+                delay={motionTokens.durations.slow}
+                className="font-semibold text-foreground text-xs"
+              />
+              {" "}brouillons
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="pt-2 border-t border-border/30 flex items-center justify-between">
+        <span className="text-xs text-muted-foreground font-medium truncate max-w-[130px]">
+          Dernier: {lastCreated}
+        </span>
+        {onCreateArticle && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs font-semibold gap-1 hover:text-primary p-0 hover:bg-transparent"
+            onClick={onCreateArticle}
+          >
+            Rédiger <ArrowRight className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 };

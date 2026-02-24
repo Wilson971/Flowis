@@ -78,19 +78,26 @@ export type DashboardKPIs = {
 
   // Carte 1: Santé SEO Globale
   seoHealth: SEOHealthStats;
+  /** Score SEO du mois précédent (depuis kpi_snapshots M-1), null si pas encore de snapshot */
+  seoScorePrevMonth: number | null;
 
-  // Carte 2: Couverture du Catalogue
-  productContentGeneratedCount: number;  // Nombre total de champs produits
-  productFieldsBreakdown: ProductFieldsBreakdown; // Répartition par type de champ
-  catalogCoveragePercent: number; // % du catalogue optimisé
-  totalFieldsToOptimize: number; // Total des champs restants
+  // Carte 2: Couverture du Catalogue IA
+  productContentGeneratedCount: number;
+  productFieldsBreakdown: ProductFieldsBreakdown;
+  /** % produits avec working_content IS NOT NULL (contenu IA généré) */
+  catalogCoveragePercent: number;
+  totalFieldsToOptimize: number;
+  /** Produits avec contenu IA (working_content IS NOT NULL) */
+  aiOptimizedProducts: number;
+  /** Produits avec contenu IA le mois précédent (depuis kpi_snapshots M-1) */
+  aiOptimizedPrevMonth: number | null;
 
   // Carte 3: Contenu Blog
   blogStats: BlogStats;
 
-  // Carte 4: Temps Économisé / ROI
-  timeSavedMinutes: number; // Temps économisé en minutes
-  moneySavedEuros: number; // Valeur en euros (basée sur hourlyRate)
+  // Connexion boutique
+  /** Dernière sync réelle depuis stores.last_synced_at */
+  storeLastSyncedAt: string | null;
 
   // Legacy (pour compatibilité)
   activeShopsCount: number;

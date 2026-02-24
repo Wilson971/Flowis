@@ -154,7 +154,7 @@ export const PricingCard = ({
                                         step="0.01"
                                         {...register("sale_price")}
                                         placeholder="0.00"
-                                        className="bg-background/50 border border-border/50 pl-7 h-8 font-mono text-xs text-emerald-600"
+                                        className="bg-background/50 border border-border/50 pl-7 h-8 font-mono text-xs text-success"
                                     />
                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">
                                         €
@@ -166,8 +166,8 @@ export const PricingCard = ({
                         {/* Promotion Toggle */}
                         <div className="flex items-center justify-between py-1">
                             <div className="flex items-center gap-2">
-                                <Percent className="h-3.5 w-3.5 text-emerald-500" />
-                                <Label htmlFor="on_sale" className="text-xs font-semibold text-emerald-600">
+                                <Percent className="h-3.5 w-3.5 text-success" />
+                                <Label htmlFor="on_sale" className="text-xs font-semibold text-success">
                                     En promotion
                                 </Label>
                             </div>
@@ -175,7 +175,7 @@ export const PricingCard = ({
                                 id="on_sale"
                                 checked={onSale}
                                 onCheckedChange={(c) => setValue("on_sale", c, { shouldDirty: true })}
-                                className="h-4 w-7 scale-75 data-[state=checked]:bg-emerald-500"
+                                className="h-4 w-7 scale-75 data-[state=checked]:bg-success"
                             />
                         </div>
 
@@ -373,7 +373,7 @@ export const PricingCard = ({
                                 <select
                                     id="tax_status"
                                     {...register("tax_status")}
-                                    className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    className="flex h-8 w-full rounded-lg border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 >
                                     <option value="taxable">Taxable</option>
                                     <option value="shipping">Livraison seule</option>
@@ -399,7 +399,7 @@ export const PricingCard = ({
                             <select
                                 id="catalog_visibility"
                                 {...register("catalog_visibility")}
-                                className="flex h-8 w-full rounded-md border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                className="flex h-8 w-full rounded-lg border border-border/50 bg-background/50 px-3 py-1 text-xs shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
                                 <option value="visible">Visible (catalogue + recherche)</option>
                                 <option value="catalog">Catalogue uniquement</option>

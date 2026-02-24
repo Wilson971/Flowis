@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { useWatch, Controller } from 'react-hook-form';
 import { Globe, Smartphone, Sparkles, Check, X, Wand2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -82,7 +83,7 @@ export function ArticleSeoPreviewTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                 onClick={() => draftActions.handleAcceptField(field)}
                 disabled={draftActions.isAccepting}
               >
@@ -100,7 +101,7 @@ export function ArticleSeoPreviewTab() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="h-6 w-6 p-0 text-destructive hover:text-red-700 hover:bg-destructive/10"
                 onClick={() => draftActions.handleRejectField(field)}
                 disabled={draftActions.isRejecting}
               >
@@ -127,7 +128,7 @@ export function ArticleSeoPreviewTab() {
           <Wand2 className="h-3 w-3" />
           Suggestion IA
         </div>
-        <div dangerouslySetInnerHTML={{ __html: String(suggestion) }} />
+        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(String(suggestion)) }} />
       </div>
     );
   };

@@ -62,7 +62,8 @@ my-app/src/
 │   │   ├── constants/      # Scene presets
 │   │   └── types/          # StudioJobStatus, BatchAction
 │   ├── products/           # Product editor feature module
-│   └── seo-analysis/       # SEO scoring & recommendations
+│   ├── gsc/                # Google Search Console integration
+│   └── sync/               # Sync state machine, SyncProvider, subscriptions
 ├── hooks/                  # Domain-specific hooks (blog/, products/, sync/)
 ├── lib/
 │   ├── supabase/           # Browser & server clients
@@ -159,6 +160,7 @@ import { styles, motionTokens, typographyTokens } from '@/lib/design-system'
 7. **NO `rounded-md`** - Use `rounded-lg` (buttons/inputs) or `rounded-xl` (cards)
 8. **ALWAYS use `cn()`** for combining classes
 9. **ALWAYS use shadcn/ui** components (Card, Button, Badge, etc.)
+10. **App Shell (sidebar + layout wrapper) stays DARK** even in light mode — use hardcoded dark colors (`bg-[#0e0e0e]`, `text-white`, `text-neutral-500`) in `AppLayout.tsx` and `AppSidebar.tsx`. Do NOT replace with semantic variables (`bg-background`, `text-foreground`) in these files.
 
 ### Class Utilities
 
@@ -277,8 +279,8 @@ permalink:         wc.permalink          ?? metadata.permalink              ?? n
 ## Environment Variables
 
 Required in `.env.local` (within `my-app/`):
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 - `GEMINI_API_KEY` - Google GenAI API key (server-side only)
 
 ## Supabase
@@ -306,6 +308,7 @@ To apply migrations: `supabase db push`
 - `my-app/src/app/api/flowriter/stream/route.ts` - Main AI generation endpoint
 - `my-app/src/schemas/flowriter.ts` - Zod schemas with security validation
 - `my-app/src/lib/design-system/` - FLOWZ design tokens
+- `my-app/src/lib/rate-limit.ts` - Per-user per-endpoint rate limiting (in-memory sliding window)
 - `my-app/src/hooks/blog/` - Blog/article CRUD and AI actions
 - `my-app/src/components/article-editor/` - TipTap editor with AI features
 - `my-app/src/features/photo-studio/` - Photo Studio feature module
@@ -427,13 +430,30 @@ docs/reports/
 └── templates/       # Report templates for consistency
 ```
 
-### 🔍 Recent Audits
+### Recent Audits
 
-**[2026-02-14 - Flow Édition de Produit](docs/reports/audits/2026-02/2026-02-14-audit-flow-edition-produit.md)**
-- **Périmètre:** ProductEditorContainer + 9 critical hooks
-- **Problèmes:** 47 total (12 🔴 CRITICAL, 18 🟠 IMPORTANT, 17 🟡 MODERATE)
+**[2026-02-24 - Full Codebase Adversarial Review](docs/reports/code-reviews/2026-02-24-adversarial-review-full-codebase.md)**
+- **Scope:** Entire codebase — Security, Performance, Quality, Architecture
+- **Findings:** 61 total (7 CRITICAL, 17 HIGH, 30 MEDIUM, 7 LOW)
+- **CRITICAL fixes applied:** SSRF DNS validation, rate limiting (4 endpoints), IDOR tenant_id, SSE memory leak, batch OOM protection
+- **HIGH fixes applied:** Error info disclosure, CSRF atomic state, polling visibility check (9 hooks), SELECT * reduction, info disclosure sanitization
+- **Status:** All 7 CRITICAL + 11/17 HIGH fixed (4 already mitigated, 2 deferred to feature sprint)
+
+**[2026-02-23 - Adversarial Code Review](docs/reports/code-reviews/2026-02-23-adversarial-review-codebase.md)**
+- **Scope:** API routes, auth/RLS, data flow, performance
+- **Findings:** 12 total (4 HIGH, 8 MEDIUM)
+- **Top Issues:** SSRF bypass, unbounded fetches, IDOR, base64 in DB, XSS
+- **Status:** HIGH fixes required before production
+
+**[2026-02-23 - Design System Violations](docs/reports/audits/2026-02/2026-02-23-audit-design-system-violations.md)**
+- **Scope:** All components + features
+- **Findings:** ~150+ violations (80+ hardcoded colors, 35+ hardcoded durations, 13 rounded-md, 7 p-5)
+- **Worst offenders:** features/gsc/, components/landing/, photo-studio/
+
+**[2026-02-14 - Flow Edition de Produit](docs/reports/audits/2026-02/2026-02-14-audit-flow-edition-produit.md)**
+- **Scope:** ProductEditorContainer + 9 critical hooks
+- **Findings:** 47 total (12 CRITICAL, 18 IMPORTANT, 17 MODERATE)
 - **Top Issues:** Race conditions, memory leaks, XSS, type safety
-- **Status:** ⚠️ Critical fixes required before production
 
 ### 📝 Creating New Reports
 
@@ -453,13 +473,21 @@ cp docs/reports/templates/performance-report-template.md docs/reports/performanc
 claude /flowz-perf
 ```
 
-### 📈 Quality Metrics
+### Quality Metrics
 
 | Metric | Current | Target | Status |
 |--------|---------|--------|--------|
 | Test Coverage | 0% | 80%+ | 🔴 |
-| OWASP Score | 4/10 | 9/10 | 🔴 |
+| Security (OWASP) | 0 CRITICAL, 0 HIGH open (2 deferred) | 0 HIGH | 🟢 |
+| DS Compliance | ~150 violations | 0 | 🟡 |
+| Console.log | ~140 remaining | 0 client-side | 🟡 |
+| Dead Code | Clean (0 broken imports) | Clean | 🟢 |
 | Bundle Size | ~250KB | <150KB | 🟡 |
-| Auto-save Latency | 1.2s | <300ms | 🔴 |
+
+### Known Duplicate Hooks (intentional — planned consolidation)
+
+- `hooks/products/usePushToStore.ts` — Product UI (list, table, editor), has auth check + error handling
+- `hooks/sync/usePushToStore.ts` — Auto-sync after save (useAutoSync), has retry + article support
+- `hooks/products/useSeoAnalysis.ts` vs `features/products/hooks/useSeoAnalysis.ts` — Different scopes (global list vs editor)
 
 **See [docs/reports/README.md](docs/reports/README.md) for full documentation.**

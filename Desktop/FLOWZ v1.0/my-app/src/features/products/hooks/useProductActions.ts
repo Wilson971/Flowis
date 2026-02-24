@@ -9,8 +9,8 @@ export const useProductActions = ({
     productId: string;
     availableCategories?: AvailableCategory[];
 }) => {
-    // useProductSave avec autoSync: true pour synchroniser automatiquement vers WooCommerce
-    const { mutateAsync, isPending, isAutoSyncing, isSaving } = useProductSave({ autoSync: true });
+    // useProductSave avec autoSync: false — la publication vers WooCommerce est maintenant explicite (bouton "Publier")
+    const { mutateAsync, isPending, isAutoSyncing, isSaving } = useProductSave({ autoSync: false });
 
     const handleSave = async (data: ProductFormValues) => {
         try {

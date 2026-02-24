@@ -9,7 +9,13 @@ const nextConfig = {
         root: __dirname,
     },
     reactStrictMode: true,
+    compiler: {
+        removeConsole: process.env.NODE_ENV === 'production' ? {
+            exclude: ['error', 'warn'],
+        } : false,
+    },
     typescript: {
+        // TODO: Fix all pre-existing type errors then set to false
         ignoreBuildErrors: true,
     },
     images: {

@@ -15,9 +15,12 @@ export {
 
 export {
     useProductSave,
-    useAutoSaveProduct,
     type ProductSavePayload,
 } from './useProductSave';
+
+export { useAutoSaveProduct } from './useAutoSaveProduct';
+
+export { useQuickUpdateProduct } from './useQuickUpdateProduct';
 
 // ============================================================================
 // VARIATIONS
@@ -49,29 +52,32 @@ export {
 } from './useProductCategories';
 
 // ============================================================================
-// PUSH TO STORE
+// PUSH TO STORE (consolidated in hooks/sync/usePushToStore)
 // ============================================================================
 export {
     usePushToStore,
+    usePushProductBatch,
     usePushSingleProduct,
+    usePushProductToStore,
+    usePushArticleToStore,
     useUnsyncedProducts,
     useCancelProductSync,
     useRevertToOriginal,
+    useAutoSync,
     type PushResult,
     type PushResponse,
-} from './usePushToStore';
+    type PushType,
+} from '../sync/usePushToStore';
 
 // ============================================================================
 // SEO ANALYSIS
 // ============================================================================
 export {
-    useSeoAnalysis,
+    useProductSeoScore,
+    useSeoStats,
     getSeoStatus,
     getSeoColor,
     getSeoLabel,
-    type SeoAnalysis,
-    type SeoScore,
-    type SeoIssue,
     type SeoStatus,
 } from './useSeoAnalysis';
 
@@ -96,14 +102,6 @@ export {
 } from './useSyncHistory';
 
 // ============================================================================
-// REALTIME
-// ============================================================================
-export {
-    useProductRealtime,
-    useProductListRealtime,
-} from './useProductRealtime';
-
-// ============================================================================
 // BATCH GENERATION
 // ============================================================================
 export { useBatchGeneration } from './useBatchGeneration';
@@ -117,11 +115,6 @@ export {
     type BatchJob,
     type BatchJobItem,
 } from './useBatchProgress';
-
-// ============================================================================
-// APPROVAL (existing)
-// ============================================================================
-export * from './useApproval';
 
 // ============================================================================
 // PRODUCTS CRUD & LISTING

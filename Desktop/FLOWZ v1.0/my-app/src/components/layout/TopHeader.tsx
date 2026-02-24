@@ -31,6 +31,7 @@ import { useSidebarPreference } from "../../contexts/SidebarContext";
 import Link from "next/link";
 import { useSettingsModal } from "@/contexts/SettingsModalContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useUserProfile } from "@/hooks/profile/useUserProfile";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -45,13 +46,18 @@ export const TopHeader = () => {
   const { isCollapsed, toggleSidebar, isReady } = useSidebarPreference();
   const { openSettings } = useSettingsModal();
   const { user, signOut } = useAuth();
+  const { profile } = useUserProfile();
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Get user display info
-  const userEmail = user?.email || "user@flowz.com";
-  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Utilisateur";
-  const userAvatar = user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  // Get user display info — prefer profile data (updated in real-time) over auth metadata
+  const userEmail = profile?.email || user?.email || "user@flowz.com";
+  const userName = profile?.full_name
+    || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
+    || user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || "Utilisateur";
+  const userAvatar = profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
   const userInitials = userName
     .split(" ")
     .map((n: string) => n[0])
@@ -143,7 +149,7 @@ export const TopHeader = () => {
 
                 <div className="p-1">
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 px-2 py-1.5 rounded focus:bg-primary/10 focus:text-primary transition-colors">
-                    {/* @ts-ignore */}
+                    {/* @ts-expect-error -- DropdownMenuItem asChild + Link type mismatch */}
                     <Link href="/app/products" className="flex items-center w-full">
                       <div className="w-7 h-7 rounded bg-muted border border-border/50 flex items-center justify-center shrink-0">
                         <Package className="w-3.5 h-3.5 text-muted-foreground" />
@@ -155,7 +161,7 @@ export const TopHeader = () => {
                   </DropdownMenuItem>
 
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 px-2 py-1.5 rounded focus:bg-primary/10 focus:text-primary transition-colors">
-                    {/* @ts-ignore */}
+                    {/* @ts-expect-error -- DropdownMenuItem asChild + Link type mismatch */}
                     <Link href="/content" className="flex items-center w-full">
                       <div className="w-7 h-7 rounded bg-muted border border-border/50 flex items-center justify-center shrink-0">
                         <FileText className="w-3.5 h-3.5 text-muted-foreground" />

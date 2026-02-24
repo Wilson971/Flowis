@@ -16,8 +16,8 @@ Next.js App Router (src/app/)
   +-- Feature Modules (src/features/)
   |     |-- photo-studio/   -> AI product photography
   |     |-- products/        -> Product editor + variations
-  |     |-- dashboard/       -> Overview & KPIs
-  |     +-- seo-analysis/    -> SEO scoring
+  |     |-- gsc/             -> Google Search Console integration
+  |     +-- sync/            -> Sync state machine, SyncProvider
   |
   +-- Shared Components (src/components/)
   |     |-- ui/              -> shadcn/ui primitives (40+)

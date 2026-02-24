@@ -334,22 +334,6 @@ export const ProductMediaTab = () => {
                 </div>
             )}
 
-            {/* Studio Button */}
-            {studioProduct && (
-                <div className="flex justify-end">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setStudioOpen(true)}
-                        className="gap-2 bg-primary/5 text-primary border-primary/20 hover:bg-primary/10"
-                    >
-                        <Camera className="h-4 w-4" />
-                        Ouvrir le Studio
-                    </Button>
-                </div>
-            )}
-
             <ProductImageGallery
                 images={galleryImages}
                 uploadingItems={uploadingItems}
@@ -363,6 +347,20 @@ export const ProductMediaTab = () => {
                 allowDelete={true}
                 allowReorder={true}
                 showPrimaryBadge={true}
+                actionButton={
+                    studioProduct ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setStudioOpen(true)}
+                            className="gap-2 bg-success/5 text-success border-success/[0.02] hover:bg-success/15 hover:text-success/90 hover:border-success/20 transition-all h-8 px-3 text-xs"
+                        >
+                            <Camera className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Photo Studio AI</span>
+                        </Button>
+                    ) : undefined
+                }
             />
 
             {/* Scene Studio Dialog */}

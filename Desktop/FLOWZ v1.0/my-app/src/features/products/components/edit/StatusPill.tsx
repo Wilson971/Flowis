@@ -12,10 +12,10 @@ import type { ProductFormValues } from "../../schemas/product-schema";
 // ============================================================================
 
 export const STATUS_OPTIONS = [
-    { value: "publish", label: "Publi\u00e9", dotClass: "bg-emerald-500", textClass: "text-emerald-700 dark:text-emerald-400" },
+    { value: "publish", label: "Publi\u00e9", dotClass: "bg-success", textClass: "text-success" },
     { value: "draft", label: "Brouillon", dotClass: "bg-zinc-400", textClass: "text-muted-foreground" },
     { value: "pending", label: "En attente", dotClass: "bg-amber-500", textClass: "text-amber-700 dark:text-amber-400" },
-    { value: "private", label: "Priv\u00e9", dotClass: "bg-blue-500", textClass: "text-blue-700 dark:text-blue-400" },
+    { value: "private", label: "Priv\u00e9", dotClass: "bg-primary", textClass: "text-blue-700 dark:text-blue-400" },
 ] as const;
 
 // ============================================================================
@@ -54,7 +54,7 @@ export const StatusPill = () => {
                             setOpen(false);
                         }}
                         className={cn(
-                            "flex items-center gap-2.5 w-full px-3 py-2 rounded-md text-sm transition-colors cursor-pointer",
+                            "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
                             status === opt.value
                                 ? "bg-muted font-semibold"
                                 : "hover:bg-muted/50"

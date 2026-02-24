@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -62,7 +63,7 @@ function StatusBadge({ status }: StatusBadgeProps) {
   const config = {
     draft: { label: 'Brouillon', color: 'bg-muted text-muted-foreground' },
     scheduled: { label: 'Planifié', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-    published: { label: 'Publié', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    published: { label: 'Publié', color: 'bg-emerald-100 text-emerald-700 dark:bg-green-900/30 dark:text-emerald-400' },
     archived: { label: 'Archivé', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
   };
 
@@ -497,10 +498,10 @@ export function BlogEditor({ postId }: BlogEditorProps) {
                 <div className="space-y-2">
                   <Label>Aperçu Google</Label>
                   <div className="p-4 bg-card rounded-lg border">
-                    <p className="text-blue-600 hover:underline cursor-pointer font-medium text-base">
+                    <p className="text-primary hover:underline cursor-pointer font-medium text-base">
                       {metaTitle || title || 'Titre de votre article'}
                     </p>
-                    <p className="text-xs text-green-700 mt-0.5">
+                    <p className="text-xs text-emerald-700 mt-0.5">
                       www.votresite.com/blog/{article.slug || 'article'}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -529,10 +530,10 @@ export function BlogEditor({ postId }: BlogEditorProps) {
             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
               <p className={styles.text.labelSmall}>Aperçu Google</p>
               <div className="p-3 bg-card rounded border">
-                <p className="text-blue-600 hover:underline cursor-pointer font-medium">
+                <p className="text-primary hover:underline cursor-pointer font-medium">
                   {metaTitle || title}
                 </p>
-                <p className="text-xs text-green-700">
+                <p className="text-xs text-emerald-700">
                   www.votresite.com/blog/{article.slug}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -544,7 +545,7 @@ export function BlogEditor({ postId }: BlogEditorProps) {
             {/* Article Content */}
             <div className="prose prose-sm dark:prose-invert max-w-none">
               <h1>{title}</h1>
-              <div dangerouslySetInnerHTML={{ __html: content }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
             </div>
           </div>
         </DialogContent>

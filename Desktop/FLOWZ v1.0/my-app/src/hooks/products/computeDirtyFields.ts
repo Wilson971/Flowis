@@ -22,7 +22,7 @@ function norm(v: unknown): string {
     if (v === null || v === undefined) return '';
     if (typeof v === 'boolean') return v ? '1' : '0';
     if (typeof v === 'number') return isNaN(v) ? '' : String(v);
-    if (typeof v === 'string') return v.trim();
+    if (typeof v === 'string') return v;
     return JSON.stringify(v);
 }
 
@@ -132,11 +132,12 @@ export function computeDirtyFields(
         dirty.push('attributes');
     }
 
-    // --- Variations (for variable products) ---
-    const varKey = (v: any) => String(v?.id || '');
-    if (normArray(working.variations as any, varKey) !== normArray(snapshot.variations as any, varKey)) {
-        dirty.push('variations');
-    }
+    // --- Variations ---
+    // Variation dirty tracking is handled by the `is_dirty` flag in the
+    // `product_variations` table (see useDirtyVariationsCount).
+    // `working_content.variations` is a legacy array of WC variation IDs
+    // that is NOT updated by the variation manager, so comparing it here
+    // creates permanent false-positive "variations" dirty fields.
 
     return dirty;
 }

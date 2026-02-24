@@ -193,7 +193,7 @@ export const SimpleProductsList = ({
               transition={{ duration: 0.4, delay: index * 0.05 }}
             >
               <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
-                <CardContent className="p-5">
+                <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     {/* Image du produit */}
                     <motion.div

@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -183,7 +184,7 @@ export function useProductVariations({
             return (data || []) as ProductVariation[];
         },
         enabled: enabled && !!storeId && !!platformProductId,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: STALE_TIMES.STATIC,
     });
 
     // Convert to app variations
@@ -298,7 +299,7 @@ export function useDirtyVariationsCount(productId?: string, storeId?: string) {
             return count ?? 0;
         },
         enabled: !!productId && !!storeId,
-        staleTime: 10_000, // 10 seconds — refresh often enough for sync UX
+        staleTime: STALE_TIMES.REALTIME, // refresh often enough for sync UX
     });
 }
 

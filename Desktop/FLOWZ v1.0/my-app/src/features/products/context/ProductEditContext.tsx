@@ -98,8 +98,8 @@ export interface ProductEditContextType {
         isAtSavedState: boolean;
     };
 
-    // Auto-save status
-    autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
+    // Save status (manual save feedback)
+    saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 // ============================================================================

@@ -11,7 +11,9 @@
 import { GoogleGenAI } from '@google/genai';
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { fetchImageSafe } from '@/lib/ssrf';
 import { batchGenerationRequestSchema } from '@/schemas/batch-generation';
+import { detectPromptInjection } from '@/lib/ai/prompt-safety';
 import {
     buildProductTitlePrompt,
     buildShortDescriptionPrompt,
@@ -23,6 +25,7 @@ import {
     parseGeminiResponse,
 } from '@/lib/ai/product-prompts';
 import type { ModularGenerationSettings } from '@/types/imageGeneration';
+import { calculateProductSeoScore } from '@/lib/seo/analyzer';
 
 // ============================================================================
 // RUNTIME CONFIG
@@ -71,50 +74,13 @@ function classifyError(error: any): { retryable: boolean; code: string; message:
 }
 
 // ============================================================================
-// IMAGE FETCHING + SSRF PROTECTION
+// IMAGE FETCHING (uses shared SSRF protection from @/lib/ssrf)
 // ============================================================================
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
-
-const BLOCKED_IP_PATTERNS = [
-    /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./,
-    /^192\.168\./, /^169\.254\./, /^0\./, /^::1$/, /^fc00:/i, /^fe80:/i,
-];
-const BLOCKED_HOSTNAMES = ['localhost', 'metadata.google.internal', 'metadata.google', 'instance-data'];
-
-function validateImageUrl(urlString: string): boolean {
-    try {
-        const parsed = new URL(urlString);
-        if (!['http:', 'https:'].includes(parsed.protocol)) return false;
-        const hostname = parsed.hostname.toLowerCase();
-        if (BLOCKED_HOSTNAMES.some(h => hostname === h || hostname.endsWith('.' + h))) return false;
-        if (BLOCKED_IP_PATTERNS.some(p => p.test(hostname))) return false;
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-async function fetchImageAsBase64(imageUrl: string): Promise<{ data: string; mimeType: string } | null> {
-    if (!validateImageUrl(imageUrl)) return null;
-
-    try {
-        const response = await fetch(imageUrl, {
-            headers: { Accept: 'image/*' },
-            signal: AbortSignal.timeout(15000), // 15s timeout for image fetch
-        });
-        if (!response.ok) return null;
-
-        const buffer = await response.arrayBuffer();
-        if (buffer.byteLength > MAX_IMAGE_SIZE) return null;
-
-        const data = Buffer.from(buffer).toString('base64');
-        const mimeType = response.headers.get('content-type') || 'image/jpeg';
-        return { data, mimeType };
-    } catch {
-        return null;
-    }
-}
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB per image
+const MAX_BATCH_IMAGE_BUDGET = 50 * 1024 * 1024; // 50 MB total per batch
+const MAX_CONCURRENT_IMAGE_FETCHES = 5;
+const MAX_PRODUCTS_PER_BATCH = 100;
 
 // ============================================================================
 // GEMINI CALL WITH RETRY
@@ -176,28 +142,51 @@ interface ProductRow {
     price?: number;
     sku?: string;
     product_type?: string;
-    metadata?: any;
-    working_content?: any;
-    draft_generated_content?: any;
+    metadata?: Record<string, unknown>;
+    working_content?: Record<string, unknown>;
+    draft_generated_content?: Record<string, unknown>;
+}
+
+interface MetadataJsonb {
+    description?: string;
+    short_description?: string;
+    categories?: Array<{ name?: string }>;
+    attributes?: Array<{ name: string; options: string[] }>;
+    price?: string | number;
+    regular_price?: string | number;
+    sku?: string;
+    images?: Array<{ src?: string; url?: string; id?: string | number; alt?: string }>;
+    tags?: Array<{ name?: string }>;
+    [key: string]: unknown;
+}
+
+interface WorkingJsonb {
+    title?: string;
+    description?: string;
+    short_description?: string;
+    images?: Array<{ id?: string | number; src?: string; alt?: string }>;
+    slug?: string;
+    seo?: { title?: string; description?: string };
+    [key: string]: unknown;
 }
 
 function extractProductContext(product: ProductRow) {
-    const meta = product.metadata || {};
-    const working = product.working_content || {};
+    const meta = (product.metadata || {}) as MetadataJsonb;
+    const working = (product.working_content || {}) as WorkingJsonb;
 
     return {
         title: working.title || product.title,
         currentDescription: working.description || meta.description || '',
         shortDescription: working.short_description || meta.short_description || '',
-        categories: meta.categories?.map((c: any) => c.name || c).filter(Boolean) || [],
-        attributes: meta.attributes?.map((a: any) => ({
+        categories: meta.categories?.map((c) => c.name || '').filter(Boolean) || [],
+        attributes: meta.attributes?.map((a) => ({
             name: a.name,
             options: a.options,
         })) || [],
         price: product.price || meta.price || meta.regular_price,
         sku: product.sku || meta.sku,
         imageUrl: product.image_url || meta.images?.[0]?.src,
-        tags: meta.tags?.map((t: any) => t.name || t).filter(Boolean) || [],
+        tags: meta.tags?.map((t) => t.name || '').filter(Boolean) || [],
     };
 }
 
@@ -211,7 +200,8 @@ function buildPromptForField(
     fieldType: FieldType,
     productCtx: ReturnType<typeof extractProductContext>,
     settings: ModularGenerationSettings,
-    hasImage: boolean
+    hasImage: boolean,
+    storeName?: string
 ): string {
     switch (fieldType) {
         case 'title':
@@ -221,7 +211,7 @@ function buildPromptForField(
         case 'description':
             return buildDescriptionPrompt(productCtx, settings);
         case 'seo_title':
-            return buildSeoTitlePrompt(productCtx, settings);
+            return buildSeoTitlePrompt(productCtx, settings, storeName);
         case 'meta_description':
             return buildMetaDescriptionPrompt(productCtx, settings);
         case 'sku':
@@ -236,8 +226,6 @@ function buildPromptForField(
 // ============================================================================
 
 export async function POST(request: NextRequest) {
-    console.log('[batch-generation] POST received');
-
     // 1. Validate API key
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -245,11 +233,30 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: 'GEMINI_API_KEY not configured' }, { status: 500 });
     }
 
-    // 2. Parse and validate request body
+    // 2. Authenticate user (before body parsing — SEC-04)
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.error('[batch-generation] Auth failed:', authError?.message);
+        return Response.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+    // 2b. Per-request rate limiting
+    const { checkRateLimit, RATE_LIMIT_BATCH_GENERATION } = await import('@/lib/rate-limit');
+    const rateLimit = checkRateLimit(user.id, 'batch-generation', RATE_LIMIT_BATCH_GENERATION);
+    if (!rateLimit.allowed) {
+        return Response.json(
+            { error: 'Trop de requêtes batch. Veuillez patienter.' },
+            {
+                status: 429,
+                headers: { 'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) },
+            }
+        );
+    }
+
+    // 3. Parse and validate request body
     let body: any;
     try {
         body = await request.json();
-        console.log('[batch-generation] Body parsed:', JSON.stringify(body).slice(0, 200));
     } catch {
         console.error('[batch-generation] Invalid JSON body');
         return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
@@ -264,21 +271,37 @@ export async function POST(request: NextRequest) {
         );
     }
     const { product_ids, content_types, settings, store_id } = validation.data;
-    console.log('[batch-generation] Validated:', { product_ids, content_types, store_id });
 
-    // 3. Authenticate user
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        console.error('[batch-generation] Auth failed:', authError?.message);
-        return Response.json({ error: 'Non authentifié' }, { status: 401 });
+    // Prompt injection check on user-provided text fields in settings
+    const settingsRecord = settings as Record<string, unknown>;
+    const textFieldsToCheck = [
+        settingsRecord?.custom_instructions,
+        settingsRecord?.brand_voice,
+        settingsRecord?.target_audience,
+        settingsRecord?.additional_context,
+    ].filter((v): v is string => typeof v === 'string' && v.length > 0);
+
+    for (const field of textFieldsToCheck) {
+        if (detectPromptInjection(field)) {
+            return Response.json(
+                { error: 'Les paramètres contiennent du contenu non autorisé.' },
+                { status: 400 }
+            );
+        }
     }
-    console.log('[batch-generation] Authenticated user:', user.id);
+
+    // Validate product count to prevent OOM
+    if (product_ids.length > MAX_PRODUCTS_PER_BATCH) {
+        return Response.json(
+            { error: `Maximum ${MAX_PRODUCTS_PER_BATCH} produits par batch` },
+            { status: 400 }
+        );
+    }
 
     // Verify store ownership (stores table uses tenant_id, not user_id)
     const { data: store, error: storeError } = await supabase
         .from('stores')
-        .select('id, tenant_id')
+        .select('id, tenant_id, name')
         .eq('id', store_id)
         .eq('tenant_id', user.id)
         .single();
@@ -287,8 +310,6 @@ export async function POST(request: NextRequest) {
         console.error('[batch-generation] Store not found or access denied:', storeError?.message);
         return Response.json({ error: 'Boutique non trouvée ou accès refusé' }, { status: 403 });
     }
-    console.log('[batch-generation] Store verified:', store.id);
-
     // 4. Determine enabled content types
     const enabledTypes = (Object.entries(content_types) as [FieldType, boolean | undefined][])
         .filter(([, enabled]) => enabled)
@@ -304,7 +325,7 @@ export async function POST(request: NextRequest) {
         .insert({
             tenant_id: user.id,
             store_id,
-            content_types: content_types as any,
+            content_types: content_types as Record<string, boolean>,
             status: 'pending',
             total_items: product_ids.length,
             processed_items: 0,
@@ -322,8 +343,6 @@ export async function POST(request: NextRequest) {
         console.error('[batch-generation] Failed to create batch job:', jobError?.message);
         return Response.json({ error: 'Impossible de créer le batch job' }, { status: 500 });
     }
-    console.log('[batch-generation] Batch job created:', batchJob.id);
-
     // 6. Create batch job items
     const items = product_ids.map((pid) => ({
         batch_job_id: batchJob.id,
@@ -351,11 +370,41 @@ export async function POST(request: NextRequest) {
                 try {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
                 } catch {
+                    // Stream closed — stop heartbeat immediately
                     isClosed = true;
+                    if (heartbeatInterval) {
+                        clearInterval(heartbeatInterval);
+                        heartbeatInterval = null;
+                    }
                 }
             };
 
             try {
+                // Image cache to avoid fetching the same URL multiple times (C6/C7)
+                const imageCache = new Map<string, { data: string; mimeType: string }>();
+                let totalImageBytes = 0;
+
+                async function fetchImageWithBudget(url: string): Promise<{ data: string; mimeType: string } | null> {
+                    // Check cache first (deduplication)
+                    const cached = imageCache.get(url);
+                    if (cached) return cached;
+
+                    // Check total budget
+                    if (totalImageBytes >= MAX_BATCH_IMAGE_BUDGET) {
+                        return null; // Budget exhausted
+                    }
+
+                    try {
+                        const result = await fetchImageSafe(url, MAX_IMAGE_SIZE);
+                        const sizeBytes = Math.ceil(result.data.length * 0.75); // base64 → bytes approx
+                        totalImageBytes += sizeBytes;
+                        imageCache.set(url, result);
+                        return result;
+                    } catch {
+                        return null;
+                    }
+                }
+
                 // Connected event
                 sendEvent({
                     type: 'connected',
@@ -400,11 +449,13 @@ export async function POST(request: NextRequest) {
                         .eq('product_id', productId);
 
                     try {
-                        // Fetch product data
+                        // Fetch product data (with tenant_id check to prevent IDOR)
                         const { data: product, error: prodError } = await supabase
                             .from('products')
                             .select('id, title, image_url, price, sku, product_type, metadata, working_content, draft_generated_content')
                             .eq('id', productId)
+                            .eq('store_id', store_id)
+                            .eq('tenant_id', user.id)
                             .single();
 
                         if (prodError || !product) {
@@ -413,10 +464,10 @@ export async function POST(request: NextRequest) {
 
                         const productCtx = extractProductContext(product);
 
-                        // Fetch image if needed for vision
+                        // Fetch image if needed for vision (with cache + budget)
                         let imageBase64: { data: string; mimeType: string } | null = null;
                         if (settings.image_analysis && productCtx.imageUrl) {
-                            imageBase64 = await fetchImageAsBase64(productCtx.imageUrl);
+                            imageBase64 = await fetchImageWithBudget(productCtx.imageUrl);
                         }
 
                         // Generate each enabled field
@@ -437,23 +488,23 @@ export async function POST(request: NextRequest) {
                             if (fieldType === 'alt_text') {
                                 // Generate alt text for ALL product images
                                 // UI expects: { images: [{ id, src, alt }] }
-                                const meta = product.metadata || {};
-                                const working = product.working_content || {};
-                                const productImages: Array<{ id?: string | number; src?: string; alt?: string }> =
-                                    working.images || meta.images || [];
+                                const imgMeta = (product.metadata || {}) as MetadataJsonb;
+                                const imgWorking = (product.working_content || {}) as WorkingJsonb;
+                                const productImages: Array<{ id?: string | number; src?: string; url?: string; alt?: string }> =
+                                    imgWorking.images || imgMeta.images || [];
 
                                 if (productImages.length > 0) {
                                     const draftImages: Array<{ id?: string | number; src: string; alt: string }> = [];
 
                                     for (let imgIdx = 0; imgIdx < productImages.length; imgIdx++) {
                                         if (isClosed) break;
-                                        const img = productImages[imgIdx] as any;
+                                        const img = productImages[imgIdx];
                                         const imgSrc = img.src || img.url || '';
 
-                                        // Fetch each image for vision analysis if enabled
+                                        // Fetch each image for vision analysis (with cache + budget)
                                         let imgBase64: { data: string; mimeType: string } | null = null;
                                         if (settings.image_analysis && imgSrc) {
-                                            imgBase64 = await fetchImageAsBase64(imgSrc);
+                                            imgBase64 = await fetchImageWithBudget(imgSrc);
                                         }
 
                                         const imgPrompt = buildPromptForField(
@@ -481,7 +532,7 @@ export async function POST(request: NextRequest) {
                                     // Fallback: single image from image_url
                                     let fallbackBase64: { data: string; mimeType: string } | null = null;
                                     if (settings.image_analysis) {
-                                        fallbackBase64 = await fetchImageAsBase64(productCtx.imageUrl);
+                                        fallbackBase64 = await fetchImageWithBudget(productCtx.imageUrl);
                                     }
                                     const fallbackPrompt = buildPromptForField('alt_text', productCtx, settings, !!fallbackBase64);
                                     const rawAlt = await callGeminiWithRetry(ai, fallbackPrompt, fallbackBase64);
@@ -493,7 +544,8 @@ export async function POST(request: NextRequest) {
                                     fieldType,
                                     productCtx,
                                     settings,
-                                    false
+                                    false,
+                                    store.name
                                 );
 
                                 const rawText = await callGeminiWithRetry(ai, prompt, null);
@@ -540,9 +592,23 @@ export async function POST(request: NextRequest) {
                             mergedDraft.images = draft.images;
                         }
 
+                        // Compute SEO score from merged draft + existing content
+                        const seoMeta = (product.metadata || {}) as MetadataJsonb;
+                        const seoWorking = (product.working_content || {}) as WorkingJsonb;
+                        const seoInput = {
+                            title: mergedDraft.title || seoWorking.title || product.title || '',
+                            short_description: mergedDraft.short_description || seoWorking.short_description || seoMeta.short_description || '',
+                            description: mergedDraft.description || seoWorking.description || seoMeta.description || '',
+                            meta_title: mergedDraft.seo?.title || seoWorking.seo?.title || product.title || '',
+                            meta_description: mergedDraft.seo?.description || seoWorking.seo?.description || '',
+                            slug: seoWorking.slug || seoMeta['slug'] as string || '',
+                            images: (seoWorking.images || seoMeta.images || []).map((img) => ({ src: img.src || '', alt: mergedDraft.images?.find((di) => di.id === img.id)?.alt || img.alt || '' })),
+                        };
+                        const seoScore = calculateProductSeoScore(seoInput).overall;
+
                         await supabase
                             .from('products')
-                            .update({ draft_generated_content: mergedDraft })
+                            .update({ draft_generated_content: mergedDraft, seo_score: seoScore })
                             .eq('id', productId);
 
                         // Mark item as completed (updated_at handled by trigger)

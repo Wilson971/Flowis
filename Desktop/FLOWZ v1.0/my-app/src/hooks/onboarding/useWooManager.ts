@@ -48,7 +48,6 @@ async function callValidateAndSave(
         .single();
 
     if (connError) {
-        console.error("Connection Insert Error:", connError);
         throw new Error(connError.message || "Failed to save connection details.");
     }
 
@@ -72,7 +71,6 @@ async function callValidateAndSave(
     if (storeError) {
         // Rollback connection if store creation fails
         await supabase.from('platform_connections').delete().eq('id', connection.id);
-        console.error("Store Insert Error:", storeError);
         throw new Error(storeError.message || "Failed to create store.");
     }
 

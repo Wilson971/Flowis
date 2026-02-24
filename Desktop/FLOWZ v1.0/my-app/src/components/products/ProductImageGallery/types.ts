@@ -36,6 +36,7 @@ export interface ProductImageGalleryProps {
     showPrimaryBadge?: boolean;
     productTitle?: string;
     productId?: string;
+    actionButton?: React.ReactNode;
 }
 
 export interface ImageValidationError {

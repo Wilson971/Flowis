@@ -240,7 +240,7 @@ function ConfigTab({ config, siteUrl, siteName, onSave, onTest, isSaving, isTest
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0 }}
-                className="flex items-center gap-1.5 text-red-600 text-xs"
+                className="flex items-center gap-1.5 text-destructive text-xs"
               >
                 <AlertCircle className="w-4 h-4" />
                 Echec de connexion
@@ -530,7 +530,7 @@ export function WordPressSyncDialog({ open, onOpenChange, articleId }: WordPress
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Cloud className="w-5 h-5 text-blue-600" />
+              <Cloud className="w-5 h-5 text-primary" />
             </div>
             <div>
               <DialogTitle>Synchronisation WordPress</DialogTitle>

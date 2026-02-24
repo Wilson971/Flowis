@@ -7,7 +7,7 @@
  * Supports multiple platforms (WooCommerce, Shopify, etc.)
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -65,20 +65,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     enabled: !!user && !authLoading, // Only query when user is authenticated
   });
 
+  // Track whether we've already auto-selected a store
+  const hasAutoSelectedRef = useRef(false);
+
   // Load selected store from localStorage on mount
   useEffect(() => {
+    if (stores.length === 0) return;
+
     const savedStoreId = localStorage.getItem(SELECTED_STORE_KEY);
-    if (savedStoreId && stores.length > 0) {
+    if (savedStoreId) {
       const store = stores.find((s) => s.id === savedStoreId);
       if (store) {
         setSelectedStoreState(store);
-      } else if (stores.length > 0) {
-        // If saved store not found, select first store
-        setSelectedStoreState(stores[0]);
-        localStorage.setItem(SELECTED_STORE_KEY, stores[0].id);
+        return;
       }
-    } else if (stores.length > 0 && !selectedStore) {
-      // Auto-select first store if none selected
+    }
+
+    // Auto-select first store if none selected yet
+    if (!hasAutoSelectedRef.current) {
+      hasAutoSelectedRef.current = true;
       setSelectedStoreState(stores[0]);
       localStorage.setItem(SELECTED_STORE_KEY, stores[0].id);
     }

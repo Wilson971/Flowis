@@ -98,10 +98,10 @@ export const SessionTimeline = ({
             <button
               onClick={handleSourceClick}
               className={cn(
-                'relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all',
+                'relative w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300',
                 selectedImageId === 'source-0' && selectedImageType === 'source'
-                  ? 'border-primary shadow-lg scale-105'
-                  : 'border-border hover:border-primary/50 hover:shadow-md',
+                  ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105'
+                  : 'border-border/50 hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5',
                 sourceImages.length > 1 && 'cursor-pointer'
               )}
             >
@@ -159,8 +159,8 @@ export const SessionTimeline = ({
                 key={image.id}
                 onClick={() => handleImageClick(image.id, 'generated')}
                 className={cn(
-                  'relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all',
-                  isActive ? 'border-primary shadow-lg scale-105' : 'border-border hover:border-primary/50',
+                  'relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all duration-300 group',
+                  isActive ? 'border-primary ring-2 ring-primary ring-offset-2 ring-offset-background shadow-lg scale-105' : 'border-border/50 hover:border-primary/50 hover:-translate-y-0.5',
                   isLoadingImage && 'opacity-60'
                 )}
               >
@@ -172,8 +172,8 @@ export const SessionTimeline = ({
                   <img src={image.url} alt="Genere" className="w-full h-full object-cover" />
                 )}
                 {isPublished && (
-                  <div className="absolute top-1 right-1">
-                    <Badge className="bg-success text-success-foreground border-0 p-0.5">
+                  <div className="absolute top-1.5 right-1.5 z-10 transition-transform group-hover:scale-110">
+                    <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-md border-0 p-0.5 rounded-full">
                       <Check className="w-2.5 h-2.5" />
                     </Badge>
                   </div>

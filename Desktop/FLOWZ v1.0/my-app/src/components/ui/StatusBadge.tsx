@@ -6,8 +6,54 @@
  */
 
 import { ReactNode } from 'react';
-import { LucideIcon } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import {
+    type LucideIcon,
+    Cloud,
+    CloudUpload,
+    CloudOff,
+    Pencil,
+    FileEdit,
+    CheckCircle2,
+    EyeOff,
+    Zap,
+    Moon,
+    Wifi,
+    WifiOff,
+    Clock,
+    Loader2,
+    Sparkles,
+    AlertTriangle,
+    ThumbsUp,
+    ThumbsDown,
+    Bot,
+    Play,
+    XCircle,
+    AlertCircle,
+} from 'lucide-react';
+
+const ICON_MAP: Record<string, LucideIcon> = {
+    Cloud,
+    CloudUpload,
+    CloudOff,
+    Pencil,
+    FileEdit,
+    CheckCircle2,
+    EyeOff,
+    Zap,
+    Moon,
+    Wifi,
+    WifiOff,
+    Clock,
+    Loader2,
+    Sparkles,
+    AlertTriangle,
+    ThumbsUp,
+    ThumbsDown,
+    Bot,
+    Play,
+    XCircle,
+    AlertCircle,
+};
 import { cn } from "../../lib/utils";
 import {
     BadgeVariant,
@@ -55,7 +101,7 @@ export const StatusBadge = ({
     // Résoudre l'icône
     let IconComponent: LucideIcon | null = iconProp || null;
     if (presetConfig?.iconName && !iconProp) {
-        IconComponent = (LucideIcons as any)[presetConfig.iconName] || null;
+        IconComponent = ICON_MAP[presetConfig.iconName] || null;
     }
 
     const variantStyle = badgeVariantStyles[variant];
@@ -123,64 +169,64 @@ export const ActiveBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
 
 // Badge Synchronisé
 export const SyncedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="synced" size={size} icon={LucideIcons.Cloud} />
+    <StatusBadge preset="synced" size={size} icon={Cloud} />
 );
 
 // Badge Modifié
 export const ModifiedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="modified" size={size} icon={LucideIcons.Pencil} />
+    <StatusBadge preset="modified" size={size} icon={Pencil} />
 );
 
 // Badge Publié
 export const PublishedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="published" size={size} icon={LucideIcons.CheckCircle2} />
+    <StatusBadge preset="published" size={size} icon={CheckCircle2} />
 );
 
 // Badge En attente
 export const PendingBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="pending" size={size} icon={LucideIcons.Clock} />
+    <StatusBadge preset="pending" size={size} icon={Clock} />
 );
 
 // Badge Connecté
 export const ConnectedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="connected" size={size} icon={LucideIcons.Wifi} />
+    <StatusBadge preset="connected" size={size} icon={Wifi} />
 );
 
 // Badge Erreur
 export const ErrorBadge = ({ size = 'md', children }: { size?: BadgeSize; children?: ReactNode }) => (
-    <StatusBadge variant="danger" size={size} icon={LucideIcons.AlertCircle}>
+    <StatusBadge variant="danger" size={size} icon={AlertCircle}>
         {children || 'Erreur'}
     </StatusBadge>
 );
 
 // Badge Optimisé
 export const OptimizedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="optimized" size={size} icon={LucideIcons.Sparkles} />
+    <StatusBadge preset="optimized" size={size} icon={Sparkles} />
 );
 
 // Badge IA
 export const AIBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="aiGenerated" size={size} icon={LucideIcons.Sparkles} />
+    <StatusBadge preset="aiGenerated" size={size} icon={Sparkles} />
 );
 
 // Badge Terminé
 export const CompletedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="completed" size={size} icon={LucideIcons.CheckCircle2} />
+    <StatusBadge preset="completed" size={size} icon={CheckCircle2} />
 );
 
 // Badge En cours
 export const InProgressBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="inProgress" size={size} icon={LucideIcons.Play} />
+    <StatusBadge preset="inProgress" size={size} icon={Play} />
 );
 
 // Badge Annulé
 export const CancelledBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="cancelled" size={size} icon={LucideIcons.XCircle} />
+    <StatusBadge preset="cancelled" size={size} icon={XCircle} />
 );
 
 // Badge Échoué
 export const FailedBadge = ({ size = 'md' }: { size?: BadgeSize }) => (
-    <StatusBadge preset="failed" size={size} icon={LucideIcons.XCircle} />
+    <StatusBadge preset="failed" size={size} icon={XCircle} />
 );
 
 // Badge Suppression planifiée

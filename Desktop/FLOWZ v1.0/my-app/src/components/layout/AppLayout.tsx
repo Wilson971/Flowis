@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { cn } from "../../lib/utils";
 import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
@@ -20,14 +19,7 @@ import { useTheme } from "../../contexts/ThemeContext";
  */
 
 const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
-  const [isScrolled, setIsScrolled] = useState(false);
   const { theme } = useTheme();
-
-  // Handle scroll on main content area
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop;
-    setIsScrolled(scrollTop > 20);
-  };
 
   return (
     <div className="flex h-screen w-full bg-[#0e0e0e] text-white relative overflow-hidden">
@@ -35,7 +27,7 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
       <AuroraBackground opacity={0.3} />
 
       {/* Sidebar with integrated auroras - Always Dark */}
-      <div className="relative flex-shrink-0 z-20 h-full dark">
+      <div className="relative flex-shrink-0 z-20 h-screen dark">
         <AppSidebar />
       </div>
 
@@ -45,7 +37,7 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
         <div
           suppressHydrationWarning
           className={cn(
-            "flex-1 flex flex-col bg-background text-foreground rounded-l-3xl md:rounded-3xl border border-white/5 overflow-hidden",
+            "flex-1 min-h-0 flex flex-col bg-background text-foreground rounded-l-3xl md:rounded-3xl border border-white/5 overflow-hidden",
             theme
           )}
         >
@@ -56,10 +48,9 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
           <main
             id="main-content"
             role="main"
-            className="flex-1 overflow-y-auto w-full bg-background/50 scroll-smooth custom-scrollbar"
-            onScroll={handleScroll}
+            className="flex-1 min-h-0 overflow-y-auto w-full bg-background/50 scroll-smooth custom-scrollbar"
           >
-            <div className="px-4 md:px-8 py-4 md:py-6 max-w-none mx-auto w-full">
+            <div className="px-4 md:px-8 py-4 md:py-6 max-w-none mx-auto w-full h-full flex flex-col">
               {children}
             </div>
           </main>

@@ -11,6 +11,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -72,7 +73,7 @@ export function useGenerationSessions(productId: string) {
       return data as GenerationSession[];
     },
     enabled: !!productId,
-    staleTime: 60_000, // 1 minute
+    staleTime: STALE_TIMES.DETAIL,
     gcTime: 5 * 60_000, // 5 minutes
   });
 }

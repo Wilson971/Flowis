@@ -6,6 +6,9 @@ export const STORAGE_KEYS = {
     BATCH_GENERATION_COLLAPSED: "batch_generation_collapsed",
     STUDIO_BATCH_SELECTED_ACTION: "studio_batch_selected_action",
     STUDIO_BATCH_COLLAPSED: "studio_batch_collapsed",
+    PRODUCT_AUTOSAVE_ENABLED: "product_autosave_enabled",
+    PRODUCTS_TABLE_FILTERS: "products_table_filters",
+    PRODUCTS_COLUMN_VISIBILITY: "products_column_visibility",
 };
 
 export function useLocalStorage<T>(key: string, options: { defaultValue: T }) {

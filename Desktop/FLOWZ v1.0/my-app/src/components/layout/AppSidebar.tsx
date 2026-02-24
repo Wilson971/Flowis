@@ -14,11 +14,15 @@ import {
   Maximize2,
   LayoutGrid,
   Palette,
+  TrendingUp,
+  History,
 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
 import { useSidebarPreference } from "../../contexts/SidebarContext";
 import { useSettingsModal } from "@/contexts/SettingsModalContext";
+import { useUserProfile } from "@/hooks/profile/useUserProfile";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { StoreSelector } from "./StoreSelector";
@@ -43,7 +47,7 @@ const Logo = () => {
   return (
     <div className="flex items-center gap-3 py-4 px-4 border-b border-white/5 mb-2">
       <div className="w-8 h-8 flex-shrink-0 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/20">
-        <span className="text-white font-bold text-lg">F</span>
+        <span className="text-primary-foreground font-bold text-lg">F</span>
       </div>
       <motion.div
         animate={logoAnimate}
@@ -63,7 +67,7 @@ const LogoIcon = () => {
   return (
     <div className="flex items-center justify-center py-4 mb-2 border-b border-transparent w-full">
       <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/20 border border-white/10 hover:scale-105 transition-transform">
-        <span className="text-white font-black text-xl">F</span>
+        <span className="text-primary-foreground font-black text-xl">F</span>
       </div>
     </div>
   );
@@ -77,37 +81,54 @@ const LogoWrapper = () => {
 // User Profile Component
 const UserProfile = () => {
   const { open } = useSidebar();
+  const { openSettings } = useSettingsModal();
+  const { profile } = useUserProfile();
+
+  const displayName = profile?.full_name
+    || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
+    || 'Utilisateur';
+  const role = profile?.job_title || 'Administrateur';
+  const initials = displayName
+    .split(' ')
+    .map((n) => n.charAt(0).toUpperCase())
+    .slice(0, 2)
+    .join('');
 
   return (
     <div className={cn(
       "mt-auto border-t border-white/5 pt-4 transition-all duration-300",
       open ? "px-2" : "px-0"
     )}>
-      <div className={cn(
-        "flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all duration-300 cursor-pointer group",
-        open ? "justify-start px-3" : "justify-center mx-auto w-11 h-11 p-0"
-      )}>
-        <div className={cn(
-          "rounded-full bg-neutral-800 border border-white/10 flex items-center justify-center relative overflow-hidden flex-shrink-0 transition-all",
+      <button
+        type="button"
+        onClick={() => openSettings('account-profile')}
+        className={cn(
+          "w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all duration-300 cursor-pointer group",
+          open ? "justify-start px-3" : "justify-center mx-auto w-11 h-11 p-0"
+        )}
+      >
+        <Avatar className={cn(
+          "border border-white/10 flex-shrink-0 transition-all",
           open ? "w-8 h-8" : "w-10 h-10 ring-2 ring-white/5"
         )}>
-          {/* Placeholder Avatar */}
-          <Icon icon="solar:user-circle-bold" className={cn("text-neutral-400", open ? "w-5 h-5" : "w-6 h-6")} />
-          <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+          <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
+          <AvatarFallback className="bg-neutral-800 text-neutral-300 text-xs font-bold">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
 
         {open && (
           <motion.div
             initial={{ opacity: 0, width: 0 }}
             animate={{ opacity: 1, width: "auto" }}
             exit={{ opacity: 0, width: 0 }}
-            className="flex flex-col overflow-hidden"
+            className="flex flex-col overflow-hidden text-left"
           >
-            <span className="text-xs font-bold text-white truncate">Wilson Mike</span>
-            <span className="text-[10px] text-neutral-500 truncate font-medium">Administrateur</span>
+            <span className="text-xs font-bold text-white truncate">{displayName}</span>
+            <span className="text-[10px] text-neutral-500 truncate font-medium">{role}</span>
           </motion.div>
         )}
-      </div>
+      </button>
     </div>
   )
 }
@@ -153,6 +174,12 @@ const navItems = [
     ]
   },
   {
+    id: "seo",
+    label: "SEO",
+    href: "/app/seo",
+    icon: TrendingUp,
+  },
+  {
     id: "stores",
     label: "Stores",
     href: "/app/stores",
@@ -181,6 +208,12 @@ const navItems = [
         label: "D. Fullscreen",
         href: "/app/design-demo/variation-studio/d",
         icon: Maximize2,
+      },
+      {
+        id: "version-history",
+        label: "Historique versions",
+        href: "/app/design-demo/version-history",
+        icon: History,
       },
     ]
   },

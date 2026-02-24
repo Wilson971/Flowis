@@ -404,7 +404,8 @@ export async function generateBlockSuggestionAction(
     const ai = getClient();
     const TIMEOUT_MS = 10000; // 10 seconds timeout
 
-    console.log(`[ServerAction] Generating suggestion for ${blockType}`, { topic: articleTopic, parent: parentHeadingContext });
+
+
 
     const contextDesc = parentHeadingContext
         ? `Le bloc est situé dans la section : "${parentHeadingContext}"`
@@ -452,7 +453,8 @@ export async function generateBlockSuggestionAction(
         const result: any = await Promise.race([fetchPromise, timeoutPromise]);
 
         const text = result.text?.trim();
-        console.log(`[ServerAction] Success: "${text}"`);
+
+
 
         return text || `Nouveau ${blockType}`;
 

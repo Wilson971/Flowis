@@ -3,10 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { useFormContext, useWatch } from "react-hook-form";
-import { ArrowLeft, Save, Loader2, ExternalLink, Check, Undo2, Redo2, CloudUpload } from "lucide-react";
+import { ArrowLeft, Save, Loader2, ExternalLink, Check, Undo2, Redo2, CloudUpload, Upload } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Product } from "@/types/product";
 import type { ProductFormValues } from "../../schemas/product-schema";
 import { StatusPill } from "./StatusPill";
@@ -19,10 +20,18 @@ import { SyncPill } from "./SyncPill";
 const ProductTitleDisplay = () => {
     const { control } = useFormContext<ProductFormValues>();
     const title = useWatch({ control, name: "title" });
+    const displayTitle = title || "Nouveau produit";
     return (
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground truncate">
-            {title || "Nouveau produit"}
-        </h1>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <h1 className="text-3xl font-extrabold tracking-tight text-foreground truncate cursor-default">
+                    {displayTitle}
+                </h1>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" align="start" className="max-w-[500px] text-sm font-medium">
+                {displayTitle}
+            </TooltipContent>
+        </Tooltip>
     );
 };
 
@@ -43,14 +52,15 @@ export interface ProductEditorHeaderProps {
     product: Product;
     productId: string;
     selectedStore: any;
-    autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+    saveStatus: 'idle' | 'saving' | 'saved' | 'error';
     isDirty: boolean;
     dirtyFieldsContent: string[];
     hasConflict: boolean;
     isSaving: boolean;
-    isAutoSyncing?: boolean;
+    isPublishing?: boolean;
     history: FormHistory;
     onSave: () => void;
+    onPublish: () => void;
     onReset: () => void;
     onResolveConflicts: () => void;
 }
@@ -96,22 +106,24 @@ export const ProductEditorHeader = ({
     product,
     productId,
     selectedStore,
-    autoSaveStatus,
+    saveStatus,
     isDirty,
     dirtyFieldsContent,
     hasConflict,
     isSaving,
-    isAutoSyncing = false,
+    isPublishing = false,
     history,
     onSave,
+    onPublish,
     onReset,
     onResolveConflicts,
 }: ProductEditorHeaderProps) => {
+    const hasPendingChanges = dirtyFieldsContent.length > 0;
     const productUrl = buildProductUrl(product, selectedStore);
 
     return (
         <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-4 sm:-mx-6 px-4 sm:px-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-6 pb-4 pt-4 border-b border-border/20">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
                 {/* Back Button */}
                 <Button variant="ghost" size="icon" asChild className="h-10 w-10 bg-muted border border-border hover:bg-muted/80 rounded-lg shrink-0 transition-colors">
                     <Link href="/app/products">
@@ -123,37 +135,39 @@ export const ProductEditorHeader = ({
                         <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest truncate">
                             {product.platform || "Produit"} {product.platform_product_id && <span className="opacity-50 ml-1">#{product.platform_product_id}</span>}
                         </p>
-                        {autoSaveStatus === 'saving' && (
+                        {isSaving && (
                             <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-muted text-muted-foreground border-border/20 uppercase tracking-widest shrink-0">
                                 <Loader2 className="w-2.5 h-2.5 mr-1 animate-spin" />
                                 Sauvegarde...
                             </Badge>
                         )}
-                        {isAutoSyncing && autoSaveStatus !== 'saving' && (
-                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 uppercase tracking-widest shrink-0">
+                        {isPublishing && !isSaving && (
+                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-primary/10 text-primary dark:text-primary border-primary/20 uppercase tracking-widest shrink-0">
                                 <CloudUpload className="w-2.5 h-2.5 mr-1 animate-pulse" />
-                                Sync boutique...
+                                Publication...
                             </Badge>
                         )}
-                        {autoSaveStatus === 'saved' && !isDirty && !isAutoSyncing && (
-                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 uppercase tracking-widest shrink-0">
+                        {saveStatus === 'saved' && !isDirty && !isPublishing && !isSaving && (
+                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-success/10 text-success border-success/20 uppercase tracking-widest shrink-0">
                                 <Check className="w-2.5 h-2.5 mr-1" />
-                                Sauvegard\u00e9
+                                Sauvegardé
                             </Badge>
                         )}
-                        {autoSaveStatus === 'error' && (
+                        {saveStatus === 'error' && (
                             <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-destructive/10 text-destructive border-destructive/20 uppercase tracking-widest shrink-0">
                                 Erreur
                             </Badge>
                         )}
-                        {isDirty && autoSaveStatus !== 'saving' && !isAutoSyncing && (
+                        {isDirty && !isSaving && !isPublishing && (
                             <Badge variant="outline" className="h-4 px-1.5 py-0 text-[9px] font-bold bg-warning/10 text-warning border-warning/20 uppercase tracking-widest shrink-0">
-                                Non sauvegard\u00e9
+                                Non sauvegardé
                             </Badge>
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <ProductTitleDisplay />
+                        <TooltipProvider delayDuration={400}>
+                            <ProductTitleDisplay />
+                        </TooltipProvider>
                         {productUrl && (
                             <Button
                                 variant="ghost"
@@ -243,23 +257,47 @@ export const ProductEditorHeader = ({
                 </Button>
                 <Button
                     onClick={onSave}
-                    disabled={isSaving || isAutoSyncing}
-                    className="h-10 px-8 font-extrabold text-xs uppercase tracking-widest bg-primary hover:bg-primary/90 text-primary-foreground min-w-[160px] shadow-[0_0_20px_-5px_var(--primary)] transition-all"
+                    disabled={isSaving}
+                    variant="outline"
+                    className="h-10 px-6 font-extrabold text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-primary/20"
                 >
                     {isSaving ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Envoi...
                         </>
-                    ) : isAutoSyncing ? (
-                        <>
-                            <CloudUpload className="mr-2 h-4 w-4 animate-pulse" />
-                            Sync...
-                        </>
                     ) : (
                         <>
                             <Save className="mr-2 h-4 w-4" />
                             Enregistrer
+                        </>
+                    )}
+                </Button>
+                <Button
+                    onClick={onPublish}
+                    disabled={isPublishing || isDirty || (!hasPendingChanges && !hasConflict)}
+                    variant="outline"
+                    className={cn(
+                        "h-10 px-6 font-extrabold text-xs uppercase tracking-widest transition-all",
+                        hasPendingChanges
+                            ? "border-primary bg-primary/15 text-primary hover:bg-primary/25 dark:bg-primary/20 dark:hover:bg-primary/30 shadow-[0_0_15px_-5px_hsl(var(--chart-1))]"
+                            : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                >
+                    {isPublishing ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Publication...
+                        </>
+                    ) : (
+                        <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Publier
+                            {hasPendingChanges && (
+                                <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px] font-bold bg-primary/20 text-primary dark:text-primary border-0">
+                                    {dirtyFieldsContent.length}
+                                </Badge>
+                            )}
                         </>
                     )}
                 </Button>

@@ -77,7 +77,6 @@ const COLOR_MAP: Record<string, string> = {
     black: "#000000",
     white: "#ffffff",
     gray: "#6b7280",
-    orange: "#f97316",
     purple: "#a855f7",
     pink: "#ec4899",
     brown: "#92400e",
@@ -264,7 +263,7 @@ function AttributeSidebarItem({
                         >
                             <div
                                 className={cn(
-                                    "flex h-7 w-7 items-center justify-center rounded-md shrink-0",
+                                    "flex h-7 w-7 items-center justify-center rounded-lg shrink-0",
                                     attribute.visible
                                         ? "bg-primary/10 text-primary"
                                         : "bg-muted/50 text-muted-foreground"
@@ -286,7 +285,7 @@ function AttributeSidebarItem({
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     {/* Visible badge */}
                                     {attribute.visible ? (
-                                        <Eye className="h-3 w-3 text-emerald-600" />
+                                        <Eye className="h-3 w-3 text-success" />
                                     ) : (
                                         <EyeOff className="h-3 w-3 text-muted-foreground/50" />
                                     )}

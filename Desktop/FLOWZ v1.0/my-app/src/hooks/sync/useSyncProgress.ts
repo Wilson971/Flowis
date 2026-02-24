@@ -53,7 +53,8 @@ export function useSyncProgress(storeId: string | null) {
                     filter: `store_id=eq.${storeId}`
                 },
                 (payload) => {
-                    console.log('Sync Job Update:', payload);
+
+
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                         const job = payload.new as SyncJob;
                         setActiveJob(job);

@@ -44,6 +44,8 @@ import {
 import { cn } from "@/lib/utils";
 import { motionTokens } from "@/lib/design-system";
 import { getAllPresets } from "@/features/photo-studio/constants/scenePresets";
+import { VIEW_PRESETS } from "@/features/photo-studio/constants/viewPresets";
+import { VIEW_ANGLE_LABELS } from "@/features/photo-studio/constants/viewPresets";
 import type { BatchAction } from "@/features/photo-studio/types/studio";
 
 // ---------------------------------------------------------------------------
@@ -112,7 +114,12 @@ const BATCH_ACTIONS: BatchActionConfig[] = [
   },
 ];
 
-const DEFAULT_ANGLES = ["front", "left", "right", "top"];
+/** Default view preset for generate_angles — uses multi-4 from VIEW_PRESETS */
+const DEFAULT_VIEW_PRESET_ID = "multi-4";
+const getAnglesForPreset = (presetId: string = DEFAULT_VIEW_PRESET_ID) => {
+  const preset = VIEW_PRESETS.find((p) => p.id === presetId);
+  return preset?.angles ?? VIEW_PRESETS.find((p) => p.id === DEFAULT_VIEW_PRESET_ID)!.angles;
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -424,16 +431,16 @@ export function StudioBatchPanel({
                                   Angles generes
                                 </Label>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {DEFAULT_ANGLES.map((angle) => (
+                                  {getAnglesForPreset().map((angle) => (
                                     <Badge key={angle} variant="secondary">
-                                      {angle}
+                                      {VIEW_ANGLE_LABELS[angle] ?? angle}
                                     </Badge>
                                   ))}
                                 </div>
                                 <p className="text-[10px] text-muted-foreground mt-2">
-                                  {DEFAULT_ANGLES.length} angles par produit
+                                  {getAnglesForPreset().length} angles par produit
                                   &middot;{" "}
-                                  {DEFAULT_ANGLES.length * selectedCount} images
+                                  {getAnglesForPreset().length * selectedCount} images
                                   au total
                                 </p>
                               </div>

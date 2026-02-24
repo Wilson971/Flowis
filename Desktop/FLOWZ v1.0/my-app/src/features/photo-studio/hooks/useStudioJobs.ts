@@ -75,6 +75,7 @@ export function useStudioJobs(productId: string) {
     },
     enabled: !!productId,
     refetchInterval: (query) => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
       const jobs = query.state.data as StudioJobStatus[] | undefined;
       return hasActiveJobs(jobs) ? 3000 : false;
     },

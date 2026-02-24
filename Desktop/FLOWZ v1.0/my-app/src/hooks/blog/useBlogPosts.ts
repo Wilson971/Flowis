@@ -79,7 +79,6 @@ export function useBlogPosts(storeId?: string) {
         },
         onError: (error) => {
             toast.error("Erreur lors de la création de l'article");
-            console.error(error);
         }
     });
 

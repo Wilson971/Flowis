@@ -284,7 +284,7 @@ export function ResetWorkflowDialog({
   // Work loss indicator color
   const lossColor = {
     none: 'text-muted-foreground',
-    low: 'text-yellow-500',
+    low: 'text-amber-500',
     medium: 'text-orange-500',
     high: 'text-destructive',
   }[workLoss.level];

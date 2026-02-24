@@ -8,6 +8,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ContentData, ProductContentBuffer } from '@/types/productContent';
@@ -122,7 +123,7 @@ export function useProductContent(productId: string | null) {
             };
         },
         enabled: !!productId,
-        staleTime: 30_000, // 30s — dedup rapid mounts; realtime/invalidation covers live updates
+        staleTime: STALE_TIMES.LIST, // dedup rapid mounts; realtime/invalidation covers live updates
         refetchOnMount: true,
         refetchOnWindowFocus: true, // Safe: content data doesn't overwrite form state
     });
@@ -197,6 +198,7 @@ export function useAcceptDraft() {
         }: {
             productId: string;
             field?: string;
+            silent?: boolean;
         }) => {
             const { data: current } = await supabase
                 .from('products')
@@ -209,8 +211,10 @@ export function useAcceptDraft() {
             }
 
             const draft = current.draft_generated_content as ContentData;
-            const working = (current.working_content as ContentData) || {};
             const snapshot = current.store_snapshot_content as ContentData;
+            // If working_content is null (product never opened in editor), fall back to
+            // snapshot so accepting a single draft field doesn't mark ALL snapshot fields dirty.
+            const working = (current.working_content as ContentData) || snapshot || {};
 
             // Acceptation granulaire d'un champ
             if (field) {
@@ -258,13 +262,18 @@ export function useAcceptDraft() {
                 return data;
             }
 
-            // Acceptation globale
-            const dirtyFields = computeDirtyFields(draft, snapshot);
+            // Acceptation globale — merge draft OVER working (not replace) so fields not
+            // present in the draft retain their current values and don't create false dirty fields.
+            const mergedWorking: ContentData = { ...working, ...draft };
+            if (draft.seo) {
+                mergedWorking.seo = { ...(working.seo || {}), ...draft.seo };
+            }
+            const dirtyFields = computeDirtyFields(mergedWorking, snapshot);
 
             const { data, error } = await supabase
                 .from('products')
                 .update({
-                    working_content: draft,
+                    working_content: mergedWorking,
                     draft_generated_content: null,
                     dirty_fields_content: dirtyFields,
                     working_content_updated_at: new Date().toISOString(),
@@ -279,11 +288,15 @@ export function useAcceptDraft() {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['product-content', variables.productId] });
             queryClient.invalidateQueries({ queryKey: ['product', variables.productId] });
-            queryClient.invalidateQueries({ queryKey: ['products'] });
-            toast.success('Modifications acceptées');
+            if (!variables.silent) {
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                toast.success('Modifications acceptées');
+            }
         },
-        onError: (error: Error) => {
-            toast.error('Erreur', { description: error.message });
+        onError: (error: Error, variables) => {
+            if (!variables.silent) {
+                toast.error('Erreur', { description: error.message });
+            }
         },
     });
 }
@@ -302,6 +315,7 @@ export function useRejectDraft() {
         }: {
             productId: string;
             field?: string;
+            silent?: boolean;
         }) => {
             if (field) {
                 // Rejet granulaire
@@ -345,10 +359,15 @@ export function useRejectDraft() {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['product-content', variables.productId] });
             queryClient.invalidateQueries({ queryKey: ['product', variables.productId] });
-            toast.success('Brouillon rejeté');
+            if (!variables.silent) {
+                queryClient.invalidateQueries({ queryKey: ['products'] });
+                toast.success('Brouillon rejeté');
+            }
         },
-        onError: (error: Error) => {
-            toast.error('Erreur', { description: error.message });
+        onError: (error: Error, variables) => {
+            if (!variables.silent) {
+                toast.error('Erreur', { description: error.message });
+            }
         },
     });
 }

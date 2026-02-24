@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProductsTableModern } from '@/components/products/ProductsTableModern';
-import { useProducts, useProductStats } from '@/hooks/products/useProducts';
+import { ProductsTableSkeleton } from '@/components/products/ProductsTableSkeleton';
+import { useProducts, useProductStats, type ProductListFilters } from '@/hooks/products/useProducts';
 import { useSelectedStore } from '@/contexts/StoreContext';
 import {
     ProductsPageHeader,
@@ -14,28 +16,32 @@ import {
     ProductsToolbar,
 } from '@/components/products/ui';
 import { BatchGenerationSheet } from '@/components/products/ui/BatchGenerationSheet';
-import { BatchGenerationSettings } from '@/components/products/ui/BatchGenerationSettings';
 import { BatchProgressPanel } from '@/components/products/BatchProgressPanel';
 import { useBatchGeneration } from '@/hooks/products/useBatchGeneration';
 import { useAcceptDraft, useRejectDraft } from '@/hooks/products/useProductContent';
 import { ModularGenerationSettings } from '@/types/imageGeneration';
 import { getRemainingProposals } from '@/lib/productHelpers';
 import type { ContentData } from '@/types/productContent';
+
 import { useTableFilters } from '@/hooks/products/useTableFilters';
+import { ProductsSelectionBar } from '@/components/products/ui/ProductsSelectionBar';
+import { FilterPill } from '@/components/products/ui/FilterPills';
 import { ProductsPagination } from '@/components/products/ProductsPagination';
 import { ProductsFilter } from '@/components/products/ProductsFilter';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useUnifiedSync, usePendingSyncCount } from '@/hooks/sync';
+import { usePendingSyncCount } from '@/hooks/sync';
+import { usePushProductBatch } from '@/hooks/sync/usePushToStore';
+import { useLocalStorage, STORAGE_KEYS } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
+import { VisibilityState } from '@tanstack/react-table';
 
 export function ProductsListContent() {
     const { selectedStore } = useSelectedStore();
 
-    const { data: products = [], isLoading } = useProducts(selectedStore?.id);
     const { data: stats } = useProductStats(selectedStore?.id);
 
-    // Queue-based sync V2
-    const { queueSync, isQueuing } = useUnifiedSync();
+    // Direct push to store (non-blocking)
+    const { mutate: pushToStore, isPending: isPushing } = usePushProductBatch();
     const { data: pendingSyncCount } = usePendingSyncCount(selectedStore?.id);
 
     const params = useTableFilters();
@@ -47,6 +53,7 @@ export function ProductsListContent() {
         pageSize,
         setPageSize,
         setFilter,
+        resetFilters,
     } = params;
 
     const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -54,6 +61,42 @@ export function ProductsListContent() {
     // Local state for search input to avoid input lag, syncs with URL via debounce
     const [localSearch, setLocalSearch] = useState(search);
     const debouncedSearch = useDebounce(localSearch, 300);
+    // Track whether localSearch was changed by user typing (true) vs URL sync (false)
+    const isUserTypingRef = useRef(false);
+
+    // Extract filter values from URL params
+    const statusFilter = params.status || 'all';
+    const typeFilter = params.type || 'all';
+    const categoryFilter = params.category || 'all';
+    const aiStatusFilter = params.ai_status || 'all';
+    const syncStatusFilter = params.sync_status || 'all';
+    const stockFilter = params.stock || 'all';
+    const priceRangeFilter = params.price_range || 'all';
+    const priceMinFilter = params.price_min || '';
+    const priceMaxFilter = params.price_max || '';
+    const salesFilter = params.sales || 'all';
+    const seoScoreFilter = params.seo_score || 'all';
+
+    // Server-side filters — debounced search is used to avoid per-keystroke queries
+    const serverFilters = useMemo<ProductListFilters>(() => ({
+        search: debouncedSearch || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        type: typeFilter !== 'all' ? typeFilter : undefined,
+        ai_status: aiStatusFilter !== 'all' ? aiStatusFilter : undefined,
+        sync_status: syncStatusFilter !== 'all' ? syncStatusFilter : undefined,
+        stock: stockFilter !== 'all' ? stockFilter : undefined,
+        price_range: priceRangeFilter !== 'all' ? priceRangeFilter : undefined,
+        price_min: priceMinFilter || undefined,
+        price_max: priceMaxFilter || undefined,
+        sales: salesFilter !== 'all' ? salesFilter : undefined,
+        seo_score: seoScoreFilter !== 'all' ? seoScoreFilter : undefined,
+        page,
+        pageSize,
+    }), [debouncedSearch, statusFilter, typeFilter, aiStatusFilter, syncStatusFilter, stockFilter, priceRangeFilter, priceMinFilter, priceMaxFilter, salesFilter, seoScoreFilter, page, pageSize]);
+
+    const { data: productsData, isLoading } = useProducts(selectedStore?.id, serverFilters);
+    const products = productsData?.products ?? [];
+    const totalCount = productsData?.totalCount ?? 0;
 
     // Batch Generation Integration
     const {
@@ -66,6 +109,14 @@ export function ProductsListContent() {
     } = useBatchGeneration();
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isBatchPanelOpen, setIsBatchPanelOpen] = useState(false);
+
+    // Column Visibility with LocalStorage Persistence
+    const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
+        STORAGE_KEYS.PRODUCTS_COLUMN_VISIBILITY,
+        { defaultValue: {} }
+    );
+
     const [generationSettings, setGenerationSettings] = useState<ModularGenerationSettings>({
         provider: 'gemini',
         model: 'gemini-2.0-flash',
@@ -90,6 +141,7 @@ export function ProductsListContent() {
     });
 
     // Approval hooks
+    const queryClient = useQueryClient();
     const acceptDraft = useAcceptDraft();
     const rejectDraft = useRejectDraft();
 
@@ -105,7 +157,8 @@ export function ProductsListContent() {
     }, [products, selectedProducts]);
 
     const handleGenerate = useCallback(async (types: string[], _enableSerpAnalysis: boolean, _forceRegenerate?: boolean) => {
-        console.log('[handleGenerate] Called with:', { types, selectedProducts, storeId: selectedStore?.id });
+
+
 
         if (!selectedStore?.id) {
             console.error('[handleGenerate] No store selected, aborting');
@@ -123,7 +176,8 @@ export function ProductsListContent() {
             settings: generationSettings,
             store_id: selectedStore.id,
         };
-        console.log('[handleGenerate] Starting generation with payload:', payload);
+
+
 
         try {
             await startGeneration(payload);
@@ -132,53 +186,61 @@ export function ProductsListContent() {
         }
     }, [selectedStore?.id, selectedProducts, generationSettings, startGeneration]);
 
-    // Bulk approve all selected products
+    // Bulk approve all selected products (single toast + single cache invalidation)
     const handleApproveAll = useCallback(async () => {
         if (selectedProducts.length === 0) return;
+        const toastId = toast.loading(`Approbation de ${selectedProducts.length} produit(s)...`);
         let successCount = 0;
+        let failCount = 0;
         for (const productId of selectedProducts) {
             try {
-                await acceptDraft.mutateAsync({ productId });
+                await acceptDraft.mutateAsync({ productId, silent: true });
                 successCount++;
             } catch {
-                // Continue with remaining products
+                failCount++;
             }
         }
-        if (successCount > 0) {
-            toast.success(`${successCount} produit(s) approuvé(s)`);
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        if (successCount > 0 && failCount === 0) {
+            toast.success(`${successCount} produit(s) approuvé(s)`, { id: toastId, duration: 4000 });
+        } else if (successCount > 0) {
+            toast.warning(`${successCount} approuvé(s), ${failCount} échoué(s)`, { id: toastId, duration: 4000 });
+        } else if (failCount > 0) {
+            toast.error(`Échec de l'approbation (${failCount} erreur(s))`, { id: toastId, duration: 6000 });
         }
-    }, [selectedProducts, acceptDraft]);
+    }, [selectedProducts, acceptDraft, queryClient]);
 
-    // Bulk reject all selected products
+    // Bulk reject all selected products (single toast + single cache invalidation)
     const handleRejectAll = useCallback(async () => {
         if (selectedProducts.length === 0) return;
+        const toastId = toast.loading(`Rejet de ${selectedProducts.length} brouillon(s)...`);
         let successCount = 0;
+        let failCount = 0;
         for (const productId of selectedProducts) {
             try {
-                await rejectDraft.mutateAsync({ productId });
+                await rejectDraft.mutateAsync({ productId, silent: true });
                 successCount++;
             } catch {
-                // Continue with remaining products
+                failCount++;
             }
         }
-        if (successCount > 0) {
-            toast.success(`${successCount} brouillon(s) rejeté(s)`);
+        queryClient.invalidateQueries({ queryKey: ['products'] });
+        if (successCount > 0 && failCount === 0) {
+            toast.success(`${successCount} brouillon(s) rejeté(s)`, { id: toastId, duration: 4000 });
+        } else if (successCount > 0) {
+            toast.warning(`${successCount} rejeté(s), ${failCount} échoué(s)`, { id: toastId, duration: 4000 });
+        } else if (failCount > 0) {
+            toast.error(`Échec du rejet (${failCount} erreur(s))`, { id: toastId, duration: 6000 });
         }
-    }, [selectedProducts, rejectDraft]);
+    }, [selectedProducts, rejectDraft, queryClient]);
 
-    // Handle sync to store using queue-based V2 system
-    const handlePushToStore = async () => {
+    // Push to store — non-blocking direct call (user can keep working)
+    const syncToastId = 'batch-sync';
+    const handlePushToStore = useCallback(() => {
         if (selectedProducts.length === 0) return;
-
-        try {
-            await queueSync({
-                productIds: selectedProducts,
-                priority: 3,
-            });
-        } catch (error) {
-            console.error('[ProductsListContent] Sync error:', error);
-        }
-    };
+        toast.loading(`Synchronisation de ${selectedProducts.length} produit(s)...`, { id: syncToastId, duration: Infinity });
+        pushToStore({ product_ids: selectedProducts });
+    }, [selectedProducts, pushToStore]);
 
     // Build SSE progress message for the Sheet
     const sseProgressMessage = useMemo(() => {
@@ -211,123 +273,79 @@ export function ProductsListContent() {
     }, [isGenerating, lastEvent]);
 
     useEffect(() => {
+        isUserTypingRef.current = false;
         setLocalSearch(search);
     }, [search]);
 
-    // Sync debounced search to URL
+    // Close batch panel if selected products become 0
     useEffect(() => {
-        if (debouncedSearch !== search) {
+        if (selectedProducts.length === 0) {
+            setIsBatchPanelOpen(false);
+            cancelGeneration();
+        }
+    }, [selectedProducts.length, cancelGeneration]);
+
+    // Sync debounced search to URL — only when change originated from user typing
+    useEffect(() => {
+        if (isUserTypingRef.current && debouncedSearch !== search) {
             setSearch(debouncedSearch);
         }
     }, [debouncedSearch, search, setSearch]);
 
-    const statusFilter = params.status || 'all';
-    const typeFilter = params.type || 'all';
-    const categoryFilter = params.category || 'all';
-    const aiStatusFilter = params.ai_status || 'all';
-    const syncStatusFilter = params.sync_status || 'all';
-    const stockFilter = params.stock || 'all';
-
     const handleReset = () => {
-        setFilter('status', null);
-        setFilter('type', null);
-        setFilter('category', null);
-        setFilter('ai_status', null);
-        setFilter('sync_status', null);
-        setFilter('stock', null);
-        setFilter('search', null);
+        resetFilters();
         setLocalSearch('');
     };
 
-    // Filter products based on search and status
-    const filteredProducts = useMemo(() => {
-        const s = (localSearch || search).toLowerCase();
+    // Calculate active filters to display as pills
+    const activeFilters = useMemo<FilterPill[]>(() => {
+        const filters: FilterPill[] = [];
+        if (statusFilter !== 'all') filters.push({ id: 'status', label: 'Statut', value: statusFilter });
+        if (typeFilter !== 'all') filters.push({ id: 'type', label: 'Type', value: typeFilter });
+        if (categoryFilter !== 'all') filters.push({ id: 'category', label: 'Catégorie', value: categoryFilter });
+        if (aiStatusFilter !== 'all') {
+            const aiLabels: Record<string, string> = { optimized: 'Optimisé', not_optimized: 'Non optimisé', has_draft: 'Brouillon généré' };
+            filters.push({ id: 'ai_status', label: 'Statut IA', value: aiLabels[aiStatusFilter] || aiStatusFilter });
+        }
+        if (syncStatusFilter !== 'all') {
+            const syncLabels: Record<string, string> = { synced: 'Synchronisé', pending: 'En attente', never: 'Jamais synchronisé' };
+            filters.push({ id: 'sync_status', label: 'Synchronisation', value: syncLabels[syncStatusFilter] || syncStatusFilter });
+        }
+        if (stockFilter !== 'all') {
+            const stockLabels: Record<string, string> = { in_stock: 'En stock', low_stock: 'Stock faible', out_of_stock: 'En rupture' };
+            filters.push({ id: 'stock', label: 'Stock', value: stockLabels[stockFilter] || stockFilter });
+        }
+        if (priceRangeFilter !== 'all') {
+            const priceLabels: Record<string, string> = {
+                '0-25': '0–25€', '25-50': '25–50€', '50-100': '50–100€',
+                '100-500': '100–500€', '500+': '500€+',
+                custom: `${priceMinFilter || '0'}€ – ${priceMaxFilter || '∞'}€`,
+            };
+            filters.push({ id: 'price_range', label: 'Prix', value: priceLabels[priceRangeFilter] || priceRangeFilter });
+        }
+        if (salesFilter !== 'all') {
+            const salesLabels: Record<string, string> = { no_sales: 'Aucune vente', '1-10': '1–10 ventes', '11-50': '11–50 ventes', '50+': '50+ ventes' };
+            filters.push({ id: 'sales', label: 'Ventes', value: salesLabels[salesFilter] || salesFilter });
+        }
+        if (seoScoreFilter !== 'all') {
+            const seoLabels: Record<string, string> = { excellent: 'Excellent (80+)', good: 'Bon (50–79)', low: 'Faible (<50)', none: 'Non analysé' };
+            filters.push({ id: 'seo_score', label: 'SEO', value: seoLabels[seoScoreFilter] || seoScoreFilter });
+        }
+        return filters;
+    }, [statusFilter, typeFilter, categoryFilter, aiStatusFilter, syncStatusFilter, stockFilter, priceRangeFilter, priceMinFilter, priceMaxFilter, salesFilter, seoScoreFilter]);
 
-        return products.filter((product) => {
-            // Search filter
-            if (s) {
-                const matchesTitle = product.title.toLowerCase().includes(s);
-                const matchesId = product.platform_product_id.toLowerCase().includes(s);
-                if (!matchesTitle && !matchesId) return false;
-            }
+    // Handle single filter removal
+    const handleRemoveFilter = useCallback((id: string) => {
+        setFilter(id, 'all');
+        if (id === 'price_range') {
+            setFilter('price_min', null);
+            setFilter('price_max', null);
+        }
+    }, [setFilter]);
 
-            // Status filter
-            if (statusFilter !== 'all') {
-                const status = product.metadata?.status || 'draft';
-                if (status !== statusFilter) return false;
-            }
-
-            // Type filter
-            if (typeFilter !== 'all') {
-                const type = (product.metadata as any)?.type || 'simple';
-                if (type !== typeFilter) return false;
-            }
-
-            // AI Status filter
-            if (aiStatusFilter !== 'all') {
-                switch (aiStatusFilter) {
-                    case 'optimized':
-                        if (!product.ai_enhanced) return false;
-                        break;
-                    case 'not_optimized':
-                        if (product.ai_enhanced) return false;
-                        break;
-                    case 'has_draft':
-                        if (!product.draft_generated_content) return false;
-                        break;
-                }
-            }
-
-            // Sync Status filter
-            if (syncStatusFilter !== 'all') {
-                const hasDirtyFields = product.dirty_fields_content && product.dirty_fields_content.length > 0;
-                const hasBeenSynced = product.last_synced_at !== null && product.last_synced_at !== undefined;
-
-                switch (syncStatusFilter) {
-                    case 'synced':
-                        // Synchronisé = a été sync + pas de modifs en attente
-                        if (!hasBeenSynced || hasDirtyFields) return false;
-                        break;
-                    case 'pending':
-                        // Modif. en attente = a des dirty_fields
-                        if (!hasDirtyFields) return false;
-                        break;
-                    case 'never':
-                        // Jamais synchronisé = last_synced_at null
-                        if (hasBeenSynced) return false;
-                        break;
-                }
-            }
-
-            // Stock filter
-            if (stockFilter !== 'all') {
-                const stock = product.stock ?? 0;
-
-                switch (stockFilter) {
-                    case 'in_stock':
-                        if (stock <= 0) return false;
-                        break;
-                    case 'low_stock':
-                        // Stock faible = entre 1 et 10
-                        if (stock <= 0 || stock > 10) return false;
-                        break;
-                    case 'out_of_stock':
-                        if (stock > 0) return false;
-                        break;
-                }
-            }
-
-            return true;
-        });
-    }, [products, localSearch, search, statusFilter, typeFilter, aiStatusFilter, syncStatusFilter, stockFilter]);
-
-    // Pagination logic
-    const totalItems = filteredProducts.length;
-    const totalPages = Math.ceil(totalItems / pageSize);
-    const paginatedProducts = useMemo(() => {
-        const start = (page - 1) * pageSize;
-        return filteredProducts.slice(start, start + pageSize);
-    }, [filteredProducts, page, pageSize]);
+    // Server-side pagination — totalCount comes from Supabase count:'exact'
+    const totalItems = totalCount;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
 
     const toggleProduct = (id: string) => {
         setSelectedProducts((prev) =>
@@ -336,7 +354,7 @@ export function ProductsListContent() {
     };
 
     const toggleAll = (selected: boolean) => {
-        setSelectedProducts(selected ? paginatedProducts.map((p) => p.id) : []);
+        setSelectedProducts(selected ? products.map((p) => p.id) : []);
     };
 
     // No store selected
@@ -361,10 +379,10 @@ export function ProductsListContent() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center space-y-4">
-                    <div className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p className="text-text-muted">Chargement des produits...</p>
+            <div className="space-y-6">
+                {/* Modern Header - Skeleton representation or minimal view could go here, but keeping simple for now */}
+                <div>
+                    <ProductsTableSkeleton />
                 </div>
             </div>
         );
@@ -419,10 +437,15 @@ export function ProductsListContent() {
                     {/* Subtle gradient accent */}
                     <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/[0.02] via-transparent to-violet-500/[0.02] pointer-events-none" />
 
-                    <CardContent className="p-5 relative z-10">
+                    <CardContent className="p-6 relative z-10">
                         <ProductsToolbar
                             searchValue={localSearch}
-                            onSearchChange={(value) => setLocalSearch(value)}
+                            onSearchChange={(value) => { isUserTypingRef.current = true; setLocalSearch(value); }}
+                            activeFilters={activeFilters}
+                            onRemoveFilter={handleRemoveFilter}
+                            onClearAllFilters={handleReset}
+                            columnVisibility={columnVisibility}
+                            onColumnVisibilityChange={setColumnVisibility}
                             filterComponent={
                                 <ProductsFilter
                                     statusFilter={statusFilter}
@@ -432,43 +455,65 @@ export function ProductsListContent() {
                                     aiStatusFilter={aiStatusFilter}
                                     syncStatusFilter={syncStatusFilter}
                                     stockFilter={stockFilter}
+                                    priceRangeFilter={priceRangeFilter}
+                                    priceMinFilter={priceMinFilter}
+                                    priceMaxFilter={priceMaxFilter}
+                                    salesFilter={salesFilter}
+                                    seoScoreFilter={seoScoreFilter}
                                     onStatusChange={(val) => setFilter('status', val)}
                                     onTypeChange={(val) => setFilter('type', val)}
                                     onCategoryChange={(val) => setFilter('category', val)}
                                     onAiStatusChange={(val) => setFilter('ai_status', val)}
                                     onSyncStatusChange={(val) => setFilter('sync_status', val)}
                                     onStockChange={(val) => setFilter('stock', val)}
+                                    onPriceRangeChange={(val) => setFilter('price_range', val)}
+                                    onPriceMinChange={(val) => setFilter('price_min', val || null)}
+                                    onPriceMaxChange={(val) => setFilter('price_max', val || null)}
+                                    onSalesChange={(val) => setFilter('sales', val)}
+                                    onSeoScoreChange={(val) => setFilter('seo_score', val)}
                                     onReset={handleReset}
                                 />
                             }
                         />
 
+                        {/* Floating Bulk Actions Bar */}
+                        <div className="mt-4">
+                            <ProductsSelectionBar
+                                isHidden={isBatchPanelOpen}
+                                selectedCount={selectedProducts.length}
+                                onDeselect={() => setSelectedProducts([])}
+                                onGenerate={() => setIsBatchPanelOpen(true)}
+                                onSync={handlePushToStore}
+                                isGenerating={isGenerating}
+                                pendingApprovalsCount={pendingApprovalsCount}
+                                syncableProductsCount={selectedProducts.length}
+                                onApproveAll={handleApproveAll}
+                                onRejectAll={handleRejectAll}
+                                onCancelSync={() => { }}
+                                isProcessingBulkAction={isPushing || acceptDraft.isPending || rejectDraft.isPending}
+                            />
+                        </div>
+
                         <BatchGenerationSheet
+                            isOpen={isBatchPanelOpen}
                             selectedCount={selectedProducts.length}
                             onGenerate={handleGenerate}
                             onOpenSettings={() => setIsSettingsOpen(true)}
-                            onClose={() => {
-                                setSelectedProducts([]);
-                                cancelGeneration();
-                            }}
+                            onClose={() => setIsBatchPanelOpen(false)}
                             isGenerating={isGenerating}
                             isAdvancedSettingsOpen={isSettingsOpen}
                             onApproveAll={handleApproveAll}
                             onRejectAll={handleRejectAll}
                             onPushToStore={handlePushToStore}
-                            onCancelSync={() => cancelGeneration()}
+                            onCancelSync={() => { /* Cancel sync not needed — push is immediate */ }}
                             pendingApprovalsCount={pendingApprovalsCount}
                             syncableProductsCount={selectedProducts.length}
-                            isProcessingBulkAction={isQueuing || acceptDraft.isPending || rejectDraft.isPending}
+                            isProcessingBulkAction={isPushing || acceptDraft.isPending || rejectDraft.isPending}
                             sseProgressMessage={sseProgressMessage}
                             modelName={generationSettings.model === 'gemini-2.5-flash-preview-05-20' ? 'Gemini 2.5 Flash' : 'Gemini 2.0 Flash'}
-                        />
-
-                        <BatchGenerationSettings
-                            open={isSettingsOpen}
-                            onOpenChange={setIsSettingsOpen}
                             settings={generationSettings}
                             onSettingsChange={setGenerationSettings}
+                            onCloseSettings={() => setIsSettingsOpen(false)}
                         />
                     </CardContent>
                 </Card>
@@ -485,7 +530,7 @@ export function ProductsListContent() {
             )}
 
             {/* Products Table with Animation */}
-            {filteredProducts.length === 0 ? (
+            {products.length === 0 ? (
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -531,10 +576,12 @@ export function ProductsListContent() {
             ) : (
                 <div className="space-y-4">
                     <ProductsTableModern
-                        products={paginatedProducts}
+                        products={products}
                         selectedProducts={selectedProducts}
                         onToggleSelect={toggleProduct}
                         onToggleSelectAll={toggleAll}
+                        columnVisibility={columnVisibility}
+                        onColumnVisibilityChange={setColumnVisibility}
                     />
 
                     {/* Pagination with Animation */}

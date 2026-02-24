@@ -5,12 +5,12 @@
  * - Détection des propositions fictives (déjà appliquées dans working_content)
  */
 
-import { ContentData, ContentStatus } from "../types/productContent";
+import { ContentData, ContentStatus, SeoData } from "../types/productContent";
 
 /**
  * Normalise une valeur pour la comparaison (gère null, undefined, chaînes vides)
  */
-function normalizeValue(value: any): string {
+function normalizeValue(value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value.trim();
   return String(value);
@@ -29,7 +29,7 @@ function normalizeHTML(html: string | null | undefined): string {
 }
 
 // Helper pour normaliser strictement pour la comparaison
-function strictNormalize(value: any): string {
+function strictNormalize(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value.trim();
   if (typeof value === "number") return value.toString();
@@ -48,7 +48,7 @@ export function computeDirtyFieldsContent(
   const s = snapshot || {} as ContentData;
 
   // Comparaison atomique avec logs
-  const compare = (field: string, val1: any, val2: any) => {
+  const compare = (field: string, val1: unknown, val2: unknown) => {
     const n1 = strictNormalize(val1);
     const n2 = strictNormalize(val2);
 
@@ -95,14 +95,14 @@ export function computeDirtyFieldsContent(
   if (JSON.stringify(wTags) !== JSON.stringify(sTags)) dirtyFieldsSet.add('tags');
 
   // Categories (Comparaison de tableaux triés par nom)
-  const normalizeCats = (cats: any[]) => (cats || []).map(c => strictNormalize(typeof c === 'string' ? c : c?.name)).sort();
+  const normalizeCats = (cats: unknown[]) => (cats || []).map(c => strictNormalize(typeof c === 'string' ? c : (c as Record<string, unknown>)?.name)).sort();
   const wCats = normalizeCats(w.categories || []);
   const sCats = normalizeCats(s.categories || []);
   if (JSON.stringify(wCats) !== JSON.stringify(sCats)) dirtyFieldsSet.add('categories');
 
   // Images (Comparaison plus intelligente)
   // On compare l'URL (src) et l'ID si présent
-  const normalizeImages = (imgs: any[]) => (imgs || []).map(img => ({
+  const normalizeImages = (imgs: Array<Record<string, unknown>>) => (imgs || []).map(img => ({
     id: String(img.id || ''),
     src: strictNormalize(img.src || img.url)
   })).sort((a, b) => a.src.localeCompare(b.src));
@@ -151,15 +151,14 @@ export function hasRemainingDraftContent(draft: ContentData | null | undefined):
 
   // Vérifier les images avec alt text générés
   if (draft.images && Array.isArray(draft.images) && draft.images.length > 0) {
-    const hasImageWithAlt = draft.images.some((img: any) => img.alt && img.alt.trim() !== '');
+    const hasImageWithAlt = draft.images.some((img) => img.alt && img.alt.trim() !== '');
     if (hasImageWithAlt) return true;
   }
 
   // Vérifier SEO - seulement title et description
   if (draft.seo && typeof draft.seo === 'object') {
-    const seo = draft.seo as any;
-    if (seo.title && seo.title.trim() !== '') return true;
-    if (seo.description && seo.description.trim() !== '') return true;
+    if (draft.seo.title && draft.seo.title.trim() !== '') return true;
+    if (draft.seo.description && draft.seo.description.trim() !== '') return true;
   }
 
   // Les champs orphelins (slug, vendor, categories, tags) sont ignorés
@@ -311,8 +310,8 @@ export function getRemainingProposals(
 
   // Gestion des champs SEO (seo.title et seo.description)
   if (draft.seo) {
-    const draftSeo = draft.seo as any;
-    const workingSeo = w.seo || {} as any;
+    const draftSeo = draft.seo;
+    const workingSeo = w.seo || {} as SeoData;
 
     // Titre SEO (meta_title)
     const draftSeoTitle = normalizeValue(draftSeo.title);
@@ -337,7 +336,7 @@ export function getRemainingProposals(
     const workingImages = w.images || [];
 
     // Vérifier si au moins une image a un alt text différent
-    const hasAltTextChanges = draftImages.some((draftImg: any, idx: number) => {
+    const hasAltTextChanges = draftImages.some((draftImg, idx) => {
       const workingImg = workingImages[idx];
       if (!workingImg) return true; // Nouvelle image
 

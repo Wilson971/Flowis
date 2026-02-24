@@ -33,7 +33,8 @@ export function useSyncManager() {
             if (error) {
                 // Check if it's a timeout (504) - these are retryable
                 if (error.message?.includes('504') || error.message?.includes('timeout')) {
-                    console.warn('[useSyncManager] Timeout detected, sync may still be in progress');
+
+
                     return {
                         success: true,
                         status: 'in_progress',
@@ -41,7 +42,6 @@ export function useSyncManager() {
                         message: 'Timeout occurred, resuming...'
                     };
                 }
-                console.error('Supabase function error:', error);
                 throw new Error(error.message || 'Edge function call failed');
             }
 
@@ -49,7 +49,8 @@ export function useSyncManager() {
         } catch (err: any) {
             // Handle network timeouts as resumable
             if (err.name === 'AbortError' || err.message?.includes('timeout') || err.message?.includes('504')) {
-                console.warn('[useSyncManager] Network timeout, treating as resumable');
+
+
                 return {
                     success: true,
                     status: 'in_progress',
@@ -77,7 +78,8 @@ export function useSyncManager() {
                 retryCountRef.current < MAX_RETRIES
             ) {
                 retryCountRef.current++;
-                console.log(`[useSyncManager] Auto-resuming sync (attempt ${retryCountRef.current}/${MAX_RETRIES})`);
+
+
 
                 // Delay before resume - increases with each retry to avoid hammering
                 const delay = Math.min(RETRY_DELAY_MS * Math.pow(1.2, retryCountRef.current - 1), 10000);
@@ -87,7 +89,7 @@ export function useSyncManager() {
                     response = await invokeSync(params);
                 } catch (err: any) {
                     // If retry fails, wait longer and try again
-                    console.warn(`[useSyncManager] Retry ${retryCountRef.current} failed, waiting longer...`, err.message);
+                    console.warn('[useSyncManager] Retry failed, will retry again:', err);
                     await new Promise(r => setTimeout(r, 5000));
                     response = { success: true, status: 'in_progress', can_resume: true };
                 }
@@ -105,7 +107,6 @@ export function useSyncManager() {
 
             return response;
         } catch (error: any) {
-            console.error('Sync failed:', error);
             toast.error("Erreur de synchronisation", {
                 description: error.message || "Impossible de synchroniser",
             });
@@ -145,7 +146,6 @@ export function useSyncManager() {
 
             return true;
         } catch (error: any) {
-            console.error('Failed to stop sync:', error);
             toast.error('Erreur', {
                 description: 'Impossible d\'arrêter la synchronisation'
             });
@@ -164,7 +164,11 @@ export function useSyncManager() {
         try {
             const supabase = createClient();
 
-            // Annuler tous les jobs actifs pour ce store
+            // Defense-in-depth: scope cancel to authenticated user's tenant
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Authentication required');
+
+            // Annuler tous les jobs actifs pour ce store (tenant-scoped)
             await supabase
                 .from('sync_jobs')
                 .update({
@@ -173,6 +177,7 @@ export function useSyncManager() {
                     completed_at: new Date().toISOString()
                 })
                 .eq('store_id', storeId)
+                .eq('tenant_id', user.id)
                 .in('status', ['pending', 'discovering', 'syncing', 'products', 'variations', 'categories']);
 
             // Petit délai pour laisser la BDD se mettre à jour
@@ -194,7 +199,8 @@ export function useSyncManager() {
                 retryCountRef.current < MAX_RETRIES
             ) {
                 retryCountRef.current++;
-                console.log(`[useSyncManager] Auto-resuming sync (attempt ${retryCountRef.current}/${MAX_RETRIES})`);
+
+
                 await new Promise(r => setTimeout(r, 1000));
                 currentResponse = await invokeSync({ storeId, types: 'all', sync_type: 'full' });
             }
@@ -207,7 +213,6 @@ export function useSyncManager() {
 
             return currentResponse;
         } catch (error: any) {
-            console.error('Force restart sync failed:', error);
             toast.error("Erreur de synchronisation", {
                 description: error.message || "Impossible de synchroniser",
             });

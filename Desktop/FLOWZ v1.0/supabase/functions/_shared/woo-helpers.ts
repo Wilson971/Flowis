@@ -1,4 +1,5 @@
 import { WooCommerceProduct, WooCommerceVariation, WooCommerceReview } from "./types/woo.ts";
+import { computeBasicSeoScore } from "./seo-scorer.ts";
 export type { WooCommerceProduct, WooCommerceVariation, WooCommerceReview };
 
 // ==========================================
@@ -550,6 +551,17 @@ export function transformWooCommerceProduct(
         seo_title: seoTitle || wooProduct.name,
         seo_description: seoDescription,
         last_synced_at: new Date().toISOString(),
+
+        // SEO score computed at import time
+        seo_score: computeBasicSeoScore({
+            title: wooProduct.name || '',
+            short_description: wooProduct.short_description || '',
+            description: wooProduct.description || '',
+            meta_title: seoTitle || wooProduct.name || '',
+            meta_description: seoDescription || '',
+            slug: wooProduct.slug || '',
+            images: (wooProduct.images || []).map((img: any) => ({ src: img.src, alt: img.alt })),
+        }),
 
         // Reset dirty fields after sync - both buffers are identical
         dirty_fields_content: []

@@ -1,5 +1,74 @@
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { STORAGE_KEYS } from '@/hooks/useLocalStorage';
+
+// --- Persistance localStorage ---
+
+type PersistedFilters = {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    type?: string;
+    category?: string;
+    ai_status?: string;
+    sync_status?: string;
+    stock?: string;
+    price_range?: string;
+    price_min?: string;
+    price_max?: string;
+    sales?: string;
+    seo_score?: string;
+};
+
+const ALL_FILTER_KEYS: Array<keyof PersistedFilters> = [
+    'search', 'page', 'pageSize', 'status', 'type',
+    'category', 'ai_status', 'sync_status', 'stock',
+    'price_range', 'price_min', 'price_max', 'sales', 'seo_score',
+];
+
+function saveFiltersToStorage(params: URLSearchParams): void {
+    try {
+        const filters: PersistedFilters = {
+            search:       params.get('search')      ?? undefined,
+            status:       params.get('status')      ?? undefined,
+            type:         params.get('type')        ?? undefined,
+            category:     params.get('category')    ?? undefined,
+            ai_status:    params.get('ai_status')   ?? undefined,
+            sync_status:  params.get('sync_status') ?? undefined,
+            stock:        params.get('stock')       ?? undefined,
+            price_range:  params.get('price_range') ?? undefined,
+            price_min:    params.get('price_min')   ?? undefined,
+            price_max:    params.get('price_max')   ?? undefined,
+            sales:        params.get('sales')       ?? undefined,
+            seo_score:    params.get('seo_score')   ?? undefined,
+            page:         params.has('page')     ? Number(params.get('page'))     : undefined,
+            pageSize:     params.has('pageSize') ? Number(params.get('pageSize')) : undefined,
+        };
+        // Strip undefined keys before serializing
+        (Object.keys(filters) as Array<keyof PersistedFilters>).forEach((k) => {
+            if (filters[k] === undefined) delete filters[k];
+        });
+        window.localStorage.setItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS, JSON.stringify(filters));
+    } catch {}
+}
+
+function loadFiltersFromStorage(): PersistedFilters | null {
+    try {
+        const raw = window.localStorage.getItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS);
+        return raw ? (JSON.parse(raw) as PersistedFilters) : null;
+    } catch {
+        return null;
+    }
+}
+
+function clearFiltersFromStorage(): void {
+    try {
+        window.localStorage.removeItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS);
+    } catch {}
+}
+
+// --- Hook ---
 
 type UseTableFiltersOptions = {
     defaultPageSize?: number;
@@ -26,13 +95,54 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    // Helper to read params
-    const search = searchParams.get("search") || "";
-    const page = Number(searchParams.get("page")) || defaultPage;
-    const pageSize = Number(searchParams.get("pageSize")) || defaultPageSize;
+    // Ref: garantit que la restauration ne s'exécute qu'une seule fois au mount
+    const hasRestoredRef = useRef(false);
+
+    const search = searchParams.get('search') || '';
+    const page = Number(searchParams.get('page')) || defaultPage;
+    const pageSize = Number(searchParams.get('pageSize')) || defaultPageSize;
+
+    // Effect 1 — Sync URL params → localStorage (se déclenche à chaque changement d'URL)
+    useEffect(() => {
+        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        const hasAny = ALL_FILTER_KEYS.some((k) => current.has(k));
+        if (hasAny) {
+            saveFiltersToStorage(current);
+        }
+    }, [searchParams]);
+
+    // Effect 2 — Restore localStorage → URL (une seule fois au mount, si URL vide)
+    useEffect(() => {
+        if (hasRestoredRef.current) return;
+        hasRestoredRef.current = true;
+
+        const hasUrlParams = ALL_FILTER_KEYS.some((k) => searchParams.has(k));
+        if (hasUrlParams) return; // URL params prioritaires : ne pas écraser
+
+        const saved = loadFiltersFromStorage();
+        if (!saved) return;
+
+        const restored = new URLSearchParams();
+        (Object.keys(saved) as Array<keyof PersistedFilters>).forEach((key) => {
+            const val = saved[key];
+            if (val !== undefined && val !== null && val !== '') {
+                restored.set(key, String(val));
+            }
+        });
+
+        const query = restored.toString();
+        if (query) {
+            router.replace(`${pathname}?${query}`);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Intentionnellement vide — exécuté une seule fois au mount
+
+    // Use a ref to always have fresh searchParams without causing callback identity changes
+    const searchParamsRef = useRef(searchParams);
+    searchParamsRef.current = searchParams;
 
     const updateParams = useCallback((updates: Record<string, any>) => {
-        const current = new URLSearchParams(Array.from(searchParams.entries()));
+        const current = new URLSearchParams(Array.from(searchParamsRef.current.entries()));
 
         Object.entries(updates).forEach(([key, value]) => {
             if (value === undefined || value === null) {
@@ -42,11 +152,12 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
             }
         });
 
-        const searchString = current.toString();
-        const query = searchString ? `?${searchString}` : "";
+        saveFiltersToStorage(current);
 
+        const searchString = current.toString();
+        const query = searchString ? `?${searchString}` : '';
         router.replace(`${pathname}${query}`);
-    }, [router, pathname, searchParams]);
+    }, [router, pathname]);
 
     const setSearch = useCallback((value: string) => {
         updateParams({ search: value || undefined, page: 1 });
@@ -65,18 +176,18 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
     }, [updateParams]);
 
     const resetFilters = useCallback(() => {
-        updateParams({
-            search: undefined,
-            page: 1,
-            // pageSize: defaultPageSize // Optional: reset page size too
-        });
-    }, [updateParams]);
+        clearFiltersFromStorage();
+        const current = new URLSearchParams();
+        current.set('page', '1');
+        current.set('pageSize', String(pageSize));
+        const query = current.toString();
+        router.replace(`${pathname}?${query}`);
+    }, [router, pathname, pageSize]);
 
     const resetAll = useCallback(() => {
         resetFilters();
     }, [resetFilters]);
 
-    // Build result
     const result = useMemo(() => {
         const paramsObject = Object.fromEntries(searchParams.entries());
 

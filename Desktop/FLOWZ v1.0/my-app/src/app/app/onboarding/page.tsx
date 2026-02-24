@@ -142,9 +142,9 @@ export default function OnboardingPage() {
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.2 }}
-                            className="w-24 h-24 rounded-full bg-green-500/20 flex items-center justify-center mx-auto"
+                            className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto"
                         >
-                            <CheckCircle2 className="h-12 w-12 text-green-500" />
+                            <CheckCircle2 className="h-12 w-12 text-emerald-500" />
                         </motion.div>
 
                         <div className="space-y-4">

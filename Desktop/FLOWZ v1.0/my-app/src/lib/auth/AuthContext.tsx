@@ -20,10 +20,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Only initialize Supabase client-side
         const supabase = createClient()
 
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session)
-            setUser(session?.user ?? null)
+        // Get initial user (server-validated, unlike getSession which reads from local storage)
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setUser(user ?? null)
+            // Also get session for the access token
+            supabase.auth.getSession().then(({ data: { session } }) => {
+                setSession(session)
+                setLoading(false)
+            })
+        }).catch(() => {
             setLoading(false)
         })
 

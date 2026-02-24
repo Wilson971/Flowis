@@ -123,7 +123,7 @@ export function ImageAltSuggestionModal({
                             </Badge>
                         )}
                         {rejectedCount > 0 && (
-                            <Badge className="text-[10px] font-medium bg-red-500/10 text-red-600 border-red-500/20">
+                            <Badge className="text-[10px] font-medium bg-destructive/10 text-destructive border-destructive/20">
                                 {rejectedCount} rejeté{rejectedCount > 1 ? "s" : ""}
                             </Badge>
                         )}
@@ -144,7 +144,7 @@ export function ImageAltSuggestionModal({
                                     className={cn(
                                         "rounded-xl border p-4 transition-all",
                                         status === "accepted" && "border-emerald-500/30 bg-emerald-500/5 opacity-60",
-                                        status === "rejected" && "border-red-500/30 bg-red-500/5 opacity-60",
+                                        status === "rejected" && "border-destructive/30 bg-destructive/5 opacity-60",
                                         !status && "border-border/50 bg-card/50"
                                     )}
                                 >
@@ -222,7 +222,7 @@ export function ImageAltSuggestionModal({
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
-                                                        className="h-7 w-7 p-0 border-red-500/30 text-red-600 hover:bg-red-500/10"
+                                                        className="h-7 w-7 p-0 border-destructive/30 text-destructive hover:bg-destructive/10"
                                                         onClick={() => handleRejectSingle(index)}
                                                         disabled={isProcessing}
                                                         title="Rejeter"
@@ -236,7 +236,7 @@ export function ImageAltSuggestionModal({
                                                     className={cn(
                                                         "text-[9px] px-1.5",
                                                         status === "accepted" && "text-emerald-600 border-emerald-500/30",
-                                                        status === "rejected" && "text-red-600 border-red-500/30"
+                                                        status === "rejected" && "text-destructive border-destructive/30"
                                                     )}
                                                 >
                                                     {status === "accepted" ? "OK" : "Non"}
@@ -268,7 +268,7 @@ export function ImageAltSuggestionModal({
                             size="sm"
                             onClick={handleRejectAllClick}
                             disabled={isProcessing || isAcceptingAll || isRejectingAll || pendingCount === 0}
-                            className="gap-1.5 text-xs text-red-600 border-red-500/30 hover:bg-red-500/10"
+                            className="gap-1.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
                         >
                             <XCircle className="h-3.5 w-3.5" />
                             {isRejectingAll ? "Rejet..." : "Tout rejeter"}

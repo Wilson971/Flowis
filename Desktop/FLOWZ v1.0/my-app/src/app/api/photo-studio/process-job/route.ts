@@ -8,6 +8,7 @@ import {
   VIEW_ANGLE_PROMPTS,
   type ViewAngle,
 } from "@/features/photo-studio/types/studio";
+import { fetchImageSafe } from "@/lib/ssrf";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -59,86 +60,44 @@ function buildAnglePrompt(productName: string, angle: string): string {
 }
 
 // ============================================================================
-// IMAGE HELPERS + SSRF PROTECTION
+// IMAGE HELPERS
 // ============================================================================
 
 /** Maximum image size in bytes (10 MB) */
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
-/**
- * Blocked IP ranges for SSRF protection.
- */
-const BLOCKED_IP_PATTERNS = [
-  /^127\./,                    // Loopback
-  /^10\./,                     // Private class A
-  /^172\.(1[6-9]|2\d|3[01])\./, // Private class B
-  /^192\.168\./,               // Private class C
-  /^169\.254\./,               // Link-local / cloud metadata
-  /^0\./,                      // Current network
-  /^::1$/,                     // IPv6 loopback
-  /^fc00:/i,                   // IPv6 private
-  /^fe80:/i,                   // IPv6 link-local
-];
+// ============================================================================
+// SUPABASE STORAGE UPLOAD
+// ============================================================================
 
-const BLOCKED_HOSTNAMES = [
-  'localhost',
-  'metadata.google.internal',
-  'metadata.google',
-  'instance-data',
-];
+const STORAGE_BUCKET = "studio-images";
 
-function validateImageUrl(urlString: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(urlString);
-  } catch {
-    throw new Error('Invalid image URL');
-  }
+async function uploadToStorage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  base64Data: string,
+  mimeType: string,
+  productId: string,
+  jobId: string,
+  index: number
+): Promise<string> {
+  const buffer = Buffer.from(base64Data, "base64");
+  const ext = mimeType.includes("png") ? "png" : "jpg";
+  const storagePath = `products/${productId}/${jobId}_${index}_${Date.now()}.${ext}`;
 
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new Error('Only HTTP/HTTPS image URLs are allowed');
-  }
-
-  const hostname = parsed.hostname.toLowerCase();
-  if (BLOCKED_HOSTNAMES.some(h => hostname === h || hostname.endsWith('.' + h))) {
-    throw new Error('Access to internal hosts is not allowed');
-  }
-
-  if (BLOCKED_IP_PATTERNS.some(pattern => pattern.test(hostname))) {
-    throw new Error('Access to private IP ranges is not allowed');
-  }
-}
-
-async function fetchImageFromUrl(
-  imageUrl: string
-): Promise<{ data: string; mimeType: string }> {
-  validateImageUrl(imageUrl);
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
-
-  try {
-    const response = await fetch(imageUrl, {
-      headers: { Accept: "image/*" },
-      signal: controller.signal,
-      redirect: "follow",
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(storagePath, buffer, {
+      contentType: mimeType,
+      upsert: false,
     });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: HTTP ${response.status}`);
-    }
 
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > MAX_IMAGE_SIZE) {
-      throw new Error(`Image too large: ${Math.round(buffer.byteLength / 1024 / 1024)}MB (max ${MAX_IMAGE_SIZE / 1024 / 1024}MB)`);
-    }
+  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
-    return {
-      data: Buffer.from(buffer).toString("base64"),
-      mimeType: response.headers.get("content-type") || "image/jpeg",
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
+  const { data: { publicUrl } } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(storagePath);
+
+  return publicUrl;
 }
 
 // ============================================================================
@@ -149,7 +108,11 @@ async function generateWithGemini(
   ai: InstanceType<typeof GoogleGenAI>,
   model: string,
   sourceImage: { data: string; mimeType: string },
-  prompt: string
+  prompt: string,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId: string,
+  jobId: string,
+  imageIndex: number
 ): Promise<string | null> {
   const response = await ai.models.generateContent({
     model,
@@ -176,7 +139,15 @@ async function generateWithGemini(
   for (const part of parts) {
     if (part.inlineData?.data) {
       const mime = part.inlineData.mimeType || "image/png";
-      return `data:${mime};base64,${part.inlineData.data}`;
+      // Upload to Supabase Storage instead of storing base64 in DB
+      return await uploadToStorage(
+        supabase,
+        part.inlineData.data,
+        mime,
+        productId,
+        jobId,
+        imageIndex
+      );
     }
   }
   return null;
@@ -258,11 +229,21 @@ export async function POST(
   // 3. Supabase client (authenticated via cookies)
   const supabase = await createClient();
 
-  // 4. Fetch job
+  // SEC-05: Explicit auth check BEFORE fetching job
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  // 4. Fetch job (filtered by tenant_id for ownership)
   const { data: job, error: jobError } = await supabase
     .from("studio_jobs")
     .select("*")
     .eq("id", jobId)
+    .eq("tenant_id", user.id)
     .single();
 
   if (jobError || !job) {
@@ -336,18 +317,12 @@ export async function POST(
       );
     }
 
-    console.log(
-      `[Photo Studio] Job ${jobId}: resolved ${inputUrls.length} input image(s) for "${productName}"`
-    );
-
     // 8. Initialize Gemini
     const ai = new GoogleGenAI({ apiKey });
     const model = "gemini-2.5-flash-image";
 
     const presetJson =
-      (job.preset_json as Record<string, unknown>) ||
-      (job.preset_settings as Record<string, unknown>) ||
-      {};
+      (job.preset_json as Record<string, unknown>) || {};
 
     // 9. Generate based on action
     const outputUrls: string[] = [];
@@ -360,25 +335,19 @@ export async function POST(
         "three_quarter_right",
         "top",
       ];
-      const sourceImage = await fetchImageFromUrl(inputUrls[0]);
+      const sourceImage = await fetchImageSafe(inputUrls[0], MAX_IMAGE_SIZE);
 
-      for (const angle of angles) {
-        const prompt = buildAnglePrompt(productName, angle);
-        console.log(
-          `[Photo Studio] Job ${jobId}: generating angle "${angle}"`
-        );
-        const result = await generateWithGemini(ai, model, sourceImage, prompt);
+      for (let i = 0; i < angles.length; i++) {
+        const prompt = buildAnglePrompt(productName, angles[i]);
+        const result = await generateWithGemini(ai, model, sourceImage, prompt, supabase, job.product_id, jobId, i);
         if (result) outputUrls.push(result);
       }
     } else {
       // Standard: process first input image
       const prompt = buildPromptForAction(job.action, presetJson, productName);
-      const sourceImage = await fetchImageFromUrl(inputUrls[0]);
+      const sourceImage = await fetchImageSafe(inputUrls[0], MAX_IMAGE_SIZE);
 
-      console.log(
-        `[Photo Studio] Job ${jobId}: action="${job.action}" product="${productName}"`
-      );
-      const result = await generateWithGemini(ai, model, sourceImage, prompt);
+      const result = await generateWithGemini(ai, model, sourceImage, prompt, supabase, job.product_id, jobId, 0);
       if (result) outputUrls.push(result);
     }
 
@@ -399,10 +368,6 @@ export async function POST(
     if (job.batch_id) {
       await updateBatchProgress(supabase, job.batch_id);
     }
-
-    console.log(
-      `[Photo Studio] Job ${jobId} completed: ${outputUrls.length} image(s) generated`
-    );
 
     return NextResponse.json({
       success: true,

@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 const statusConfig = {
   draft: { label: 'Brouillon', color: 'bg-zinc-500', badge: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
   published: { label: 'Publié', color: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
-  scheduled: { label: 'Planifié', color: 'bg-blue-500', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
+  scheduled: { label: 'Planifié', color: 'bg-primary', badge: 'bg-primary/5 text-primary border-primary/20' },
   archived: { label: 'Archivé', color: 'bg-amber-500', badge: 'bg-amber-50 text-amber-600 border-amber-200' },
 };
 
@@ -94,7 +94,7 @@ export function StatusCard() {
               </SelectItem>
               <SelectItem value="scheduled">
                 <div className="flex items-center gap-2">
-                  <Circle className="h-2 w-2 fill-blue-500 text-blue-500" />
+                  <Circle className="h-2 w-2 fill-blue-500 text-primary" />
                   Planifié
                 </div>
               </SelectItem>
@@ -116,8 +116,8 @@ export function StatusCard() {
               <Badge variant="outline" className={cn(
                 'text-[10px]',
                 syncStatus === 'synced' && 'bg-emerald-50 text-emerald-600 border-emerald-200',
-                syncStatus === 'syncing' && 'bg-blue-50 text-blue-600 border-blue-200',
-                syncStatus === 'failed' && 'bg-red-50 text-red-600 border-red-200',
+                syncStatus === 'syncing' && 'bg-primary/5 text-primary border-primary/20',
+                syncStatus === 'failed' && 'bg-destructive/10 text-destructive border-destructive/20',
                 syncStatus === 'pending' && 'bg-amber-50 text-amber-600 border-amber-200',
               )}>
                 {syncStatus === 'synced' && 'Synchronisé'}

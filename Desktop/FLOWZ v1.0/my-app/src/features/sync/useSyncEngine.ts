@@ -59,7 +59,8 @@ export function useSyncEngine(): SyncContextValue {
         syncSubscriptions.init(supabase);
         queryInvalidation.init(queryClient);
 
-        console.log('[SyncEngine] Initialized');
+
+
     }, [supabase, queryClient]);
 
     // ========================================================================
@@ -72,7 +73,8 @@ export function useSyncEngine(): SyncContextValue {
             return;
         }
 
-        console.log(`[SyncEngine] Setting up subscriptions for store: ${storeId}`);
+
+
 
         const unsubscribe = syncSubscriptions.subscribeToStore({
             storeId,
@@ -135,7 +137,8 @@ export function useSyncEngine(): SyncContextValue {
 
         // Cleanup
         return () => {
-            console.log(`[SyncEngine] Cleaning up subscriptions for store: ${storeId}`);
+
+
             unsubscribe();
 
             if (cleanupTimeoutRef.current) {
@@ -237,7 +240,8 @@ export function useSyncEngine(): SyncContextValue {
     const startSync = useCallback(
         async (storeId: string, options?: SyncOptions) => {
             if (!syncSelectors.canStart(stateRef.current)) {
-                console.warn('[SyncEngine] Cannot start: sync already in progress');
+
+
                 return;
             }
 
@@ -260,7 +264,8 @@ export function useSyncEngine(): SyncContextValue {
         const { activeJobId, activeJob } = stateRef.current;
 
         if (!activeJobId || !syncSelectors.canPause(stateRef.current)) {
-            console.warn('[SyncEngine] Cannot pause');
+
+
             return;
         }
 
@@ -270,6 +275,7 @@ export function useSyncEngine(): SyncContextValue {
             await pauseMutation.mutateAsync(activeJobId);
             toast.info('Synchronisation mise en pause');
         } catch (error) {
+            console.warn('[useSyncEngine] Pause failed, reverting state:', error);
             // Revert state
             if (activeJob) {
                 dispatch({ type: 'JOB_UPDATE', job: activeJob });
@@ -281,7 +287,8 @@ export function useSyncEngine(): SyncContextValue {
         const { activeJob } = stateRef.current;
 
         if (!activeJob || !syncSelectors.canResume(stateRef.current)) {
-            console.warn('[SyncEngine] Cannot resume');
+
+
             return;
         }
 
@@ -299,7 +306,8 @@ export function useSyncEngine(): SyncContextValue {
         const { activeJobId, activeStoreId } = stateRef.current;
 
         if (!activeJobId || !syncSelectors.canCancel(stateRef.current)) {
-            console.warn('[SyncEngine] Cannot cancel');
+
+
             return;
         }
 

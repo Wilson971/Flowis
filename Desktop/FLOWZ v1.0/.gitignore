@@ -47,3 +47,9 @@ verify_rpc.js
 
 # Old backups
 ecocombo-sync-main - antygravity OLD/
+
+# Non-code artifacts
+template-page/
+
+# Root design-system (canonical is my-app/src/lib/design-system/)
+/design-system/

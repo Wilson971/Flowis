@@ -61,7 +61,6 @@ export function useSyncQueueStats(storeId?: string) {
       const { data, error } = await query;
 
       if (error) {
-        console.error('[useSyncQueueStats] Error:', error);
         throw error;
       }
 
@@ -100,7 +99,12 @@ export function useSyncQueueStats(storeId?: string) {
 
       return stats;
     },
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: (query) => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      const data = query.state.data as SyncQueueStats | undefined;
+      const hasActive = (data?.pending ?? 0) > 0 || (data?.processing ?? 0) > 0;
+      return hasActive ? 5000 : false;
+    },
   });
 }
 
@@ -181,13 +185,17 @@ export function useSyncQueueJobs(storeId?: string, statusFilter?: string[]) {
       const { data, error } = await query;
 
       if (error) {
-        console.error('[useSyncQueueJobs] Error:', error);
         throw error;
       }
 
       return (data || []) as SyncQueueJob[];
     },
-    refetchInterval: 3000,
+    refetchInterval: (query) => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      const data = query.state.data as SyncQueueJob[] | undefined;
+      const hasActive = data?.some(j => j.status === 'pending' || j.status === 'processing');
+      return hasActive ? 3000 : false;
+    },
   });
 }
 
@@ -216,12 +224,15 @@ export function usePendingSyncCount(storeId?: string) {
       const { count, error } = await query;
 
       if (error) {
-        console.error('[usePendingSyncCount] Error:', error);
         return 0;
       }
 
       return count || 0;
     },
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      if (typeof document !== 'undefined' && document.hidden) return false;
+      const count = query.state.data as number | undefined;
+      return (count ?? 0) > 0 ? 5000 : false;
+    },
   });
 }

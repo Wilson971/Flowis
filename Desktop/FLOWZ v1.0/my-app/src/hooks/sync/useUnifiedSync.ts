@@ -83,7 +83,8 @@ export function useUnifiedSync() {
       fields,
       priority = 5,
     }: QueueSyncOptions): Promise<QueueSyncResult> => {
-      console.log(`[useUnifiedSync] Queueing ${productIds.length} products for sync`);
+
+
 
       const result: QueueSyncResult = {
         success: true,
@@ -109,7 +110,6 @@ export function useUnifiedSync() {
         .in('id', productIds);
 
       if (fetchError) {
-        console.error('[useUnifiedSync] Failed to fetch products:', fetchError);
         throw new Error(`Failed to fetch products: ${fetchError.message}`);
       }
 
@@ -172,7 +172,6 @@ export function useUnifiedSync() {
         .select('id, product_id, status');
 
       if (insertError) {
-        console.error('[useUnifiedSync] Failed to insert jobs:', insertError);
         throw new Error(`Failed to queue sync: ${insertError.message}`);
       }
 
@@ -195,7 +194,8 @@ export function useUnifiedSync() {
         status: j.status,
       }));
 
-      console.log(`[useUnifiedSync] Queued ${result.queued} products, skipped ${result.skipped}`);
+
+
 
       return result;
     },

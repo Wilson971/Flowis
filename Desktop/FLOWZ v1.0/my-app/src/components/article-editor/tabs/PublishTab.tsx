@@ -77,9 +77,9 @@ function SyncStatusBadge({ status }: { status: SyncStatus }) {
   const variants: Record<SyncStatus, { color: string; icon: React.ReactNode }> = {
     draft: { color: 'bg-zinc-500/10 text-zinc-500', icon: null },
     pending: { color: 'bg-amber-500/10 text-amber-500', icon: <Clock className="h-3 w-3" /> },
-    syncing: { color: 'bg-blue-500/10 text-blue-500', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
+    syncing: { color: 'bg-primary/10 text-primary', icon: <Loader2 className="h-3 w-3 animate-spin" /> },
     synced: { color: 'bg-emerald-500/10 text-emerald-500', icon: <Check className="h-3 w-3" /> },
-    failed: { color: 'bg-red-500/10 text-red-500', icon: <X className="h-3 w-3" /> },
+    failed: { color: 'bg-destructive/10 text-destructive', icon: <X className="h-3 w-3" /> },
     partial: { color: 'bg-orange-500/10 text-orange-500', icon: <AlertCircle className="h-3 w-3" /> },
   };
 

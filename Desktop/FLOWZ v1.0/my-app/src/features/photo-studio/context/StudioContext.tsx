@@ -27,6 +27,15 @@ type Tag = {
   locked: boolean;
 };
 
+export type EditorMode = 'none' | 'crop' | 'adjust' | 'annotate';
+
+export type ImageAdjustmentValues = {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  warmth: number;
+};
+
 interface StudioState {
   currentProductId: string | null;
   selectedImageId: string | null;
@@ -40,6 +49,8 @@ interface StudioState {
   customPrompt: string;
   isStudioOpen: boolean;
   studioProductId: string | null;
+  editorMode: EditorMode;
+  imageAdjustments: ImageAdjustmentValues;
 }
 
 // ============================================================================
@@ -62,11 +73,20 @@ type StudioAction =
   | { type: 'SET_CUSTOM_PROMPT'; prompt: string }
   | { type: 'OPEN_STUDIO'; productId: string }
   | { type: 'CLOSE_STUDIO' }
+  | { type: 'SET_EDITOR_MODE'; mode: EditorMode }
+  | { type: 'SET_IMAGE_ADJUSTMENTS'; adjustments: ImageAdjustmentValues }
   | { type: 'RESET' };
 
 // ============================================================================
 // INITIAL STATE
 // ============================================================================
+
+const DEFAULT_ADJUSTMENTS: ImageAdjustmentValues = {
+  brightness: 100,
+  contrast: 100,
+  saturation: 100,
+  warmth: 0,
+};
 
 const initialState: StudioState = {
   currentProductId: null,
@@ -81,6 +101,8 @@ const initialState: StudioState = {
   customPrompt: '',
   isStudioOpen: false,
   studioProductId: null,
+  editorMode: 'none',
+  imageAdjustments: DEFAULT_ADJUSTMENTS,
 };
 
 // ============================================================================
@@ -223,6 +245,26 @@ function studioReducer(state: StudioState, action: StudioAction): StudioState {
         isStudioOpen: false,
         selectedImageId: null,
         selectedImageType: null,
+        editorMode: 'none',
+        imageAdjustments: DEFAULT_ADJUSTMENTS,
+      };
+    }
+
+    case 'SET_EDITOR_MODE': {
+      return {
+        ...state,
+        editorMode: action.mode,
+        // Reset adjustments when leaving adjust mode without applying
+        ...(action.mode !== 'adjust' && state.editorMode === 'adjust'
+          ? { imageAdjustments: DEFAULT_ADJUSTMENTS }
+          : {}),
+      };
+    }
+
+    case 'SET_IMAGE_ADJUSTMENTS': {
+      return {
+        ...state,
+        imageAdjustments: action.adjustments,
       };
     }
 
@@ -258,6 +300,9 @@ interface StudioContextValue {
   setCustomPrompt: (prompt: string) => void;
   openStudio: (productId: string) => void;
   closeStudio: () => void;
+  setEditorMode: (mode: EditorMode) => void;
+  setImageAdjustments: (adjustments: ImageAdjustmentValues) => void;
+  resetAdjustments: () => void;
   reset: () => void;
 }
 
@@ -411,6 +456,21 @@ export function StudioContextProvider({ children }: { children: React.ReactNode 
 
   const closeStudio = useCallback(() => dispatch({ type: 'CLOSE_STUDIO' }), []);
 
+  const setEditorMode = useCallback(
+    (mode: EditorMode) => dispatch({ type: 'SET_EDITOR_MODE', mode }),
+    []
+  );
+
+  const setImageAdjustments = useCallback(
+    (adjustments: ImageAdjustmentValues) => dispatch({ type: 'SET_IMAGE_ADJUSTMENTS', adjustments }),
+    []
+  );
+
+  const resetAdjustments = useCallback(
+    () => dispatch({ type: 'SET_IMAGE_ADJUSTMENTS', adjustments: DEFAULT_ADJUSTMENTS }),
+    []
+  );
+
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
 
   // ---------------------------------------------------------------------------
@@ -435,6 +495,9 @@ export function StudioContextProvider({ children }: { children: React.ReactNode 
       setCustomPrompt,
       openStudio,
       closeStudio,
+      setEditorMode,
+      setImageAdjustments,
+      resetAdjustments,
       reset,
     }),
     [
@@ -453,6 +516,9 @@ export function StudioContextProvider({ children }: { children: React.ReactNode 
       setCustomPrompt,
       openStudio,
       closeStudio,
+      setEditorMode,
+      setImageAdjustments,
+      resetAdjustments,
       reset,
     ]
   );

@@ -55,7 +55,6 @@ export function useVariationImageUpload({ productId }: UseVariationImageUploadOp
 
                 return variationImage;
             } catch (err) {
-                console.error("Variation image upload error:", err);
                 toast.error("Erreur lors de l'upload de l'image");
                 return null;
             }

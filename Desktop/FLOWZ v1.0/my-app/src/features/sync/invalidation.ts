@@ -147,10 +147,6 @@ class QueryInvalidationManager {
         const toInvalidate = sorted.slice(0, MAX_BATCH_SIZE);
         const remaining = sorted.slice(MAX_BATCH_SIZE);
 
-        console.log(
-            `[QueryInvalidation] Executing batch of ${toInvalidate.length} invalidations`
-        );
-
         // Exécuter les invalidations en parallèle
         await Promise.allSettled(
             toInvalidate.map((item) =>
@@ -177,8 +173,6 @@ class QueryInvalidationManager {
             console.error('[QueryInvalidation] QueryClient not initialized');
             return;
         }
-
-        console.log(`[QueryInvalidation] Immediate invalidation of ${queryKeys.length} queries`);
 
         await Promise.allSettled(
             queryKeys.map((key) =>

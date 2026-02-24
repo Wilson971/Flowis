@@ -227,7 +227,6 @@ export function useStartSync() {
             });
         },
         onError: (error: Error) => {
-            console.error('Failed to start sync:', error);
             toast.error(`Erreur lors du démarrage: ${error.message}`);
         },
     });
@@ -273,7 +272,6 @@ export function usePauseSync() {
             toast.info('Synchronisation mise en pause');
         },
         onError: (error: Error) => {
-            console.error('Failed to pause sync:', error);
             toast.error(`Erreur: ${error.message}`);
         },
     });
@@ -330,7 +328,6 @@ export function useResumeSync() {
             });
         },
         onError: (error: Error) => {
-            console.error('Failed to resume sync:', error);
             toast.error(`Erreur: ${error.message}`);
         },
     });
@@ -379,7 +376,6 @@ export function useCancelSyncJob() {
             toast.info('Synchronisation annulée');
         },
         onError: (error: Error) => {
-            console.error('Failed to cancel sync:', error);
             toast.error(`Erreur: ${error.message}`);
         },
     });

@@ -199,10 +199,9 @@ router.push(`/app/blog/editor/${articleId}`)
 ## Environment Variables
 
 Required in `.env`:
-- `VITE_SUPABASE_URL` - Supabase project URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
 - `GEMINI_API_KEY` - Google GenAI API key
-- `VITE_GEMINI_API_KEY` - Client-side Gemini key
 
 ## Important Files
 

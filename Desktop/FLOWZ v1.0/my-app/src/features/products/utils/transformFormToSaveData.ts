@@ -84,7 +84,7 @@ export function transformFormToSaveData(
 
         // Taxonomies
         categories: data.categories?.map((cat) => {
-            const name = typeof cat === "string" ? cat : (cat?.name ?? String(cat));
+            const name = typeof cat === "string" ? cat : String(cat);
             const trimmedName = name.trim();
             // Match by ID first (stable), then fall back to trimmed name
             const found = availableCategories?.find((ac) =>

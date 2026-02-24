@@ -132,7 +132,8 @@ export function useGenerateArticle() {
 
                 switch (data.type) {
                   case 'connected':
-                    console.log('[FloWriter] Connected to stream');
+
+
                     break;
 
                   case 'heartbeat':
@@ -183,13 +184,14 @@ export function useGenerateArticle() {
               callbacks?.onComplete?.(fullContent, meta);
             }
           } catch (e) {
-            // Ignore
+            console.warn('[useBlogAI] Failed to parse SSE chunk:', e);
           }
         }
 
         // Safety: If stream ends without explicit complete event
         if (!hasCompleted && fullContent.length > 0) {
-          console.warn('[FloWriter] Stream ended without complete event');
+
+
           callbacks?.onComplete?.(fullContent, meta);
         }
 

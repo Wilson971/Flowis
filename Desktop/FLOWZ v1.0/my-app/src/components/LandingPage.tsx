@@ -1,12 +1,16 @@
+"use client";
+
+import dynamic from "next/dynamic";
 import { Navbar } from "./landing/Navbar";
 import { HeroSection } from "./landing/Hero";
-import { DashboardPreviewSection } from "./landing/DashboardPreview";
-import { MarqueeSection } from "./landing/Marquee";
-import { MarketIntelligenceSection } from "./landing/MarketIntelligence";
-import { FeaturesSection } from "./landing/Features";
-import { TestimonialsSection } from "./landing/Testimonials";
-import { PricingSection } from "./landing/Pricing";
-import { FooterSection } from "./landing/Footer";
+
+const DashboardPreviewSection = dynamic(() => import("./landing/DashboardPreview").then(mod => ({ default: mod.DashboardPreviewSection })), { ssr: false });
+const MarqueeSection = dynamic(() => import("./landing/Marquee").then(mod => ({ default: mod.MarqueeSection })), { ssr: false });
+const MarketIntelligenceSection = dynamic(() => import("./landing/MarketIntelligence").then(mod => ({ default: mod.MarketIntelligenceSection })), { ssr: false });
+const FeaturesSection = dynamic(() => import("./landing/Features").then(mod => ({ default: mod.FeaturesSection })), { ssr: false });
+const TestimonialsSection = dynamic(() => import("./landing/Testimonials").then(mod => ({ default: mod.TestimonialsSection })), { ssr: false });
+const PricingSection = dynamic(() => import("./landing/Pricing").then(mod => ({ default: mod.PricingSection })), { ssr: false });
+const FooterSection = dynamic(() => import("./landing/Footer").then(mod => ({ default: mod.FooterSection })), { ssr: false });
 
 export function LandingPage() {
     return (

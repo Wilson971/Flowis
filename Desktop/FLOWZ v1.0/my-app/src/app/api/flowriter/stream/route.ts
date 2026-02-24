@@ -2,6 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { detectPromptInjection, sanitizeUserInput } from '@/lib/ai/prompt-safety';
 
 // ============================================================================
 // FLOWRITER v2.0 - Node.js Runtime for Extended Timeout Support
@@ -141,32 +142,46 @@ function logTokenUsage(usage: TokenUsage, metadata: {
     timestamp: number;
 }): void {
     // For now, just log to console - can be extended to store in database
-    console.log('[FloWriter] Token Usage:', {
-        ...usage,
-        ...metadata,
-        costFormatted: `$${usage.estimatedCost.toFixed(6)}`,
-    });
+    // Token usage tracking — extend to DB storage if needed
 }
 
-// Daily token limit per user (if needed)
-const DAILY_TOKEN_LIMIT = 500000; // 500K tokens per day
+// Monthly token limit per user
+const MONTHLY_TOKEN_LIMIT = 2_000_000; // 2M tokens per month
 
 /**
- * Check if user is within daily limit (stub for future implementation)
- * In production, this would check against a database
+ * Check if user is within monthly token limit.
+ * Queries ai_usage table aggregated by month.
  */
 async function checkTokenLimit(userId?: string): Promise<{
     allowed: boolean;
     remaining: number;
     resetAt: Date;
 }> {
-    // TODO: Implement actual tracking with database
-    // For now, always allow
-    return {
-        allowed: true,
-        remaining: DAILY_TOKEN_LIMIT,
-        resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
+    if (!userId) {
+        return { allowed: false, remaining: 0, resetAt: new Date() };
+    }
+
+    const supabase = await createClient();
+    const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+
+    // Sum all tokens (input + output) for this tenant this month
+    const { data, error } = await supabase
+        .from('ai_usage')
+        .select('tokens_input, tokens_output')
+        .eq('tenant_id', userId)
+        .eq('month', currentMonth);
+
+    const used = error
+        ? 0
+        : (data ?? []).reduce((sum, row) => sum + (row.tokens_input ?? 0) + (row.tokens_output ?? 0), 0);
+
+    const remaining = Math.max(0, MONTHLY_TOKEN_LIMIT - used);
+
+    // Reset at start of next month
+    const now = new Date();
+    const resetAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+
+    return { allowed: remaining > 0, remaining, resetAt };
 }
 
 // ============================================================================
@@ -225,44 +240,14 @@ function getPersonaInstructions(persona?: string): string {
 const SANITIZE_CONFIG = {
     maxTopicLength: 500,
     maxTitleLength: 200,
-    maxOutlineItems: 300,
+    maxOutlineItems: 50,
     maxKeywords: 20,
     maxCustomInstructionsLength: 1000,
 };
 
-// Patterns that could indicate prompt injection attempts
-const SUSPICIOUS_PATTERNS = [
-    /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/i,
-    /disregard\s+(all\s+)?(previous|above|prior)/i,
-    /you\s+are\s+now\s+(a|an)\s+/i,
-    /new\s+instructions?:/i,
-    /system\s*prompt:/i,
-    /\[INST\]/i,
-    /\[\/INST\]/i,
-    /<<SYS>>/i,
-    /<\|im_start\|>/i,
-];
-
-function sanitizeInput(text: string, maxLength: number = 1000): string {
-    if (typeof text !== 'string') return '';
-
-    // Trim and limit length
-    let sanitized = text.trim().slice(0, maxLength);
-
-    // Remove control characters except newlines and tabs
-    sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-
-    // Escape characters that could break prompt structure
-    sanitized = sanitized
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"');
-
-    return sanitized;
-}
-
-function detectSuspiciousInput(text: string): boolean {
-    return SUSPICIOUS_PATTERNS.some(pattern => pattern.test(text));
-}
+// Aliases for backward compatibility within this file
+const sanitizeInput = sanitizeUserInput;
+const detectSuspiciousInput = detectPromptInjection;
 
 // Validate and sanitize request body
 function validateRequest(body: any): { valid: boolean; error?: string; code?: string } {
@@ -326,7 +311,8 @@ async function generateWithRetry(
     prompt: string,
     sendEvent: (data: any) => void,
     outline: any[],
-    config: any
+    config: any,
+    onComplete?: (usage: { inputTokens: number; outputTokens: number }) => Promise<void>
 ): Promise<void> {
     let lastError: any = null;
 
@@ -427,6 +413,13 @@ async function generateWithRetry(
                 timestamp: Date.now(),
             });
 
+            // Persist AI usage to DB (fire-and-forget)
+            if (onComplete) {
+                onComplete({ inputTokens, outputTokens }).catch((err) => {
+                    console.error('[FloWriter] Failed to log AI usage:', err);
+                });
+            }
+
             // Complete
             const wordCount = fullContent.split(/\s+/).filter(Boolean).length;
             sendEvent({
@@ -483,7 +476,25 @@ export async function POST(req: NextRequest) {
         });
     }
 
-    // ---- Rate limiting: check token usage ----
+    // ---- Per-request rate limiting ----
+    const { checkRateLimit, RATE_LIMIT_FLOWRITER } = await import('@/lib/rate-limit');
+    const rateLimit = checkRateLimit(user.id, 'flowriter', RATE_LIMIT_FLOWRITER);
+    if (!rateLimit.allowed) {
+        return new Response(JSON.stringify({
+            error: 'Trop de requêtes. Veuillez patienter avant de relancer une génération.',
+            code: 'RATE_LIMITED',
+            remaining: rateLimit.remaining,
+            resetAt: new Date(rateLimit.resetAt).toISOString(),
+        }), {
+            status: 429,
+            headers: {
+                'Content-Type': 'application/json',
+                'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+            },
+        });
+    }
+
+    // ---- Monthly token quota check ----
     const tokenCheck = await checkTokenLimit(user.id);
     if (!tokenCheck.allowed) {
         return new Response(JSON.stringify({
@@ -638,8 +649,13 @@ GÉNÈRE MAINTENANT l'article complet en suivant EXACTEMENT cette structure:`;
                 try {
                     const text = `data: ${JSON.stringify(data)}\n\n`;
                     controller.enqueue(encoder.encode(text));
-                } catch (e) {
-                    console.error("Failed to send event:", e);
+                } catch {
+                    // Stream closed — mark as closed to stop heartbeat
+                    isClosed = true;
+                    if (heartbeatInterval) {
+                        clearInterval(heartbeatInterval);
+                        heartbeatInterval = null;
+                    }
                 }
             };
 
@@ -655,7 +671,16 @@ GÉNÈRE MAINTENANT l'article complet en suivant EXACTEMENT cette structure:`;
 
             try {
                 // Use retry-enabled generation
-                await generateWithRetry(ai, prompt, sendEvent, outline, config);
+                const currentMonth = new Date().toISOString().slice(0, 7);
+                await generateWithRetry(ai, prompt, sendEvent, outline, config, async ({ inputTokens, outputTokens }) => {
+                    await supabase.from('ai_usage').insert({
+                        tenant_id: user.id,
+                        feature: 'flowriter',
+                        tokens_input: inputTokens,
+                        tokens_output: outputTokens,
+                        month: currentMonth,
+                    });
+                });
 
             } catch (error: any) {
                 console.error("Generation failed after retries:", error);
@@ -667,7 +692,7 @@ GÉNÈRE MAINTENANT l'article complet en suivant EXACTEMENT cette structure:`;
                     message: errorInfo.message,
                     code: errorInfo.code,
                     retryable: errorInfo.retryable,
-                    details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                    // Error details intentionally omitted — use server logs for debugging
                 });
             } finally {
                 isClosed = true;

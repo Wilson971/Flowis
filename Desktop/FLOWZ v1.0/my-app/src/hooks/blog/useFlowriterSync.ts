@@ -211,7 +211,6 @@ export function useFlowriterSync(options: FlowriterSyncOptions) {
       setSyncError(null);
     },
     onError: (error: Error) => {
-      console.error('[FlowriterSync] Save failed:', error);
       setSyncError(error.message);
     },
     onSettled: () => {
@@ -354,7 +353,6 @@ export function useFlowriterSync(options: FlowriterSyncOptions) {
     try {
       await deleteAutoDraftMutation.mutateAsync();
     } catch (error) {
-      console.error('[FlowriterSync] Failed to discard auto-draft:', error);
       // Refetch to restore accurate state if deletion failed
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, storeId] });
     }

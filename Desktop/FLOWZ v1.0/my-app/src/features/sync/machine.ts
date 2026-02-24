@@ -109,9 +109,8 @@ export function syncReducer(
     switch (event.type) {
         case 'START': {
             if (!canTransition(state.machineState, 'starting')) {
-                console.warn(
-                    `[SyncMachine] Invalid transition: ${state.machineState} -> starting`
-                );
+
+
                 return state;
             }
 
@@ -191,9 +190,8 @@ export function syncReducer(
 
         case 'PAUSE': {
             if (!canTransition(state.machineState, 'paused')) {
-                console.warn(
-                    `[SyncMachine] Cannot pause from state: ${state.machineState}`
-                );
+
+
                 return state;
             }
 
@@ -206,7 +204,8 @@ export function syncReducer(
 
         case 'RESUME': {
             if (state.machineState !== 'paused') {
-                console.warn('[SyncMachine] Cannot resume: not paused');
+
+
                 return state;
             }
 

@@ -71,7 +71,7 @@ export const ProductOptionsCard = () => {
                     {/* Toggle Options */}
                     <div className="space-y-3">
                         {/* Featured */}
-                        <div className="flex items-center justify-between py-1 px-2 rounded-md hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
                                 <Star className="h-3.5 w-3.5 text-amber-500" />
                                 <Label htmlFor="featured" className="text-xs font-medium cursor-pointer">
@@ -87,7 +87,7 @@ export const ProductOptionsCard = () => {
                         </div>
 
                         {/* Purchasable */}
-                        <div className="flex items-center justify-between py-1 px-2 rounded-md hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
                                 <ShoppingCart className="h-3.5 w-3.5 text-primary" />
                                 <Label htmlFor="purchasable" className="text-xs font-medium cursor-pointer">
@@ -103,7 +103,7 @@ export const ProductOptionsCard = () => {
                         </div>
 
                         {/* Sold Individually */}
-                        <div className="flex items-center justify-between py-1 px-2 rounded-md hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
                                 <Package className="h-3.5 w-3.5 text-muted-foreground" />
                                 <Label htmlFor="sold_individually" className="text-xs font-medium cursor-pointer">
@@ -119,9 +119,9 @@ export const ProductOptionsCard = () => {
                         </div>
 
                         {/* Reviews Allowed */}
-                        <div className="flex items-center justify-between py-1 px-2 rounded-md hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
-                                <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                                <MessageSquare className="h-3.5 w-3.5 text-primary" />
                                 <Label htmlFor="reviews_allowed" className="text-xs font-medium cursor-pointer">
                                     Autoriser les avis
                                 </Label>
@@ -130,7 +130,7 @@ export const ProductOptionsCard = () => {
                                 id="reviews_allowed"
                                 checked={reviewsAllowed}
                                 onCheckedChange={(c) => setValue("reviews_allowed", c, { shouldDirty: true })}
-                                className="h-4 w-7 scale-75 data-[state=checked]:bg-blue-500"
+                                className="h-4 w-7 scale-75 data-[state=checked]:bg-primary"
                             />
                         </div>
                     </div>

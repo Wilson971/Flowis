@@ -6,6 +6,9 @@ export { LightTable } from './LightTable';
 export { SessionTimeline } from './SessionTimeline';
 export { PresetGrid } from './PresetGrid';
 export { CompareOverlay } from './CompareOverlay';
+export { ImageAdjustments } from './ImageAdjustments';
+export { CropTool } from './CropTool';
+export { AnnotationLayer } from './AnnotationLayer';
 export { SceneStudioLoader } from './SceneStudioLoader';
 // Batch components
 export { StudioBatchPanel } from './StudioBatchPanel';

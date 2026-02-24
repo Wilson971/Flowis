@@ -189,8 +189,8 @@ export function useSyncLogs(jobId: string | null) {
         },
         enabled: !!jobId,
         refetchInterval: (query) => {
+            if (typeof document !== 'undefined' && document.hidden) return false;
             // Auto-refetch every 2s if job might still be active
-            // This is a simple approach; for true realtime, use subscriptions
             return query.state.data && query.state.data.length > 0 ? 2000 : false;
         },
     });

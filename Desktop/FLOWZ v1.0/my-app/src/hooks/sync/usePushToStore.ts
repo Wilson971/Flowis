@@ -90,48 +90,46 @@ function getBackoffDelay(attempt: number): number {
 // HOOK
 // ============================================================================
 
+/**
+ * Standalone push executor with exponential backoff retry.
+ * Used by both usePushToStore mutation and usePushProductBatch.
+ */
+async function executePushWithRetry(
+    supabase: ReturnType<typeof createClient>,
+    params: PushToStoreParams,
+    attempt = 0
+): Promise<PushResponse> {
+    try {
+        const { data, error } = await supabase.functions.invoke('push-to-store', {
+            body: params,
+        });
+
+        if (error) {
+            throw new Error(error.message || 'Erreur de synchronisation');
+        }
+
+        if (!data) {
+            throw new Error('Réponse vide de la fonction');
+        }
+
+        return data as PushResponse;
+    } catch (err) {
+        if (attempt < MAX_RETRIES - 1) {
+            const delay = getBackoffDelay(attempt);
+            await sleep(delay);
+            return executePushWithRetry(supabase, params, attempt + 1);
+        }
+        throw err;
+    }
+}
+
 export function usePushToStore() {
     const supabase = createClient();
     const queryClient = useQueryClient();
 
-    const executePush = useCallback(async (
-        params: PushToStoreParams,
-        attempt = 0
-    ): Promise<PushResponse> => {
-        try {
-            const { data, error } = await supabase.functions.invoke('push-to-store', {
-                body: params,
-            });
-
-            if (error) {
-                throw new Error(error.message || 'Erreur de synchronisation');
-            }
-
-            if (!data) {
-                throw new Error('Réponse vide de la fonction');
-            }
-
-            return data as PushResponse;
-        } catch (err) {
-            // Retry logic with exponential backoff
-            if (attempt < MAX_RETRIES - 1) {
-                const delay = getBackoffDelay(attempt);
-                console.warn(`[usePushToStore] Attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
-                await sleep(delay);
-                return executePush(params, attempt + 1);
-            }
-            throw err;
-        }
-    }, [supabase.functions]);
-
     return useMutation({
         mutationFn: async (params: PushToStoreParams): Promise<PushResponse> => {
-            console.log('[usePushToStore] Starting push:', {
-                type: params.type,
-                count: params.ids.length,
-                force: params.force,
-            });
-            return executePush(params);
+            return executePushWithRetry(supabase, params);
         },
         onSuccess: (data, variables) => {
             // Invalidate specific queries based on type
@@ -177,7 +175,6 @@ export function usePushToStore() {
             }
         },
         onError: (error: Error) => {
-            console.error('[usePushToStore] Push failed:', error);
             toast.error('Erreur de synchronisation', {
                 description: error.message,
             });
@@ -257,6 +254,192 @@ export function usePushArticleToStore() {
  * Hook pour auto-sync après sauvegarde
  * À utiliser dans useProductSave et useArticleEditorForm
  */
+// ============================================================================
+// PRODUCT-SPECIFIC: BATCH PUSH (wraps generic mutation for product pages)
+// ============================================================================
+
+export function usePushProductBatch() {
+    const queryClient = useQueryClient();
+    const supabase = createClient();
+
+    return useMutation({
+        mutationFn: async ({ product_ids, force = true }: { product_ids: string[]; force?: boolean }): Promise<PushResponse> => {
+            // Use getUser() to validate + auto-refresh the JWT before invoking the edge function
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                throw new Error('Utilisateur non authentifié');
+            }
+
+            const response = await executePushWithRetry(supabase, {
+                type: 'product',
+                ids: product_ids,
+                force,
+            });
+
+            return response;
+        },
+        onSuccess: (data, variables) => {
+            const successCount = data.successful ?? 0;
+            const failedCount = data.failed ?? 0;
+            const toastId = variables.product_ids.length > 1 ? 'batch-sync' : undefined;
+
+            if (successCount > 0 && failedCount === 0) {
+                toast.success('Produits synchronisés', {
+                    id: toastId,
+                    duration: 4000,
+                    description: `${successCount} produit(s) mis à jour sur la boutique.`,
+                });
+            } else if (successCount > 0 && failedCount > 0) {
+                toast.warning('Synchronisation partielle', {
+                    id: toastId,
+                    duration: 4000,
+                    description: `${successCount} synchronisé(s), ${failedCount} échoué(s).`,
+                });
+            } else if (failedCount > 0) {
+                const failedResults = data.results?.filter((r) => !r.success) || [];
+                const firstError = failedResults[0]?.error;
+                toast.error('Échec de synchronisation', {
+                    id: toastId,
+                    duration: 6000,
+                    description: firstError || `${failedCount} produit(s) n'ont pas pu être synchronisés.`,
+                });
+            } else {
+                toast.info('Aucun changement à synchroniser', { id: toastId, duration: 4000 });
+            }
+
+            for (const id of variables.product_ids) {
+                queryClient.invalidateQueries({ queryKey: ['product', id] });
+                queryClient.invalidateQueries({ queryKey: ['product-content', id] });
+            }
+
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['unsynced-products'] });
+            queryClient.invalidateQueries({ queryKey: ['product-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['sync-history'] });
+            queryClient.invalidateQueries({ queryKey: ['product-conflicts'] });
+            queryClient.invalidateQueries({ queryKey: ['dirty-variations-count'] });
+            queryClient.invalidateQueries({ queryKey: ['product-versions'] });
+        },
+        onError: (error: Error, variables) => {
+            const isNetwork = error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch');
+            const toastId = variables.product_ids.length > 1 ? 'batch-sync' : undefined;
+            toast.error(isNetwork ? 'Connexion perdue' : 'Erreur de synchronisation', {
+                id: toastId,
+                duration: 6000,
+                description: isNetwork
+                    ? 'Vérifiez votre connexion internet et réessayez.'
+                    : (error.message || 'Impossible de lancer la synchronisation'),
+            });
+        },
+    });
+}
+
+export function usePushSingleProduct() {
+    const pushToStore = usePushProductBatch();
+
+    return {
+        ...pushToStore,
+        push: (productId: string) => pushToStore.mutate({ product_ids: [productId] }),
+        pushAsync: (productId: string) => pushToStore.mutateAsync({ product_ids: [productId] }),
+    };
+}
+
+// ============================================================================
+// PRODUCT-SPECIFIC: UNSYNCED & REVERT UTILITIES
+// ============================================================================
+
+export function useUnsyncedProducts(storeId?: string) {
+    const supabase = createClient();
+
+    return {
+        queryKey: ['unsynced-products', storeId],
+        queryFn: async () => {
+            if (!storeId) return { total: 0, products: [] };
+
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .eq('store_id', storeId)
+                .not('dirty_fields_content', 'is', null)
+                .order('updated_at', { ascending: false });
+
+            if (error) throw error;
+
+            const unsyncedProducts = (data || []).filter((p: { dirty_fields_content: unknown }) =>
+                Array.isArray(p.dirty_fields_content) && p.dirty_fields_content.length > 0
+            );
+
+            return {
+                total: unsyncedProducts.length,
+                products: unsyncedProducts,
+            };
+        },
+        enabled: !!storeId,
+    };
+}
+
+export function useCancelProductSync() {
+    const queryClient = useQueryClient();
+    const supabase = createClient();
+
+    return useMutation({
+        mutationFn: async ({ productIds }: { productIds: string[] }) => {
+            const results = await Promise.all(
+                productIds.map(async (productId) => {
+                    const { data: product } = await supabase
+                        .from('products')
+                        .select('store_snapshot_content')
+                        .eq('id', productId)
+                        .single();
+
+                    if (product) {
+                        const { error } = await supabase
+                            .from('products')
+                            .update({
+                                working_content: product.store_snapshot_content,
+                                dirty_fields_content: [],
+                                working_content_updated_at: new Date().toISOString(),
+                            })
+                            .eq('id', productId);
+
+                        if (error) throw error;
+                    }
+
+                    return productId;
+                })
+            );
+
+            return results;
+        },
+        onSuccess: (_, variables) => {
+            variables.productIds.forEach(id => {
+                queryClient.invalidateQueries({ queryKey: ['product', id] });
+                queryClient.invalidateQueries({ queryKey: ['product-content', id] });
+            });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['unsynced-products'] });
+            toast.success('Modifications annulées');
+        },
+        onError: (error: Error) => {
+            toast.error('Erreur d\'annulation', { description: error.message || 'Impossible d\'annuler les modifications.' });
+        },
+    });
+}
+
+export function useRevertToOriginal() {
+    const cancelSync = useCancelProductSync();
+
+    return {
+        ...cancelSync,
+        revert: (productId: string) => cancelSync.mutate({ productIds: [productId] }),
+        revertMultiple: (productIds: string[]) => cancelSync.mutate({ productIds }),
+    };
+}
+
+// ============================================================================
+// AUTO-SYNC WRAPPER
+// ============================================================================
+
 export function useAutoSync(type: PushType) {
     const pushMutation = usePushToStore();
 

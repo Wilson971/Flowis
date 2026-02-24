@@ -73,6 +73,7 @@ export const ProductImageGallery = ({
     showPrimaryBadge = true,
     productTitle,
     productId,
+    actionButton,
 }: ProductImageGalleryProps) => {
     // États locaux
     const [selectedImages, setSelectedImages] = useState<Set<string | number>>(new Set());
@@ -273,23 +274,23 @@ export const ProductImageGallery = ({
                 {/* Header - Refined Two-Line Pattern */}
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 bg-muted/20">
                     <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
-                                <ImageIcon className="w-5 h-5" />
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 border border-border">
+                                    <ImageIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                                        Galerie Média
+                                    </p>
+                                    <h3 className="text-sm font-extrabold tracking-tight text-foreground">
+                                        Images du produit
+                                    </h3>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
-                                    Galerie Média
-                                </p>
-                                <h3 className="text-sm font-extrabold tracking-tight text-foreground">
-                                    Images du produit
-                                </h3>
-                            </div>
-                        </div>
 
-                        <div className="flex items-center gap-4">
-                            <div className="hidden sm:flex items-center gap-3 text-xs">
-                                <div className="flex flex-col items-end">
+                            <div className="hidden sm:flex items-center gap-4 text-xs pl-2 border-l border-border/20">
+                                <div className="flex flex-col items-start">
                                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-none mb-1">Capacité</span>
                                     <span className="font-mono text-foreground font-bold">
                                         {images.length} / {maxImages}
@@ -299,7 +300,7 @@ export const ProductImageGallery = ({
                                 {images.length > 0 && (
                                     <>
                                         <div className="w-px h-6 bg-border/20" />
-                                        <div className="flex flex-col items-end">
+                                        <div className="flex flex-col items-start">
                                             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-none mb-1">Optimisation Alt</span>
                                             <div className="flex items-center gap-1.5">
                                                 <div className={cn(
@@ -328,6 +329,9 @@ export const ProductImageGallery = ({
                                     </>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
 
                             {selectedImages.size > 0 && (
                                 <Badge variant="secondary" className="h-6 px-2 text-[10px] font-bold bg-primary/10 text-primary border-primary/20 uppercase tracking-widest">
@@ -340,6 +344,8 @@ export const ProductImageGallery = ({
                                     {uploadingItems.length} Upload
                                 </Badge>
                             )}
+
+                            {actionButton}
                         </div>
                     </div>
                 </CardHeader>

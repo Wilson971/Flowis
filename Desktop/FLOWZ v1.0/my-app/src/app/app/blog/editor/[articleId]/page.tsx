@@ -5,17 +5,16 @@
  * - /app/blog/editor/new -> Nouvel article (articleId = "new")
  * - /app/blog/editor/:id -> Édition d'un article existant
  */
-'use client';
 
-import { ArticleEditor } from '@/components/article-editor';
-import { useParams } from 'next/navigation';
+import { ArticleEditorPageClient } from './client';
 
-export default function ArticleEditorPage() {
-    const params = useParams();
-    const articleId = params?.articleId as string;
-
-    // Si articleId est "new", on passe undefined pour créer un nouvel article
+export default async function ArticleEditorPage({
+    params,
+}: {
+    params: Promise<{ articleId: string }>;
+}) {
+    const { articleId } = await params;
     const editorArticleId = articleId === 'new' ? undefined : articleId;
 
-    return <ArticleEditor articleId={editorArticleId} />;
+    return <ArticleEditorPageClient articleId={editorArticleId} />;
 }

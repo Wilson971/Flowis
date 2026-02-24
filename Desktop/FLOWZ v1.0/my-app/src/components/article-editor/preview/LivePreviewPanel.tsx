@@ -155,7 +155,7 @@ function PreviewRenderer({ content, device }: PreviewRendererProps) {
         </h1>
 
         {/* Meta Info */}
-        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
+        <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
           {content.author && (
             <div className="flex items-center gap-2">
               {content.author.avatar ? (
@@ -165,7 +165,7 @@ function PreviewRenderer({ content, device }: PreviewRendererProps) {
                   className="w-8 h-8 rounded-full"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
+                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-muted-foreground">
                   {content.author.name.charAt(0)}
                 </div>
               )}
@@ -175,7 +175,7 @@ function PreviewRenderer({ content, device }: PreviewRendererProps) {
             </div>
           )}
           {content.publishedAt && (
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {content.publishedAt.toLocaleDateString('fr-FR', {
                 day: 'numeric',
                 month: 'long',
@@ -189,7 +189,7 @@ function PreviewRenderer({ content, device }: PreviewRendererProps) {
         {content.excerpt && (
           <p
             className={cn(
-              'text-gray-600 mb-8 font-medium leading-relaxed',
+              'text-muted-foreground mb-8 font-medium leading-relaxed',
               device === 'mobile' ? 'text-base' : 'text-lg'
             )}
           >
@@ -258,12 +258,12 @@ export function LivePreviewPanel({
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className={cn(
-              'fixed top-0 right-0 h-full w-full lg:w-[60%] xl:w-[55%] bg-gray-100 shadow-2xl z-50 flex flex-col',
+              'fixed top-0 right-0 h-full w-full lg:w-[60%] xl:w-[55%] bg-muted shadow-2xl z-50 flex flex-col',
               className
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Eye className="w-4 h-4 text-primary" />
@@ -326,7 +326,7 @@ export function LivePreviewPanel({
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 bg-white border-t border-gray-200 flex items-center justify-between">
+            <div className="px-4 py-3 bg-white border-t border-border flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 {PREVIEW_DIMENSIONS[device].label} ({PREVIEW_DIMENSIONS[device].width}px)
               </p>

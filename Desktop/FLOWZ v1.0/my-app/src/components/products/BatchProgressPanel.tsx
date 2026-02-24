@@ -49,36 +49,36 @@ const statusConfig = {
     pending: {
         icon: Clock,
         label: 'En attente',
-        color: 'text-yellow-500',
-        bgColor: 'bg-yellow-500/10',
+        color: 'text-amber-500',
+        bgColor: 'bg-amber-500/10',
         badgeVariant: 'secondary' as const,
     },
     processing: {
         icon: Loader2,
         label: 'En cours',
-        color: 'text-blue-500',
-        bgColor: 'bg-blue-500/10',
+        color: 'text-primary',
+        bgColor: 'bg-primary/10',
         badgeVariant: 'default' as const,
     },
     completed: {
         icon: CheckCircle2,
         label: 'Terminé',
-        color: 'text-green-500',
-        bgColor: 'bg-green-500/10',
+        color: 'text-emerald-500',
+        bgColor: 'bg-emerald-500/10',
         badgeVariant: 'default' as const,
     },
     failed: {
         icon: XCircle,
         label: 'Échoué',
-        color: 'text-red-500',
-        bgColor: 'bg-red-500/10',
+        color: 'text-destructive',
+        bgColor: 'bg-destructive/10',
         badgeVariant: 'destructive' as const,
     },
     cancelled: {
         icon: AlertTriangle,
         label: 'Annulé',
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-500/10',
+        color: 'text-muted-foreground',
+        bgColor: 'bg-muted',
         badgeVariant: 'secondary' as const,
     },
 };
@@ -236,9 +236,9 @@ export function BatchProgressPanel({
                 </div>
 
                 {/* Error message */}
-                {job?.error && (
+                {job?.error_message && (
                     <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                        <p className="text-sm text-destructive">{job.error}</p>
+                        <p className="text-sm text-destructive">{job.error_message}</p>
                     </div>
                 )}
 

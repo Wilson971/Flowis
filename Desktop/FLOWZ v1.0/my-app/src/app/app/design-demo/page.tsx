@@ -20,7 +20,10 @@ import {
   Palette,
   Layers,
   Code2,
+  BarChart2,
+  ChevronRight,
 } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   ModernCard,
@@ -53,6 +56,59 @@ export default function DesignDemoPage() {
           Découvrez toutes les tendances UI/UX modernes implémentées dans FLOWZ
         </p>
       </motion.div>
+
+      {/* ── Featured Demos ── */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-muted-foreground" />
+          <h2 className={styles.text.h2}>Demos interactives</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link href="/app/design-demo/ai-artifact-chart">
+            <motion.div
+              whileHover={motionTokens.variants.hoverLift}
+              whileTap={motionTokens.variants.tap}
+            >
+              <Card className="p-6 cursor-pointer border-border hover:border-primary/40 transition-colors group">
+                <div className="flex items-start gap-4">
+                  <div className="p-2.5 rounded-xl bg-primary/10 shrink-0">
+                    <BarChart2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className={cn(styles.text.h4, "leading-none")}>
+                        AI Artifact Chart
+                      </h3>
+                      <Badge variant="outline" className="text-[10px]">
+                        Nouveau
+                      </Badge>
+                    </div>
+                    <p className={cn(styles.text.bodyMuted, "text-xs mt-1.5")}>
+                      Chat IA + visualisations Recharts générées à la demande.
+                      Inspiré de{" "}
+                      <code className="font-mono text-[10px]">
+                        @cult-ui-pro
+                      </code>
+                      .
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {["Chat streaming", "Recharts", "Framer Motion", "Split panel"].map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
+                </div>
+              </Card>
+            </motion.div>
+          </Link>
+        </div>
+      </section>
 
       {/* Section 1: Card Variants Comparison */}
       <section className="space-y-4">

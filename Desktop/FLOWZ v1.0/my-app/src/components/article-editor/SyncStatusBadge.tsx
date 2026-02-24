@@ -99,7 +99,7 @@ export function SyncStatusBadge({
                 size="icon"
                 onClick={onRetry}
                 disabled={isRetrying}
-                className="h-6 w-6 rounded-md"
+                className="h-6 w-6 rounded-lg"
               >
                 {isRetrying ? (
                   <Loader2 className="h-3 w-3 animate-spin" />

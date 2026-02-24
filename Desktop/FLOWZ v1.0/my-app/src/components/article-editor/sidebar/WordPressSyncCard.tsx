@@ -76,7 +76,7 @@ function getStatusInfo(status: WordPressSyncStatus | null): {
       return {
         icon: <AlertCircle className="w-4 h-4" />,
         label: 'Echec',
-        color: 'text-red-600',
+        color: 'text-destructive',
         bgColor: 'bg-red-100',
       };
     case 'conflict':
@@ -90,7 +90,7 @@ function getStatusInfo(status: WordPressSyncStatus | null): {
       return {
         icon: <Cloud className="w-4 h-4" />,
         label: 'Brouillon WP',
-        color: 'text-blue-600',
+        color: 'text-primary',
         bgColor: 'bg-blue-100',
       };
     default:

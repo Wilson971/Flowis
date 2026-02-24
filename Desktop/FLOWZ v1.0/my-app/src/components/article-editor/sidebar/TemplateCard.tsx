@@ -72,7 +72,7 @@ function TemplatePreview({ template, isActive, onClick }: TemplatePreviewProps) 
     >
       <div
         className={cn(
-          'w-8 h-8 rounded-md flex items-center justify-center shrink-0',
+          'w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
           isActive ? 'bg-primary/10' : 'bg-muted'
         )}
       >

@@ -9,6 +9,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type {
@@ -115,7 +116,7 @@ export function useConnectionHealth(storeId: string | null | undefined) {
             };
         },
         enabled: !!storeId,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: STALE_TIMES.STATIC,
     });
 }
 
@@ -149,7 +150,7 @@ export function useHeartbeatLogs(storeId: string | null | undefined, limit = 10)
             return data as HeartbeatLog[];
         },
         enabled: !!storeId,
-        staleTime: 1000 * 60, // 1 minute
+        staleTime: STALE_TIMES.DETAIL,
     });
 }
 

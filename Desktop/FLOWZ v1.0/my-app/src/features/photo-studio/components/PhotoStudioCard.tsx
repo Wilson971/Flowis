@@ -42,11 +42,9 @@ export interface PhotoStudioCardProps {
 // ---------------------------------------------------------------------------
 
 function getImageCount(product: Product): number {
-  return (
-    product.working_content?.images?.length ??
-    product.metadata?.images?.length ??
-    (product.image_url ? 1 : 0)
-  );
+  const wcCount = product.working_content?.images?.length ?? 0;
+  const metaCount = product.metadata?.images?.length ?? 0;
+  return Math.max(wcCount, metaCount) || (product.image_url ? 1 : 0);
 }
 
 export type StudioStatus = "running" | "failed" | "done" | "none";
@@ -114,8 +112,8 @@ export function PhotoStudioCard({
       exit="hidden"
       transition={motionTokens.transitions.fast}
       className={cn(
-        "group relative rounded-xl border border-border bg-card overflow-hidden transition-all duration-200",
-        "hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5",
+        "group relative rounded-xl border border-border bg-card overflow-hidden transition-all duration-300",
+        "hover:shadow-xl hover:border-primary/50 hover:-translate-y-1 hover:scale-[1.01]",
         isSelected && "ring-2 ring-primary border-primary"
       )}
       onClick={() => onProductClick(product.id)}
@@ -132,37 +130,42 @@ export function PhotoStudioCard({
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            <ImageIcon className="w-10 h-10" />
+          <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-muted/30">
+            <ImageIcon className="w-10 h-10 opacity-50" />
           </div>
         )}
 
         {/* Checkbox overlay - top left */}
         <div
           className={cn(
-            "absolute top-2.5 left-2.5 transition-opacity",
+            "absolute top-2.5 left-2.5 transition-all duration-200 z-10",
             isChecked
-              ? "opacity-100"
-              : "opacity-0 group-hover:opacity-100"
+              ? "opacity-100 scale-100"
+              : "opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100"
           )}
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
             checked={isChecked}
             onCheckedChange={() => onToggleSelect(product.id)}
-            className="h-5 w-5 border-2 border-white bg-white/80 backdrop-blur-sm shadow-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            className="h-5 w-5 border-2 border-background/80 bg-background/50 backdrop-blur-md shadow-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-all"
             aria-label={`Selectionner ${product.title}`}
           />
         </div>
 
         {/* Badges - top right */}
-        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
           {/* Studio status badge */}
           {studioStatus !== "none" && (
             <Badge
               variant={STATUS_BADGE_CONFIG[studioStatus].variant}
               size="sm"
-              className="gap-1 backdrop-blur-sm"
+              className={cn(
+                "gap-1 backdrop-blur-md shadow-sm",
+                studioStatus === "running" && "bg-info/90 text-info-foreground border-info/20",
+                studioStatus === "failed" && "bg-destructive/90 text-destructive-foreground border-destructive/20",
+                studioStatus === "done" && "bg-emerald-500/90 hover:bg-emerald-500/90 text-white border-emerald-500/20"
+              )}
             >
               {STATUS_BADGE_CONFIG[studioStatus].icon}
               {STATUS_BADGE_CONFIG[studioStatus].label}
@@ -173,22 +176,22 @@ export function PhotoStudioCard({
           <Badge
             variant="secondary"
             size="sm"
-            className="bg-card/80 backdrop-blur-sm text-foreground border-none"
+            className="bg-background/80 backdrop-blur-md text-foreground border-border/50 shadow-sm"
           >
-            <ImageIcon className="h-3 w-3 mr-1" />
+            <ImageIcon className="h-3 w-3 mr-1 opacity-70" />
             {imageCount}
           </Badge>
         </div>
 
         {/* Action overlay - bottom */}
-        <div className="absolute inset-x-0 bottom-0 p-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/50 to-transparent">
+        <div className="absolute inset-x-0 bottom-0 p-3 pt-12 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-t from-black/70 via-black/30 to-transparent translate-y-2 group-hover:translate-y-0">
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="h-8 w-8 bg-white/90 hover:bg-white text-foreground shadow-sm"
+                  className="h-9 w-9 rounded-full bg-background/90 hover:bg-background text-foreground shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                     onProductDoubleClick(product.id);
@@ -197,7 +200,7 @@ export function PhotoStudioCard({
                   <Camera className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Ouvrir le Studio</TooltipContent>
+              <TooltipContent side="top">Ouvrir le Studio</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -207,7 +210,7 @@ export function PhotoStudioCard({
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="h-8 w-8 bg-white/90 hover:bg-white text-foreground shadow-sm"
+                  className="h-9 w-9 rounded-full bg-background/90 hover:bg-background text-foreground shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md"
                   onClick={(e) => {
                     e.stopPropagation();
                     router.push(`/app/products/${product.id}/edit`);
@@ -216,7 +219,7 @@ export function PhotoStudioCard({
                   <Pencil className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Modifier le produit</TooltipContent>
+              <TooltipContent side="top">Modifier le produit</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>

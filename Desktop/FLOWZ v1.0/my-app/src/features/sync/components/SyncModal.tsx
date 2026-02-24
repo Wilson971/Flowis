@@ -337,7 +337,7 @@ export function SyncModal({
                                                 <span
                                                     className={cn(
                                                         log.type === 'error' && 'text-red-400',
-                                                        log.type === 'warning' && 'text-yellow-400',
+                                                        log.type === 'warning' && 'text-amber-400',
                                                         log.type === 'success' && 'text-emerald-400',
                                                         log.type === 'info' && 'text-muted-foreground'
                                                     )}

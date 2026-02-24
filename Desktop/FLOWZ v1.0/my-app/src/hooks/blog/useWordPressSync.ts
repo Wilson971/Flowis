@@ -9,6 +9,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useActiveStore, useUpdateStore } from '@/hooks/stores/useStores';
@@ -340,7 +341,7 @@ export function useWordPressCategories() {
       return (data.categories || []) as WordPressCategory[];
     },
     enabled: isConfigured,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: STALE_TIMES.ARCHIVE,
   });
 }
 
@@ -368,7 +369,7 @@ export function useWordPressTags() {
       return (data.tags || []) as WordPressTag[];
     },
     enabled: isConfigured,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: STALE_TIMES.ARCHIVE,
   });
 }
 

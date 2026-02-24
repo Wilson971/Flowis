@@ -1,26 +1,33 @@
 /**
  * useArticleEditorForm Hook
  *
- * Manages the article editor form state with React Hook Form + Zod validation
- * Includes auto-save functionality and auto-sync to WordPress
+ * Manages the article editor form state with React Hook Form + Zod validation.
+ * Composes useArticleAutoSave and useArticleSave for auto-save and save operations.
  */
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useForm, UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useDebouncedCallback } from 'use-debounce';
-import { toast } from 'sonner';
 
-import { useBlogArticle, useUpdateBlogArticle } from './useBlogArticle';
-import { useCreateBlogArticle } from './useBlogArticles';
-import { useCreateArticleVersion } from './useArticleVersions';
-import { useAutoSync } from '@/hooks/sync/usePushToStore';
+import { useBlogArticle } from './useBlogArticle';
+import { useArticleAutoSave } from './useArticleAutoSave';
+import { useArticleSave } from './useArticleSave';
 import {
   articleFormSchema,
   generateSlug,
   type ArticleForm,
 } from '@/schemas/article-editor';
 import type { BlogArticle } from '@/types/blog';
+import type {
+  BlogArticleSyncFields,
+  ArticleCustomFields,
+  ArticleSeoData,
+  ArticleTaxonomies,
+  ArticleAuthor,
+} from '@/types/product-content';
+
+/** BlogArticle with optional WordPress sync fields */
+type ArticleWithSync = BlogArticle & Partial<BlogArticleSyncFields>;
 
 // ============================================================================
 // TYPES
@@ -67,10 +74,11 @@ interface UseArticleEditorFormReturn {
 
 const getDefaultValues = (article?: BlogArticle | null): ArticleForm => {
   // Extract data from custom_fields (metadata from WordPress sync)
-  const customFields = (article as any)?.custom_fields || {};
-  const seoData = (article as any)?.seo_data || {};
-  const taxonomies = (article as any)?.taxonomies || {};
-  const author = (article as any)?.author || {};
+  const a = article as ArticleWithSync | null | undefined;
+  const customFields: ArticleCustomFields = a?.custom_fields || {};
+  const seoData: ArticleSeoData = a?.seo_data || {};
+  const taxonomies: ArticleTaxonomies = a?.taxonomies || {};
+  const author: ArticleAuthor = a?.author || {};
 
   return {
     // === CONTENU ===
@@ -80,12 +88,12 @@ const getDefaultValues = (article?: BlogArticle | null): ArticleForm => {
     excerpt: article?.excerpt || '',
 
     // === MÉDIAS ===
-    featured_image_url: article?.featured_image_url || (article as any)?.featured_image || '',
-    featured_image_alt: (article as any)?.featured_image_alt || customFields?._embedded?.['wp:featuredmedia']?.[0]?.alt_text || '',
+    featured_image_url: article?.featured_image_url || a?.featured_image || '',
+    featured_image_alt: a?.featured_image_alt || customFields?._embedded?.['wp:featuredmedia']?.[0]?.alt_text || '',
 
     // === ORGANISATION ===
     category: article?.category || taxonomies?.categories?.[0]?.name || '',
-    tags: article?.tags || taxonomies?.tags?.map((t: any) => t.name) || [],
+    tags: article?.tags || taxonomies?.tags?.map((t) => t.name) || [],
 
     // === SEO ===
     seo_title: article?.seo_title || seoData?.title || '',
@@ -109,7 +117,7 @@ const getDefaultValues = (article?: BlogArticle | null): ArticleForm => {
     template: customFields?.template || '',
 
     // === DONNÉES DE SYNC (readonly) ===
-    platform_post_id: (article as any)?.platform_post_id || customFields?.id?.toString() || null,
+    platform_post_id: a?.platform_post_id || customFields?.id?.toString() || null,
     link: customFields?.link || null,
 
     // === AUTEUR WORDPRESS ===
@@ -130,35 +138,24 @@ export function useArticleEditorForm(
     storeId,
     tenantId,
     autoSaveEnabled = true,
-    autoSaveIntervalMs = 30000, // 30 seconds
-    autoSyncEnabled = true, // Auto-push to WordPress
+    autoSaveIntervalMs = 30000,
+    autoSyncEnabled = true,
   } = options;
-
-  // Auto-sync hook
-  const { triggerAutoSync, isAutoSyncing } = useAutoSync('article');
 
   const isNew = !articleId;
 
-  // Queries & Mutations
+  // Queries
   const { data: article, isLoading, isError } = useBlogArticle(articleId, {
     enabled: !!articleId,
   });
-  const updateMutation = useUpdateBlogArticle();
-  const createMutation = useCreateBlogArticle();
-  const createVersionMutation = useCreateArticleVersion();
 
   // Form
   const form = useForm<ArticleForm>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zodResolver type mismatch between zod v4 and react-hook-form resolver types
     resolver: zodResolver(articleFormSchema) as any,
     defaultValues: getDefaultValues(),
     mode: 'onChange',
   });
-
-  // Auto-save state
-  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const pendingChangesRef = useRef<Partial<ArticleForm> | null>(null);
-  const articleIdRef = useRef<string | undefined>(articleId);
 
   // Track if form has been initialized with article data
   const initializedRef = useRef(false);
@@ -171,250 +168,29 @@ export function useArticleEditorForm(
     }
   }, [article, form]);
 
-  // Update articleId ref
-  useEffect(() => {
-    articleIdRef.current = articleId;
-  }, [articleId]);
-
   // ============================================================================
-  // AUTO-SAVE
+  // COMPOSED HOOKS
   // ============================================================================
 
-  const performAutoSave = useCallback(async () => {
-    if (!pendingChangesRef.current || !articleIdRef.current) return;
+  const { lastSavedAt, autoSaveStatus, setLastSavedAt } = useArticleAutoSave({
+    form,
+    articleId,
+    article,
+    autoSaveEnabled,
+    autoSaveIntervalMs,
+    isNew,
+  });
 
-    const changes = pendingChangesRef.current;
-    pendingChangesRef.current = null;
-
-    setAutoSaveStatus('saving');
-
-    try {
-      await updateMutation.mutateAsync({
-        id: articleIdRef.current,
-        updates: changes as any,
-      });
-
-      // Create auto-save version (silently, non-blocking — table may not exist yet)
-      try {
-        const title = changes.title || article?.title || 'Sans titre';
-        const content = changes.content || article?.content || '';
-        const excerpt = changes.excerpt || article?.excerpt || '';
-
-        await createVersionMutation.mutateAsync({
-          article_id: articleIdRef.current,
-          title,
-          content,
-          excerpt,
-          trigger_type: 'auto_save',
-        });
-      } catch {
-        // Version tracking is optional — don't fail the auto-save
-      }
-
-      setLastSavedAt(new Date());
-      setAutoSaveStatus('saved');
-    } catch (error) {
-      setAutoSaveStatus('error');
-      // Restore pending changes on error
-      pendingChangesRef.current = changes;
-    }
-  }, [updateMutation, createVersionMutation, article]);
-
-  const debouncedAutoSave = useDebouncedCallback(performAutoSave, autoSaveIntervalMs);
-
-  // Watch form changes for auto-save
-  useEffect(() => {
-    if (!autoSaveEnabled || isNew) return;
-
-    const subscription = form.watch((value) => {
-      if (form.formState.isDirty) {
-        pendingChangesRef.current = {
-          ...pendingChangesRef.current,
-          ...value,
-        } as Partial<ArticleForm>;
-        debouncedAutoSave();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [form, autoSaveEnabled, isNew, debouncedAutoSave]);
-
-  // Reset auto-save status after 3 seconds
-  useEffect(() => {
-    if (autoSaveStatus === 'saved') {
-      const timeout = setTimeout(() => setAutoSaveStatus('idle'), 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [autoSaveStatus]);
-
-  // ============================================================================
-  // SAVE OPERATIONS
-  // ============================================================================
-
-  const saveDraft = useCallback(async (): Promise<BlogArticle | null> => {
-    const values = form.getValues();
-
-    // Generate slug if empty
-    if (!values.slug && values.title) {
-      values.slug = generateSlug(values.title);
-    }
-
-    try {
-      if (isNew) {
-        if (!storeId || !tenantId) {
-          toast.error('Store et tenant requis pour créer un article');
-          return null;
-        }
-        const result = await createMutation.mutateAsync({
-          tenant_id: tenantId,
-          store_id: storeId,
-          title: values.title,
-          content: values.content,
-          excerpt: values.excerpt || undefined,
-          status: 'draft',
-        });
-
-        // Update form with new article data
-        if (result) {
-          await updateMutation.mutateAsync({
-            id: result.id,
-            updates: {
-              ...values,
-              status: 'draft',
-            } as any,
-          });
-        }
-
-        toast.success('Brouillon créé');
-
-        // Auto-sync to WordPress if enabled and article has platform_post_id
-        if (autoSyncEnabled && result) {
-          triggerAutoSync(result.id);
-        }
-
-        return result;
-      } else if (articleId) {
-        const result = await updateMutation.mutateAsync({
-          id: articleId,
-          updates: {
-            ...values,
-            status: 'draft',
-          } as any,
-        });
-
-        // Create manual save version
-        await createVersionMutation.mutateAsync({
-          article_id: articleId,
-          title: values.title,
-          content: values.content,
-          excerpt: values.excerpt || undefined,
-          trigger_type: 'manual_save',
-        });
-
-        setLastSavedAt(new Date());
-        toast.success('Brouillon sauvegardé', {
-          description: autoSyncEnabled ? 'Synchronisation en cours...' : undefined,
-        });
-
-        // Auto-sync to WordPress if enabled
-        if (autoSyncEnabled) {
-          triggerAutoSync(articleId);
-        }
-
-        return result;
-      }
-    } catch (error) {
-      toast.error('Erreur lors de la sauvegarde');
-    }
-
-    return null;
-  }, [form, isNew, articleId, storeId, tenantId, autoSyncEnabled, createMutation, updateMutation, createVersionMutation, triggerAutoSync]);
-
-  const saveAndPublish = useCallback(async (): Promise<BlogArticle | null> => {
-    const isValid = await form.trigger();
-    if (!isValid) {
-      toast.error('Veuillez corriger les erreurs avant de publier');
-      return null;
-    }
-
-    const values = form.getValues();
-
-    // Generate slug if empty
-    if (!values.slug && values.title) {
-      values.slug = generateSlug(values.title);
-    }
-
-    try {
-      if (isNew) {
-        if (!storeId || !tenantId) {
-          toast.error('Store et tenant requis pour créer un article');
-          return null;
-        }
-        const result = await createMutation.mutateAsync({
-          tenant_id: tenantId,
-          store_id: storeId,
-          title: values.title,
-          content: values.content,
-          excerpt: values.excerpt || undefined,
-          status: 'published',
-        });
-
-        if (result) {
-          await updateMutation.mutateAsync({
-            id: result.id,
-            updates: {
-              ...values,
-              status: 'published',
-            } as any,
-          });
-        }
-
-        toast.success('Article publié', {
-          description: autoSyncEnabled ? 'Synchronisation vers WordPress...' : undefined,
-        });
-
-        // Auto-sync to WordPress if enabled
-        if (autoSyncEnabled && result) {
-          triggerAutoSync(result.id);
-        }
-
-        return result;
-      } else if (articleId) {
-        const result = await updateMutation.mutateAsync({
-          id: articleId,
-          updates: {
-            ...values,
-            status: 'published',
-          } as any,
-        });
-
-        // Create publish version (major version)
-        await createVersionMutation.mutateAsync({
-          article_id: articleId,
-          title: values.title,
-          content: values.content,
-          excerpt: values.excerpt || undefined,
-          trigger_type: 'publish',
-        });
-
-        setLastSavedAt(new Date());
-        toast.success('Article publié', {
-          description: autoSyncEnabled ? 'Synchronisation vers WordPress...' : undefined,
-        });
-
-        // Auto-sync to WordPress if enabled
-        if (autoSyncEnabled) {
-          triggerAutoSync(articleId);
-        }
-
-        return result;
-      }
-    } catch (error) {
-      toast.error('Erreur lors de la publication');
-    }
-
-    return null;
-  }, [form, isNew, articleId, storeId, tenantId, autoSyncEnabled, createMutation, updateMutation, createVersionMutation, triggerAutoSync]);
+  const { saveDraft, saveAndPublish, isSaving, isAutoSyncing } = useArticleSave({
+    form,
+    isNew,
+    articleId,
+    article,
+    storeId,
+    tenantId,
+    autoSyncEnabled,
+    setLastSavedAt,
+  });
 
   // ============================================================================
   // HELPERS
@@ -451,7 +227,7 @@ export function useArticleEditorForm(
 
     saveDraft,
     saveAndPublish,
-    isSaving: updateMutation.isPending || createMutation.isPending || isAutoSyncing,
+    isSaving,
     isAutoSyncing,
 
     lastSavedAt,

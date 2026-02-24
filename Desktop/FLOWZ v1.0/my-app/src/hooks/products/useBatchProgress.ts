@@ -3,6 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
@@ -67,8 +68,9 @@ export function useBatchJobStatus(jobId?: string) {
             return data as BatchJob;
         },
         enabled: !!jobId,
-        staleTime: 1000, // Deduplicate concurrent requests from multiple components
+        staleTime: STALE_TIMES.POLLING, // Deduplicate concurrent requests from multiple components
         refetchInterval: (query) => {
+            if (typeof document !== 'undefined' && document.hidden) return false;
             const data = query.state.data as BatchJob | null;
             // Polling tant que le job est en cours
             if (data?.status === 'running' || data?.status === 'pending') {
@@ -150,8 +152,13 @@ export function useActiveJobs(storeId?: string) {
             if (error) throw error;
             return (data || []) as BatchJob[];
         },
-        staleTime: 2000, // Deduplicate across multiple components
-        refetchInterval: 5000, // Refresh toutes les 5s
+        staleTime: STALE_TIMES.POLLING, // Deduplicate across multiple components
+        refetchInterval: (query) => {
+            if (typeof document !== 'undefined' && document.hidden) return false;
+            const data = query.state.data as BatchJob[] | undefined;
+            const hasActive = data?.some(j => j.status === 'pending' || j.status === 'running');
+            return hasActive ? 5000 : false;
+        },
     });
 }
 

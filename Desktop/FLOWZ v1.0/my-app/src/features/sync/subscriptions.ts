@@ -62,7 +62,7 @@ class SyncSubscriptionManager {
 
         // Réutiliser le channel existant si disponible
         if (this.channels.has(key)) {
-            console.log(`[SyncSubscriptions] Reusing progress channel for ${storeId}`);
+
             return () => this.unsubscribe(key);
         }
 
@@ -80,9 +80,7 @@ class SyncSubscriptionManager {
                     timestamp: p.timestamp,
                 });
             })
-            .subscribe((status) => {
-                console.log(`[SyncSubscriptions] Progress channel status: ${status}`);
-            });
+            .subscribe();
 
         this.channels.set(key, {
             channel,
@@ -111,7 +109,7 @@ class SyncSubscriptionManager {
         const key = this.getChannelKey(storeId, 'jobs');
 
         if (this.channels.has(key)) {
-            console.log(`[SyncSubscriptions] Reusing jobs channel for ${storeId}`);
+
             return () => this.unsubscribe(key);
         }
 
@@ -143,9 +141,7 @@ class SyncSubscriptionManager {
                     }
                 }
             )
-            .subscribe((status) => {
-                console.log(`[SyncSubscriptions] Jobs channel status: ${status}`);
-            });
+            .subscribe();
 
         this.channels.set(key, {
             channel,
@@ -251,7 +247,7 @@ class SyncSubscriptionManager {
             unsubscribers.push(
                 this.subscribeToLogs(config.jobId, config.storeId, (log) => {
                     // Les logs peuvent être traités ici si nécessaire
-                    console.log(`[SyncLog] ${log.type}: ${log.message}`);
+                    // Log received — could be forwarded to UI if needed
                 })
             );
         }
@@ -268,7 +264,7 @@ class SyncSubscriptionManager {
     private unsubscribe(key: string) {
         const info = this.channels.get(key);
         if (info && this.supabase) {
-            console.log(`[SyncSubscriptions] Removing channel: ${key}`);
+
             this.supabase.removeChannel(info.channel);
             this.channels.delete(key);
         }
@@ -293,7 +289,8 @@ class SyncSubscriptionManager {
      * Nettoie tous les channels
      */
     cleanup() {
-        console.log(`[SyncSubscriptions] Cleaning up ${this.channels.size} channels`);
+
+
 
         this.channels.forEach((info, key) => {
             if (this.supabase) {

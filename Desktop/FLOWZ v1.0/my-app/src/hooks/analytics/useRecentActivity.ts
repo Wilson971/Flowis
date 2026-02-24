@@ -2,6 +2,7 @@
  * useRecentActivity - Hook pour récupérer le flux d'activité récent
  */
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -57,7 +58,7 @@ export function useRecentActivity(storeId?: string, limit = 10) {
                 new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             );
         },
-        staleTime: 30 * 1000,
+        staleTime: STALE_TIMES.LIST,
         enabled: true, // Always enabled, will show all activities if no storeId
     });
 }

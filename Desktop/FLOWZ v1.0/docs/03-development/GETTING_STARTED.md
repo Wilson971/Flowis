@@ -16,12 +16,11 @@ Create a `.env.local` file in the root directory:
 
 ```env
 # Supabase Configuration
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 
 # AI Provider Keys (for edge functions)
 GEMINI_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key
 ```
 
 ### 3. Set Up Supabase Database
@@ -47,7 +46,6 @@ supabase functions deploy batch-generation
 
 # Set secrets
 supabase secrets set GEMINI_API_KEY=your_key
-supabase secrets set OPENAI_API_KEY=your_key
 ```
 
 ### 4. Create Your First Store
@@ -168,7 +166,7 @@ my-app/
 
 ### ✅ Content Generation (Backend Ready)
 - **Batch generation**: Generate content for multiple products at once
-- **AI providers**: Support for Gemini and OpenAI
+- **AI providers**: Support for Google GenAI (Gemini)
 - **Content types**: Title, descriptions, SEO fields, alt text
 - **SERP enrichment**: Optional keyword research integration
 
@@ -250,7 +248,7 @@ supabase gen types         # Generate TypeScript types
 
 ### Issue: Products not loading
 **Solution**:
-1. Check if `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set
+1. Check if `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set
 2. Verify RLS policies allow your user to access products
 3. Check browser console for errors
 

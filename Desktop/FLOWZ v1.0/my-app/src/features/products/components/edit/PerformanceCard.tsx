@@ -104,7 +104,7 @@ export const PerformanceCard = ({
                                     className="flex flex-col gap-1 p-3 rounded-lg bg-muted/30 border border-border/30"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-md ${stat.bgColor}`}>
+                                        <div className={`p-1.5 rounded-lg ${stat.bgColor}`}>
                                             <Icon className={`h-3 w-3 ${stat.color}`} />
                                         </div>
                                         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">

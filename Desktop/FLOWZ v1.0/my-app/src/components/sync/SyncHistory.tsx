@@ -118,8 +118,8 @@ function SyncHistoryItem({ job, summary, onViewDetails }: SyncHistoryItemProps) 
             className={cn(
                 'flex items-center gap-3 p-3 rounded-lg border transition-colors',
                 'hover:bg-muted/50 cursor-pointer',
-                isSuccess && 'border-green-200 dark:border-green-900/50',
-                isFailed && 'border-red-200 dark:border-red-900/50'
+                isSuccess && 'border-emerald-200 dark:border-green-900/50',
+                isFailed && 'border-destructive/20 dark:border-red-900/50'
             )}
             onClick={() => onViewDetails?.(job.id)}
         >
@@ -127,13 +127,13 @@ function SyncHistoryItem({ job, summary, onViewDetails }: SyncHistoryItemProps) 
             <div
                 className={cn(
                     'shrink-0 w-10 h-10 rounded-full flex items-center justify-center',
-                    isSuccess && 'bg-green-100 dark:bg-green-900/30',
+                    isSuccess && 'bg-emerald-100 dark:bg-green-900/30',
                     isFailed && 'bg-red-100 dark:bg-red-900/30',
                     !isSuccess && !isFailed && 'bg-muted'
                 )}
             >
-                {isSuccess && <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />}
-                {isFailed && <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />}
+                {isSuccess && <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />}
+                {isFailed && <XCircle className="w-5 h-5 text-destructive dark:text-destructive" />}
                 {!isSuccess && !isFailed && <Clock className="w-5 h-5 text-muted-foreground" />}
             </div>
 
@@ -223,20 +223,20 @@ export function SyncStats({ stats, isLoading, className }: SyncStatsProps) {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         <span className="text-sm">Taux succès</span>
                     </div>
-                    <p className="text-2xl font-bold text-green-600">{stats.successRate}%</p>
+                    <p className="text-2xl font-bold text-emerald-600">{stats.successRate}%</p>
                 </CardContent>
             </Card>
 
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Package className="w-4 h-4 text-blue-500" />
+                        <Package className="w-4 h-4 text-primary" />
                         <span className="text-sm">Produits importés</span>
                     </div>
-                    <p className="text-2xl font-bold text-blue-600">{stats.totalProductsSynced}</p>
+                    <p className="text-2xl font-bold text-primary">{stats.totalProductsSynced}</p>
                 </CardContent>
             </Card>
 
