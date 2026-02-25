@@ -7,6 +7,7 @@ import { useRecentActivity } from "@/hooks/analytics/useRecentActivity";
 import { useSelectedStore } from "@/contexts/StoreContext";
 import { DashboardHeader } from "./DashboardHeader";
 import { KPICardsGrid } from "./KPICardsGrid";
+import { AlertBanner } from "./AlertBanner";
 import { DashboardSkeleton } from "../skeletons/DashboardSkeleton";
 import { motion } from "framer-motion";
 import { motionTokens } from "@/lib/design-system";
@@ -54,8 +55,22 @@ export const OverviewDashboard = () => {
     },
   };
 
+  // Compute sync age for alert banner
+  const lastSyncDaysAgo = kpis?.storeLastSyncedAt
+    ? Math.floor((Date.now() - new Date(kpis.storeLastSyncedAt).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const isDisconnected = context.connectionStatus === "disconnected";
+
   return (
     <div className="flex flex-col gap-2 overflow-hidden flex-1">
+      {/* Alert Banner — disabled for now, connection status shown in ConnectionHealthCard */}
+      {/* <AlertBanner
+        connectionLost={isDisconnected}
+        lastSyncDaysAgo={lastSyncDaysAgo}
+        storeName={context.selectedShopName}
+        onReconnect={() => window.location.href = "/app/settings/stores"}
+      /> */}
+
       <motion.div
         variants={motionTokens.variants.staggerContainer}
         initial="hidden"

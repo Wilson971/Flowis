@@ -12,6 +12,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/activity-log';
 import type { BatchAction, StudioJobStatus } from '../types/studio';
 
 // ============================================================================
@@ -142,6 +143,14 @@ export function useCreateBatchJobs() {
 
       toast.success(`${result.count} job(s) studio lances`, {
         description: `Batch ${result.batchId.slice(0, 8)}...`,
+      });
+
+      logActivity({
+        type: 'photo_studio',
+        title: 'Photo Studio — Batch lancé',
+        description: `${result.count} job(s) créé(s)`,
+        status: 'info',
+        metadata: { batchId: result.batchId, count: result.count },
       });
 
       // Fire-and-forget: dispatch entire batch for server-side processing.

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { STALE_TIMES } from '@/lib/query-config';
 import type {
@@ -135,6 +136,18 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
     staleTime: STALE_TIMES.LIST,
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  // Upsert daily KPI snapshot once per store per day
+  useEffect(() => {
+    if (!effectiveStoreId || isLoading) return;
+    const key = `snapshot-${effectiveStoreId}-${new Date().toISOString().slice(0, 10)}`;
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key)) return;
+    supabase.rpc('upsert_daily_snapshot', { p_store_id: effectiveStoreId })
+      .then(() => {
+        if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
+      })
+      .catch(() => { /* silent — snapshot is best-effort */ });
+  }, [effectiveStoreId, isLoading, supabase]);
 
   return {
     context: data?.context,

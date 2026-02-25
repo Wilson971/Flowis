@@ -10,6 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/activity-log';
 import type {
     SyncJob,
     StartSyncOptions,
@@ -225,9 +226,24 @@ export function useStartSync() {
             toast.success('Synchronisation démarrée', {
                 description: 'La synchronisation continue en arrière-plan',
             });
+
+            logActivity({
+                type: 'sync',
+                title: 'Synchronisation démarrée',
+                description: `Job ${data.id.slice(0, 8)}... lancé`,
+                status: 'info',
+                storeId: variables.store_id,
+            });
         },
         onError: (error: Error) => {
             toast.error(`Erreur lors du démarrage: ${error.message}`);
+
+            logActivity({
+                type: 'sync',
+                title: 'Erreur de synchronisation',
+                description: error.message,
+                status: 'error',
+            });
         },
     });
 }

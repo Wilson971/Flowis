@@ -201,23 +201,29 @@ export function GscKeywordsExplorerTab({ siteId }: Props) {
     if (!siteId) return <GscEmptyTab icon={Search} title="Aucun site" description="Selectionnez un site GSC." />;
 
     return (
-        <div className="space-y-4">
-            {/* ── Feature 1: KPI Cards ── */}
+        <div className="space-y-3">
+            {/* Bloc 1 — KPI Cards */}
             {!isLoading && (
-                <KeywordsKpiCards aggregates={aggregates} totalKeywords={total} />
-            )}
-
-            {/* ── Features 2 + 4: Charts row ── */}
-            {!isLoading && keywords.length > 0 && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <KeywordsPositionDistribution distribution={aggregates.position_distribution} />
-                    <KeywordsCtrVsPosition keywords={keywords} />
+                <div className="rounded-xl border border-border bg-card p-6">
+                    <KeywordsKpiCards aggregates={aggregates} totalKeywords={total} />
                 </div>
             )}
 
-            {/* ── Feature 5: Top Movers ── */}
-            <KeywordsTopMovers changes={positions} isLoading={posLoading} />
+            {/* Bloc 2 — Graphiques */}
+            {!isLoading && keywords.length > 0 && (
+                <div className="rounded-xl border border-border bg-card p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <KeywordsPositionDistribution distribution={aggregates.position_distribution} />
+                        <KeywordsCtrVsPosition keywords={keywords} />
+                    </div>
+                    <div className="mt-4">
+                        <KeywordsTopMovers changes={positions} isLoading={posLoading} />
+                    </div>
+                </div>
+            )}
 
+            {/* Bloc 3 — Filtres + Table */}
+            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
             {/* ── Filters + Feature 6: Export ── */}
             <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center justify-between">
                 <div className="flex gap-2 flex-1 w-full sm:w-auto">
@@ -339,6 +345,7 @@ export function GscKeywordsExplorerTab({ siteId }: Props) {
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

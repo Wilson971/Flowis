@@ -20,6 +20,7 @@ import {
     AlertTriangle,
     AlertCircle,
     ChevronRight,
+    Search,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,6 +43,9 @@ import {
     ProfileDangerZoneSection,
     ProfileIntegrationsSection
 } from "@/components/profile/ProfileSections";
+
+// GSC section
+import GscSettingsSection from "@/components/settings/integrations/GscSettingsSection";
 
 // Workspace sections
 import WorkspaceGeneralSection from "@/components/settings/workspace/WorkspaceGeneralSection";
@@ -85,6 +89,7 @@ const sidebarItems = [
         section: "Integrations",
         items: [
             { id: "integrations-general", label: "Integrations", icon: Plug },
+            { id: "integrations-gsc", label: "Google Search Console", icon: Search },
         ]
     }
 ];
@@ -123,6 +128,11 @@ export function SettingsModal() {
                 case "store-watermark": return <StoreWatermarkSection />;
                 default: return null;
             }
+        }
+
+        // GSC settings
+        if (activeTab === "integrations-gsc") {
+            return <GscSettingsSection />;
         }
 
         // Account & Integrations sections

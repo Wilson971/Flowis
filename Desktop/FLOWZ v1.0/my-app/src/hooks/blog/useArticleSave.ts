@@ -8,6 +8,7 @@
 import { useCallback } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/activity-log';
 
 import { useUpdateBlogArticle, StaleArticleError } from './useBlogArticle';
 import { useCreateBlogArticle } from './useBlogArticles';
@@ -189,6 +190,15 @@ export function useArticleSave(options: UseArticleSaveOptions): UseArticleSaveRe
           description: autoSyncEnabled ? 'Synchronisation vers WordPress...' : undefined,
         });
 
+        logActivity({
+          type: 'publication',
+          title: 'Article publié',
+          description: values.title,
+          status: 'success',
+          storeId: storeId ?? undefined,
+          metadata: { articleId: result?.id },
+        });
+
         // Auto-sync to WordPress if enabled
         if (autoSyncEnabled && result) {
           triggerAutoSync(result.id);
@@ -217,6 +227,15 @@ export function useArticleSave(options: UseArticleSaveOptions): UseArticleSaveRe
         setLastSavedAt(new Date());
         toast.success('Article publié', {
           description: autoSyncEnabled ? 'Synchronisation vers WordPress...' : undefined,
+        });
+
+        logActivity({
+          type: 'publication',
+          title: 'Article publié',
+          description: values.title,
+          status: 'success',
+          storeId: storeId ?? undefined,
+          metadata: { articleId },
         });
 
         // Auto-sync to WordPress if enabled

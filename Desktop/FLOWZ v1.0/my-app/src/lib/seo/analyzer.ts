@@ -854,3 +854,65 @@ export function calculateProductSeoScore(input: ProductSeoInput): ProductSeoResu
         fieldScores,
     };
 }
+
+// ============================================================================
+// SEO BREAKDOWN — Aggregate criteria into 4 categories for dashboard display
+// ============================================================================
+
+export interface SeoBreakdown {
+    // 4-category aggregates /25 (legacy + radar radar summary)
+    titles: number;       // /25 — meta_title + title
+    descriptions: number; // /25 — meta_description + short_description + description
+    images: number;       // /25 — images + alt_text
+    technical: number;    // /25 — slug + bonus criteria
+    // Per-field scores 0-100 — populated from v2+ analyzer, optional for backwards compat
+    f_meta_title?: number;       // meta_title score 0-100
+    f_title?: number;            // product title score 0-100
+    f_meta_description?: number; // meta_description score 0-100
+    f_description?: number;      // avg(short_description, description) 0-100
+    f_images?: number;           // avg(images_count, alt_text) 0-100
+    f_slug?: number;             // slug/URL score 0-100
+}
+
+/**
+ * Compute a 4-category breakdown from SEO criteria.
+ * Each category is normalized to /25 (total = 100).
+ */
+export function computeSeoBreakdown(criteria: ProductSeoCriterion[]): SeoBreakdown {
+    const byKey = new Map(criteria.map(c => [c.key, c]));
+
+    const weightedAvg = (keys: SeoFieldType[]): number => {
+        let totalW = 0;
+        let sumWS = 0;
+        for (const k of keys) {
+            const c = byKey.get(k);
+            if (c) {
+                totalW += c.weight;
+                sumWS += c.score * c.weight;
+            }
+        }
+        return totalW > 0 ? sumWS / totalW : 0;
+    };
+
+    // Each category: weighted average of its fields (0-100), then scaled to /25
+    const titlesAvg = weightedAvg(['meta_title', 'title']);
+    const descriptionsAvg = weightedAvg(['meta_description', 'short_description', 'description']);
+    const imagesAvg = weightedAvg(['images', 'alt_text']);
+    const technicalAvg = weightedAvg(['slug', 'keyword_presence', 'cta_detection', 'gsc_traffic_signal']);
+
+    const get = (key: SeoFieldType) => byKey.get(key)?.score ?? 0;
+
+    return {
+        titles:       Math.round(titlesAvg * 25 / 100),
+        descriptions: Math.round(descriptionsAvg * 25 / 100),
+        images:       Math.round(imagesAvg * 25 / 100),
+        technical:    Math.round(technicalAvg * 25 / 100),
+        // Per-field scores 0-100
+        f_meta_title:       get('meta_title'),
+        f_title:            get('title'),
+        f_meta_description: get('meta_description'),
+        f_description:      Math.round((get('short_description') + get('description')) / 2),
+        f_images:           Math.round((get('images') + get('alt_text')) / 2),
+        f_slug:             get('slug'),
+    };
+}

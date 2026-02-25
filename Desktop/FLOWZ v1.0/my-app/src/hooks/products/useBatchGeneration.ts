@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { logActivity } from '@/lib/activity-log';
 import type {
     ModularBatchRequest,
     ModularBatchResponse,
@@ -150,7 +151,7 @@ export function useBatchGeneration() {
                                 }));
                                 break;
 
-                            case 'batch_complete':
+                            case 'batch_complete': {
                                 queryClient.invalidateQueries({ queryKey: ['products'] });
                                 queryClient.invalidateQueries({ queryKey: ['product-content'] });
                                 queryClient.invalidateQueries({ queryKey: ['product'] });
@@ -173,7 +174,16 @@ export function useBatchGeneration() {
                                         description: `${failCount} produit(s) en erreur`,
                                     });
                                 }
+
+                                logActivity({
+                                    type: 'generation',
+                                    title: 'Génération IA batch terminée',
+                                    description: `${successCount} réussi(s), ${failCount} échoué(s)`,
+                                    status: failCount === 0 ? 'success' : successCount > 0 ? 'warning' : 'error',
+                                    metadata: { successCount, failCount },
+                                });
                                 break;
+                            }
 
                             case 'error':
                                 toast.error('Erreur de génération', {

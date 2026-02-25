@@ -15,7 +15,7 @@ import type { ContentData } from '@/types/productContent';
 import { PRODUCT_TYPE_DEFAULT } from '@/features/products/schemas/product-schema';
 import { useAutoSync } from '@/hooks/sync/usePushToStore';
 import { computeDirtyFields } from './computeDirtyFields';
-import { calculateProductSeoScore } from '@/lib/seo/analyzer';
+import { calculateProductSeoScore, computeSeoBreakdown } from '@/lib/seo/analyzer';
 
 // ============================================================================
 // ERRORS
@@ -396,6 +396,7 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                 updated_at: now,
                 metadata: mergedMetadata,
                 seo_score: seoResult.overall,
+                seo_breakdown: computeSeoBreakdown(seoResult.criteria),
             };
 
             // Optimistic locking: only update if row hasn't changed since we read it.
@@ -409,8 +410,9 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
 
             // If update fails because seo_score column doesn't exist yet
             // (migration not applied), retry without it.
-            if (error && error.message?.includes('seo_score')) {
+            if (error && (error.message?.includes('seo_score') || error.message?.includes('seo_breakdown'))) {
                 delete productUpdate.seo_score;
+                delete productUpdate.seo_breakdown;
                 const retry = await supabase
                     .from('products')
                     .update(productUpdate)

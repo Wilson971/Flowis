@@ -8,13 +8,17 @@ import {
   AlertCircle,
   RefreshCw,
   Inbox,
+  Sparkles,
+  FileText,
+  Camera,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motionTokens, styles } from "@/lib/design-system";
 
 export type ActivityItem = {
   id: string;
-  type: "sync" | "error" | "success" | "info";
+  type: "sync" | "error" | "success" | "info" | "generation" | "publication" | "seo_analysis" | "photo_studio" | "product_update";
   title: string;
   description: string;
   timestamp: string;
@@ -44,12 +48,40 @@ export const ActivityTimeline = ({
           textClass: "text-info",
           bgClass: "bg-info/10",
         };
-      case "success":
+      case "generation":
         return {
-          icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+          icon: <Sparkles className="h-3.5 w-3.5" />,
           dotClass: "bg-primary border-primary/30",
           textClass: "text-primary",
           bgClass: "bg-primary/10",
+        };
+      case "publication":
+        return {
+          icon: <FileText className="h-3.5 w-3.5" />,
+          dotClass: "bg-signal-success border-signal-success/30",
+          textClass: "text-signal-success",
+          bgClass: "bg-signal-success/10",
+        };
+      case "photo_studio":
+        return {
+          icon: <Camera className="h-3.5 w-3.5" />,
+          dotClass: "bg-primary border-primary/30",
+          textClass: "text-primary",
+          bgClass: "bg-primary/10",
+        };
+      case "seo_analysis":
+        return {
+          icon: <Search className="h-3.5 w-3.5" />,
+          dotClass: "bg-signal-warning border-signal-warning/30",
+          textClass: "text-signal-warning",
+          bgClass: "bg-signal-warning/10",
+        };
+      case "success":
+        return {
+          icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+          dotClass: "bg-signal-success border-signal-success/30",
+          textClass: "text-signal-success",
+          bgClass: "bg-signal-success/10",
         };
       case "error":
         return {

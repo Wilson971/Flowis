@@ -179,11 +179,11 @@ export function ProductVersionHistoryDialog({
                     <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/20">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                                    <History className="w-5 h-5 text-muted-foreground" />
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <History className="w-5 h-5 text-primary" />
                                 </div>
-                                <div>
-                                    <DialogTitle className="text-lg font-bold">
+                                <div className="flex flex-col">
+                                    <DialogTitle className="text-xl font-extrabold tracking-tight">
                                         Historique des versions
                                     </DialogTitle>
                                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -194,7 +194,7 @@ export function ProductVersionHistoryDialog({
                         </div>
 
                         {/* Filter chips */}
-                        <div className="flex items-center gap-2 mt-4">
+                        <div className="flex items-center gap-2 mt-5">
                             <Filter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                             {FILTER_OPTIONS.map(opt => (
                                 <button
@@ -202,10 +202,10 @@ export function ProductVersionHistoryDialog({
                                     type="button"
                                     onClick={() => setFilter(opt.value)}
                                     className={cn(
-                                        'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors',
+                                        'px-4 py-1.5 rounded-full text-xs font-bold tracking-wider transition-all duration-200 border',
                                         filter === opt.value
-                                            ? 'bg-primary/10 text-primary border border-primary/20'
-                                            : 'bg-muted/50 text-muted-foreground hover:bg-muted border border-transparent'
+                                            ? 'bg-primary/10 text-primary border-primary/25 hover:bg-primary/15'
+                                            : 'border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                                     )}
                                 >
                                     {opt.label}
@@ -252,39 +252,60 @@ export function ProductVersionHistoryDialog({
                                                     type="button"
                                                     onClick={() => selectVersion(version)}
                                                     className={cn(
-                                                        'w-full flex items-start gap-3 p-3 rounded-xl text-left transition-colors relative z-10',
+                                                        'w-full flex items-start gap-3 p-3.5 rounded-xl text-left transition-all duration-300 relative z-10 border',
                                                         isSelected
-                                                            ? 'bg-primary/5 border border-primary/20'
-                                                            : 'hover:bg-muted/50 border border-transparent',
+                                                            ? 'bg-primary/5 border-primary/20 shadow-sm'
+                                                            : 'border-transparent hover:bg-muted/40',
                                                     )}
                                                 >
-                                                    <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5', config.bgColor)}>
-                                                        <Icon className={cn('w-3.5 h-3.5', config.color)} />
+                                                    <div className={cn(
+                                                        'w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5',
+                                                        isSelected
+                                                            ? 'bg-primary/20 text-primary'
+                                                            : cn(config.bgColor, config.color)
+                                                    )}>
+                                                        <Icon className="w-4 h-4" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-semibold">v{version.version_number}</span>
+                                                            <span className={cn(
+                                                                "text-sm font-extrabold tracking-tight",
+                                                                isSelected ? "text-primary" : "text-foreground"
+                                                            )}>
+                                                                v{version.version_number}
+                                                            </span>
                                                             {isLatest && (
-                                                                <Badge variant="outline" className="text-[9px] py-0 px-1.5 bg-primary/10 text-primary border-primary/20">
-                                                                    Actuelle
-                                                                </Badge>
+                                                                <Badge variant="secondary" className={cn(
+                                                                    "px-1.5 py-0 h-4 text-[9px] font-bold uppercase tracking-widest border-none transition-colors",
+                                                                    isSelected ? "bg-primary/10 text-primary hover:bg-primary/15" : "bg-muted/50 text-muted-foreground hover:bg-muted/80"
+                                                                )}>Actuelle</Badge>
                                                             )}
-                                                            {isPublished && (
-                                                                <Badge variant="outline" className="text-[9px] py-0 px-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                                                                    Publié
-                                                                </Badge>
+                                                            {isPublished && !isLatest && (
+                                                                <Badge variant="secondary" className={cn(
+                                                                    "px-1.5 py-0 h-4 text-[9px] font-bold uppercase tracking-widest border-none transition-colors",
+                                                                    "bg-primary/10 text-primary hover:bg-primary/15"
+                                                                )}>Publié</Badge>
                                                             )}
                                                         </div>
-                                                        <p className="text-[11px] text-muted-foreground truncate">
+                                                        <p className={cn(
+                                                            "text-[10px] uppercase font-bold tracking-wider truncate mt-1",
+                                                            isSelected ? "text-primary/70" : "text-muted-foreground/60"
+                                                        )}>
                                                             {config.label} &bull; {formatDateTime(version.created_at)}
                                                         </p>
                                                         {authorName && (
-                                                            <p className="text-[10px] text-muted-foreground/80 mt-0.5 truncate italic">
-                                                                Sauvegarde par {authorName}
+                                                            <p className={cn(
+                                                                "text-[10px] truncate mt-0.5 italic font-medium",
+                                                                isSelected ? "text-primary/60" : "text-muted-foreground/50"
+                                                            )}>
+                                                                Par {authorName}
                                                             </p>
                                                         )}
                                                         {version.title && (
-                                                            <p className="text-[11px] text-foreground/70 truncate mt-0.5">
+                                                            <p className={cn(
+                                                                "text-[11px] truncate mt-1.5 font-semibold",
+                                                                isSelected ? "text-foreground" : "text-foreground/70"
+                                                            )}>
                                                                 {truncate(version.title, 40)}
                                                             </p>
                                                         )}
@@ -302,15 +323,15 @@ export function ProductVersionHistoryDialog({
                             {selectedVersion ? (
                                 <ScrollArea className="flex-1">
                                     <div className="p-8 space-y-8">
-                                        <div className="flex items-center justify-between border-b border-border/10 pb-4">
+                                        <div className="flex flex-col gap-2 pb-6">
                                             <div>
-                                                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 mb-2">Aperçu</Badge>
-                                                <h4 className="text-sm font-bold text-foreground">Version {selectedVersion.version_number}</h4>
+                                                <Badge className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary hover:bg-primary/15 border-none uppercase tracking-widest shadow-none rounded-md transition-colors">Aperçu</Badge>
                                             </div>
+                                            <h4 className="text-2xl font-extrabold text-foreground tracking-tight">Version {selectedVersion.version_number}</h4>
                                         </div>
 
                                         <div className="space-y-1">
-                                            <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2">Informations Générales</h4>
+                                            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 mt-2 px-2">Informations Générales</h4>
                                             <PreviewField
                                                 label="Titre"
                                                 value={selectedVersion.form_data?.title}
@@ -324,7 +345,7 @@ export function ProductVersionHistoryDialog({
                                         </div>
 
                                         <div className="space-y-1">
-                                            <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3 px-2 mt-6">Commerce & Stocks</h4>
+                                            <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 mt-6 px-2">Commerce & Stocks</h4>
                                             <PreviewField
                                                 label="Prix"
                                                 value={
@@ -371,20 +392,23 @@ export function ProductVersionHistoryDialog({
                                             <div className="flex gap-3">
                                                 <Button
                                                     variant="outline"
-                                                    className="flex-1"
                                                     onClick={() => setIsConfirmingRestore(false)}
                                                     disabled={restoringVersionId !== null}
+                                                    className="flex-1 h-10 px-6 font-bold text-xs uppercase tracking-widest border-border/50 hover:bg-muted/50 transition-all rounded-lg"
                                                 >
                                                     Annuler
                                                 </Button>
                                                 <Button
-                                                    variant="default"
-                                                    className="flex-1"
+                                                    variant="outline"
                                                     onClick={() => handleRestore(selectedVersion)}
                                                     disabled={restoringVersionId === selectedVersion.id}
+                                                    className="flex-1 h-10 px-6 font-extrabold text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-primary/20 rounded-lg flex items-center justify-center gap-2"
                                                 >
                                                     {restoringVersionId === selectedVersion.id ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                            Restauration...
+                                                        </>
                                                     ) : (
                                                         'Confirmer'
                                                     )}
@@ -392,18 +416,19 @@ export function ProductVersionHistoryDialog({
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex gap-3">
+                                        <div className="flex gap-4">
                                             <Button
-                                                variant="secondary"
+                                                variant="outline"
                                                 onClick={() => setIsCompareModalOpen(true)}
-                                                className="whitespace-nowrap bg-muted/50 hover:bg-muted"
+                                                className="flex-1 h-10 px-6 font-bold text-xs uppercase tracking-widest border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all rounded-lg"
                                             >
                                                 <Maximize2 className="w-4 h-4 mr-2" />
                                                 Comparer en détail
                                             </Button>
                                             <Button
+                                                variant="outline"
                                                 onClick={() => handleRestore(selectedVersion)}
-                                                className="flex-1"
+                                                className="flex-1 h-10 px-6 font-extrabold text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-primary/20 rounded-lg"
                                             >
                                                 <RotateCcw className="w-4 h-4 mr-2" />
                                                 Restaurer cette version
@@ -451,21 +476,20 @@ function FullScreenComparisonModal({
                 <DialogHeader className="px-8 pt-8 pb-6 border-b border-border/20 flex-shrink-0 bg-background z-10 shadow-sm relative">
                     <div className="flex items-center justify-between max-w-7xl mx-auto w-full">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                                <Maximize2 className="w-6 h-6 text-primary" />
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Maximize2 className="w-5 h-5 text-primary" />
                             </div>
-                            <div>
-                                <DialogTitle className="text-xl font-bold">
+                            <div className="flex flex-col">
+                                <DialogTitle className="text-xl font-extrabold tracking-tight">
                                     Comparaison Détaillée
                                 </DialogTitle>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                    Comparaison entre la version actuelle (v{currentVersion.version_number}) et la version sélectionnée (v{selectedVersion.version_number})
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Version actuelle (v{currentVersion.version_number}) contre Version sélectionnée (v{selectedVersion.version_number})
                                 </p>
                             </div>
                         </div>
-                        <Button variant="outline" onClick={() => onOpenChange(false)} className="gap-2">
-                            <Minimize2 className="w-4 h-4" />
-                            Fermer
+                        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:bg-secondary/50">
+                            <Minimize2 className="w-5 h-5" />
                         </Button>
                     </div>
                 </DialogHeader>
@@ -473,21 +497,21 @@ function FullScreenComparisonModal({
                 <ScrollArea className="flex-1 w-full bg-muted/10">
                     <div className="max-w-7xl mx-auto p-8 py-12 space-y-12">
                         {/* Headers */}
-                        <div className="flex items-center justify-between border-b border-border/10 pb-6 mb-8 sticky top-0 bg-muted/10 backdrop-blur-md z-10 pt-4 -mt-4">
-                            <div className="w-1/2 pr-8 text-center">
-                                <Badge variant="outline" className="text-xs px-3 py-1 bg-primary/5 text-primary border-primary/20 mb-3 shadow-sm">Version Actuelle</Badge>
-                                <h4 className="text-xl font-bold text-foreground">v{currentVersion.version_number}</h4>
+                        <div className="flex items-center justify-between border-b border-border/10 pb-4 mb-6 sticky top-0 bg-muted/10 backdrop-blur-md z-10 pt-4 -mt-4">
+                            <div className="w-1/2 pr-8 text-center flex flex-col items-center">
+                                <h4 className="text-xl font-extrabold text-foreground tracking-tight">v{currentVersion.version_number}</h4>
+                                <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-widest">Version Actuelle</span>
                             </div>
-                            <div className="w-px h-16 bg-border/40"></div>
-                            <div className="w-1/2 pl-8 text-center">
-                                <Badge variant="outline" className="text-xs px-3 py-1 bg-muted text-muted-foreground mb-3 shadow-sm">Version Sélectionnée</Badge>
-                                <h4 className="text-xl font-bold text-foreground">v{selectedVersion.version_number}</h4>
+                            <div className="w-px h-10 bg-border/20"></div>
+                            <div className="w-1/2 pl-8 text-center flex flex-col items-center">
+                                <h4 className="text-xl font-extrabold text-foreground tracking-tight">v{selectedVersion.version_number}</h4>
+                                <span className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-widest">Version Sélectionnée</span>
                             </div>
                         </div>
 
                         {/* General Info */}
-                        <div className="space-y-4 bg-background p-8 rounded-2xl border border-border/20 shadow-sm">
-                            <h4 className="text-sm font-bold text-primary uppercase tracking-wider mb-6 pb-2 border-b border-border/10">Informations Générales</h4>
+                        <div className="space-y-4">
+                            <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4 pb-2 border-b border-border/10">Informations Générales</h4>
                             <DiffField
                                 label="Titre"
                                 currentValue={currentVersion.form_data?.title}
@@ -511,8 +535,8 @@ function FullScreenComparisonModal({
                         </div>
 
                         {/* Commerce */}
-                        <div className="space-y-4 bg-background p-8 rounded-2xl border border-border/20 shadow-sm">
-                            <h4 className="text-sm font-bold text-primary uppercase tracking-wider mb-6 pb-2 border-b border-border/10">Commerce & Stocks</h4>
+                        <div className="space-y-4 pt-6 mt-6">
+                            <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4 pb-2 border-b border-border/10">Commerce & Stocks</h4>
                             <DiffField
                                 label="Prix"
                                 currentValue={
@@ -553,18 +577,23 @@ function FullScreenComparisonModal({
 
 function PreviewField({ label, value, isModified }: { label: string, value?: string | null, isModified: boolean }) {
     return (
-        <div className="py-2 px-3 -mx-3 rounded-lg hover:bg-muted/30 transition-colors">
+        <div className={cn(
+            "relative group py-2.5 px-3 -mx-3 rounded-xl transition-all duration-300 border",
+            isModified
+                ? "border-primary/15 bg-primary/[0.02] hover:border-primary/30 hover:bg-primary/[0.05]"
+                : "border-transparent hover:border-border/10 hover:bg-muted/30"
+        )}>
             <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <p className="text-[11px] font-medium text-muted-foreground">
                     {label}
                 </p>
                 {isModified && (
-                    <Badge variant="outline" className="text-[8px] py-0 px-1.5 h-4 bg-amber-500/10 text-amber-500 border-amber-500/20 leading-tight">
+                    <span className="text-muted-foreground/60 font-medium text-[10px]">
                         Modifié
-                    </Badge>
+                    </span>
                 )}
             </div>
-            <p className="text-sm text-foreground/90 font-medium">
+            <p className="text-[13px] text-foreground font-medium mt-1">
                 {value || <span className="text-muted-foreground/40">—</span>}
             </p>
         </div>
@@ -592,30 +621,35 @@ function DiffField({
     const isDifferent = normalizedCurrent !== normalizedSelected;
 
     return (
-        <div className="grid grid-cols-2 gap-4 py-3 px-2 -mx-2 rounded-xl hover:bg-muted/30 transition-colors border border-transparent hover:border-border/10">
+        <div className={cn(
+            "relative group grid grid-cols-2 gap-8 py-4 px-4 -mx-4 rounded-2xl transition-all duration-300 border",
+            isDifferent
+                ? "border-primary/15 bg-primary/[0.02] hover:border-primary/30 hover:bg-primary/[0.04] shadow-sm"
+                : "border-transparent hover:border-border/10 hover:bg-background/40 hover:shadow-[0_0_20px_-10px_rgba(0,0,0,0.05)]"
+        )}>
             {/* Actuel */}
-            <div className="pr-4 border-r border-border/10 flex flex-col justify-center">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+            <div className="pr-4 border-r border-border/10 flex flex-col justify-center relative">
+                <p className="text-[10px] font-medium text-muted-foreground mb-1.5 transition-colors group-hover:text-foreground/70">
                     {label}
                 </p>
-                <div className={cn("text-xs leading-relaxed", isDifferent ? "text-muted-foreground/60 line-through" : "text-foreground/80", !isFullScreen ? "line-clamp-4" : "")} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                <div className={cn("text-sm transition-colors", isDifferent ? "text-muted-foreground/50 line-through" : "text-foreground group-hover:text-foreground/80", !isFullScreen ? "line-clamp-4" : "")} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                     {currentValue || <span className="text-muted-foreground/40">—</span>}
                 </div>
             </div>
 
             {/* Selected */}
             <div className="pl-4 flex flex-col justify-center relative">
-                <div className="flex items-center justify-between mb-1">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider opacity-0">
+                <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] font-medium text-muted-foreground opacity-0">
                         {label}
                     </p>
                     {isDifferent && (
-                        <Badge variant="outline" className="text-[8px] py-0 px-1 bg-amber-500/10 text-amber-500 border-amber-500/20 leading-tight absolute right-0 top-1">
+                        <Badge variant="secondary" className="px-1.5 py-0 h-4 text-[9px] font-bold uppercase tracking-widest border-none bg-primary/10 text-primary absolute right-0 top-0 transition-transform group-hover:scale-105">
                             Modifié
                         </Badge>
                     )}
                 </div>
-                <div className={cn("text-xs pr-12 leading-relaxed", isDifferent ? "text-foreground font-semibold" : "text-foreground/80", !isFullScreen ? "line-clamp-4" : "")} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+                <div className={cn("text-sm pr-12 leading-relaxed transition-colors", isDifferent ? "text-foreground font-semibold" : "text-foreground/80", !isFullScreen ? "line-clamp-4" : "")} style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                     {selectedValue || <span className="text-muted-foreground/40">—</span>}
                 </div>
             </div>

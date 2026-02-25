@@ -4,6 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { STALE_TIMES } from '@/lib/query-config';
 import type {
     GscIndexationOverview,
@@ -82,9 +83,15 @@ export function useGscIndexation(
             }
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['gsc-indexation-overview', siteId] });
             queryClient.invalidateQueries({ queryKey: ['gsc-indexation-urls', siteId] });
+            if (data?.inspected > 0) {
+                toast.success(`${data.inspected} URL${data.inspected > 1 ? 's' : ''} inspectée${data.inspected > 1 ? 's' : ''}`);
+            }
+        },
+        onError: (err: Error) => {
+            toast.error('Échec de l\'inspection', { description: err.message });
         },
     });
 
@@ -102,8 +109,36 @@ export function useGscIndexation(
             }
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['gsc-indexation-queue', siteId] });
+
+            const { submitted = 0, queued = 0, failed = 0, quota_remaining } = data;
+
+            if (submitted > 0 && failed === 0 && queued === 0) {
+                toast.success(
+                    `${submitted} URL${submitted > 1 ? 's' : ''} soumise${submitted > 1 ? 's' : ''} à Google`,
+                    { description: `Quota restant : ${quota_remaining}/jour` }
+                );
+            } else if (submitted > 0 && queued > 0) {
+                toast.success(
+                    `${submitted} URL${submitted > 1 ? 's' : ''} soumise${submitted > 1 ? 's' : ''} · ${queued} en file d'attente`,
+                    { description: `Quota journalier atteint — les ${queued} restantes seront soumises demain` }
+                );
+            } else if (queued > 0 && submitted === 0) {
+                toast.info(
+                    `${queued} URL${queued > 1 ? 's' : ''} ajoutée${queued > 1 ? 's' : ''} en file d'attente`,
+                    { description: 'Quota journalier atteint — soumission automatique demain' }
+                );
+            }
+
+            if (failed > 0) {
+                toast.warning(`${failed} URL${failed > 1 ? 's' : ''} en échec`, {
+                    description: 'Vérifiez la file d\'attente pour les détails',
+                });
+            }
+        },
+        onError: (err: Error) => {
+            toast.error('Échec de la soumission', { description: err.message });
         },
     });
 

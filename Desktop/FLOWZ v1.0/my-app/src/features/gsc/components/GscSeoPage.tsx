@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -126,7 +126,16 @@ export function GscSeoPage() {
     const { selectedStore } = useSelectedStore();
     const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
     const [days, setDays] = useState(28);
-    const [activeTab, setActiveTab] = useState("analytics");
+    const searchParams = useSearchParams();
+    const tabFromUrl = searchParams.get("tab");
+    const [activeTab, setActiveTab] = useState(tabFromUrl || "analytics");
+
+    // Sync tab from URL when navigating from sidebar
+    useEffect(() => {
+        if (tabFromUrl && tabFromUrl !== activeTab) {
+            setActiveTab(tabFromUrl);
+        }
+    }, [tabFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
     const [visibleMetrics, setVisibleMetrics] = useState<Record<MetricKey, boolean>>(DEFAULT_VISIBLE);
 
     const storeMatchedSite = selectedStore
@@ -234,110 +243,122 @@ export function GscSeoPage() {
             </div>
 
             {/* Tabs */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="w-full justify-start overflow-x-auto">
-                    <TabsTrigger value="analytics" className="gap-1.5 text-xs">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        Analytique
-                    </TabsTrigger>
-                    <TabsTrigger value="keywords" className="gap-1.5 text-xs">
-                        <Type className="h-3.5 w-3.5" />
-                        Mots-cles
-                    </TabsTrigger>
-                    <TabsTrigger value="audit" className="gap-1.5 text-xs">
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        Audit
-                    </TabsTrigger>
-                    <TabsTrigger value="info" className="gap-1.5 text-xs">
-                        <Info className="h-3.5 w-3.5" />
-                        Info
-                    </TabsTrigger>
-                    <TabsTrigger value="indexation" className="gap-1.5 text-xs">
-                        <ListChecks className="h-3.5 w-3.5" />
-                        Indexation
-                    </TabsTrigger>
-                    <TabsTrigger value="sitemaps" className="gap-1.5 text-xs">
-                        <Map className="h-3.5 w-3.5" />
-                        Plans de site
-                    </TabsTrigger>
-                    <TabsTrigger value="tasks" className="gap-1.5 text-xs">
-                        <ClipboardList className="h-3.5 w-3.5" />
-                        Taches
-                    </TabsTrigger>
-                </TabsList>
+            <div className="space-y-3">
+                {/* Bloc 1 — Navigation onglets */}
+                <div className="rounded-xl border border-border bg-card px-4 py-3">
+                <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border w-fit overflow-x-auto">
+                    {[
+                        { value: "analytics", label: "Analytique", icon: BarChart3 },
+                        { value: "keywords", label: "Mots-clés", icon: Type },
+                        { value: "audit", label: "Audit", icon: ShieldCheck },
+                        { value: "info", label: "Info", icon: Info },
+                        { value: "indexation", label: "Indexation", icon: ListChecks },
+                        { value: "sitemaps", label: "Plans de site", icon: Map },
+                        { value: "tasks", label: "Tâches", icon: ClipboardList },
+                    ].map(({ value, label, icon: Icon }) => (
+                        <button
+                            key={value}
+                            onClick={() => setActiveTab(value)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-medium rounded-md transition-colors whitespace-nowrap",
+                                activeTab === value
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            <Icon className="h-3.5 w-3.5" />
+                            {label}
+                        </button>
+                    ))}
+                </div>
+                </div>
 
                 {/* ── Analytique (Overview) ── */}
-                <TabsContent value="analytics" className="mt-4">
-                    {dashLoading ? (
-                        <DashboardSkeleton />
-                    ) : (
-                        <div className="space-y-4">
-                            <GscKpiCards
-                                kpis={dashboard?.kpis || EMPTY_KPIS}
-                                kpisPrevious={dashboard?.kpis_previous || EMPTY_KPIS}
-                                visibleMetrics={visibleMetrics}
-                                onToggleMetric={handleToggleMetric}
-                            />
-                            <GscPerformanceChart
-                                data={dashboard?.daily || []}
-                                visibleMetrics={visibleMetrics}
-                            />
+                {activeTab === "analytics" && (
+                    <div className="space-y-3">
+                        {dashLoading ? (
+                            <DashboardSkeleton />
+                        ) : (
+                            <>
+                                <div className="rounded-xl border border-border bg-card p-6">
+                                    <GscKpiCards
+                                        kpis={dashboard?.kpis || EMPTY_KPIS}
+                                        kpisPrevious={dashboard?.kpis_previous || EMPTY_KPIS}
+                                        visibleMetrics={visibleMetrics}
+                                        onToggleMetric={handleToggleMetric}
+                                    />
+                                </div>
+                                <div className="rounded-xl border border-border bg-card p-6">
+                                    <GscPerformanceChart
+                                        data={dashboard?.daily || []}
+                                        visibleMetrics={visibleMetrics}
+                                    />
+                                </div>
+                                <div className="rounded-xl border border-border bg-card p-6">
+                                    <GscTabbedData dashboard={dashboard} />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
 
-                            {/* Tabbed Data Tables */}
-                            <GscTabbedData dashboard={dashboard} />
-                        </div>
-                    )}
-                </TabsContent>
-
-                {/* ── Mots-cles ── */}
-                <TabsContent value="keywords" className="mt-4">
+                {/* ── Mots-clés ── */}
+                {activeTab === "keywords" && (
                     <GscKeywordsExplorerTab siteId={effectiveSiteId} />
-                </TabsContent>
+                )}
 
                 {/* ── Audit ── */}
-                <TabsContent value="audit" className="mt-4">
-                    <PlaceholderTab
-                        icon={ShieldCheck}
-                        title="Audit SEO"
-                        description="L'audit technique de votre site sera bientot disponible."
-                    />
-                </TabsContent>
+                {activeTab === "audit" && (
+                    <div className="rounded-xl border border-border bg-card p-6">
+                        <PlaceholderTab
+                            icon={ShieldCheck}
+                            title="Audit SEO"
+                            description="L'audit technique de votre site sera bientôt disponible."
+                        />
+                    </div>
+                )}
 
                 {/* ── Info ── */}
-                <TabsContent value="info" className="mt-4">
-                    <PlaceholderTab
-                        icon={Info}
-                        title="Informations"
-                        description="Les informations detaillees du site seront bientot disponibles."
-                    />
-                </TabsContent>
+                {activeTab === "info" && (
+                    <div className="rounded-xl border border-border bg-card p-6">
+                        <PlaceholderTab
+                            icon={Info}
+                            title="Informations"
+                            description="Les informations détaillées du site seront bientôt disponibles."
+                        />
+                    </div>
+                )}
 
                 {/* ── Indexation ── */}
-                <TabsContent value="indexation" className="mt-4">
+                {activeTab === "indexation" && (
                     <GscIndexationTab
                         siteId={effectiveSiteId}
                         siteUrl={selectedSite?.site_url || ""}
                     />
-                </TabsContent>
+                )}
 
                 {/* ── Plans de site ── */}
-                <TabsContent value="sitemaps" className="mt-4">
-                    <PlaceholderTab
-                        icon={Map}
-                        title="Plans de site"
-                        description="La gestion des sitemaps sera bientot disponible."
-                    />
-                </TabsContent>
+                {activeTab === "sitemaps" && (
+                    <div className="rounded-xl border border-border bg-card p-6">
+                        <PlaceholderTab
+                            icon={Map}
+                            title="Plans de site"
+                            description="La gestion des sitemaps sera bientôt disponible."
+                        />
+                    </div>
+                )}
 
-                {/* ── Taches ── */}
-                <TabsContent value="tasks" className="mt-4">
-                    <PlaceholderTab
-                        icon={ClipboardList}
-                        title="Taches SEO"
-                        description="La liste des taches SEO a realiser sera bientot disponible."
-                    />
-                </TabsContent>
-            </Tabs>
+                {/* ── Tâches ── */}
+                {activeTab === "tasks" && (
+                    <div className="rounded-xl border border-border bg-card p-6">
+                        <PlaceholderTab
+                            icon={ClipboardList}
+                            title="Tâches SEO"
+                            description="La liste des tâches SEO à réaliser sera bientôt disponible."
+                        />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

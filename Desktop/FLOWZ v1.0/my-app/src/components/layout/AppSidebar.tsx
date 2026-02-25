@@ -1,4 +1,4 @@
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 import {
@@ -8,14 +8,17 @@ import {
   Store,
   Settings,
   ChevronDown,
+  ChevronRight,
   Sparkles,
   Camera,
-  Layers,
-  Maximize2,
-  LayoutGrid,
-  Palette,
   TrendingUp,
-  History,
+  BarChart3,
+  Type,
+  ShieldCheck,
+  Info,
+  ListChecks,
+  Map,
+  ClipboardList,
 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
@@ -23,9 +26,38 @@ import { useSidebarPreference } from "../../contexts/SidebarContext";
 import { useSettingsModal } from "@/contexts/SettingsModalContext";
 import { useUserProfile } from "@/hooks/profile/useUserProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { StoreSelector } from "./StoreSelector";
+
+// ============================================================================
+// Collapsible Menu State Hook (persisted per user in localStorage)
+// ============================================================================
+
+const COLLAPSED_MENUS_KEY = "flowz-sidebar-collapsed-menus";
+
+function useCollapsedMenus() {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COLLAPSED_MENUS_KEY);
+      if (stored) setCollapsed(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggle = useCallback((id: string) => {
+    setCollapsed(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem(COLLAPSED_MENUS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const isCollapsedMenu = useCallback((id: string) => !!collapsed[id], [collapsed]);
+
+  return { toggle, isCollapsedMenu };
+}
 
 /**
  * AppSidebar Component
@@ -178,44 +210,21 @@ const navItems = [
     label: "SEO",
     href: "/app/seo",
     icon: TrendingUp,
+    children: [
+      { id: "seo-analytics", label: "Analytique", href: "/app/seo?tab=analytics", icon: BarChart3 },
+      { id: "seo-keywords", label: "Mots-clés", href: "/app/seo?tab=keywords", icon: Type },
+      { id: "seo-audit", label: "Audit", href: "/app/seo?tab=audit", icon: ShieldCheck },
+      { id: "seo-info", label: "Info", href: "/app/seo?tab=info", icon: Info },
+      { id: "seo-indexation", label: "Indexation", href: "/app/seo?tab=indexation", icon: ListChecks },
+      { id: "seo-sitemaps", label: "Plans de site", href: "/app/seo?tab=sitemaps", icon: Map },
+      { id: "seo-tasks", label: "Tâches", href: "/app/seo?tab=tasks", icon: ClipboardList },
+    ],
   },
   {
     id: "stores",
     label: "Stores",
     href: "/app/stores",
     icon: Store,
-  },
-  {
-    id: "demo",
-    label: "Demo",
-    href: "/app/design-demo",
-    icon: Layers,
-    children: [
-      {
-        id: "design-system",
-        label: "Design System 2026",
-        href: "/app/design-demo",
-        icon: Palette,
-      },
-      {
-        id: "variation-studio",
-        label: "Variation Studio",
-        href: "/app/design-demo/variation-studio",
-        icon: LayoutGrid,
-      },
-      {
-        id: "proposal-d",
-        label: "D. Fullscreen",
-        href: "/app/design-demo/variation-studio/d",
-        icon: Maximize2,
-      },
-      {
-        id: "version-history",
-        label: "Historique versions",
-        href: "/app/design-demo/version-history",
-        icon: History,
-      },
-    ]
   },
   {
     id: "settings",
@@ -227,16 +236,31 @@ const navItems = [
 
 export const AppSidebar = () => {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { isCollapsed, setSidebarCollapsed } = useSidebarPreference();
   const { openSettings } = useSettingsModal();
+  const { toggle: toggleMenu, isCollapsedMenu } = useCollapsedMenus();
   const isOpen = !isCollapsed;
 
   const isActive = (path: string) => {
-    // Simple path matching - can be improved
-    if (path === "/") {
-      return pathname === "/";
+    if (path === "/") return pathname === "/";
+    // For paths with query params (e.g. /app/seo?tab=analytics), match base path
+    const basePath = path.split("?")[0];
+    return pathname?.startsWith(basePath);
+  };
+
+  const isExactActive = (path: string) => {
+    // For child items with query params, match the full href including the tab
+    if (path.includes("?")) {
+      const basePath = path.split("?")[0];
+      const matchTab = new URLSearchParams(path.split("?")[1]).get("tab");
+
+      // Default to "analytics" or whichever base tab if the param is missing on the actual route
+      const currentTab = searchParams?.get("tab") || (pathname === basePath ? "analytics" : null);
+
+      return pathname === basePath && currentTab === matchTab;
     }
-    return pathname?.startsWith(path);
+    return pathname === path;
   };
 
   return (
@@ -253,46 +277,85 @@ export const AppSidebar = () => {
           {/* Navigation */}
           <nav className="flex flex-col gap-1" aria-label="Navigation principale">
             {navItems.map((item) => {
-              const Icon = item.icon;
+              const ItemIcon = item.icon;
               const hasChildren = item.children && item.children.length > 0;
               const isItemActive = isActive(item.href);
               const isChildActive = hasChildren && item.children?.some(child => isActive(child.href));
+              const isMenuOpen = hasChildren && !isCollapsedMenu(item.id);
 
               return (
-                <div key={item.id} className="flex flex-col gap-1">
-                  <SidebarLink
-                    link={{
-                      label: item.label,
-                      href: item.href,
-                      icon: <Icon className="h-5 w-5 flex-shrink-0" strokeWidth={2} />,
-                    }}
-                    active={isItemActive || isChildActive}
-                    onClick={(e) => {
-                      if (item.id === 'settings') {
-                        e.preventDefault();
-                        openSettings();
-                      }
-                    }}
-                  />
-                  {(hasChildren && isOpen) && (
-                    <div className="flex flex-col gap-1 ml-9 mt-1 border-l border-white/10 pl-2">
-                      {item.children?.map((child) => {
-                        const ChildIcon = child.icon;
-                        return (
-                          <SidebarLink
-                            key={child.id}
-                            link={{
-                              label: child.label,
-                              href: child.href,
-                              icon: <ChildIcon className="h-4 w-4 flex-shrink-0" />,
-                            }}
-                            active={isActive(child.href)}
-                            className="h-9 hover:translate-x-0"
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
+                <div key={item.id} className="flex flex-col">
+                  <div className="relative flex items-center">
+                    <SidebarLink
+                      link={{
+                        label: item.label,
+                        href: item.href,
+                        icon: <ItemIcon className="h-5 w-5 flex-shrink-0" strokeWidth={2} />,
+                      }}
+                      active={isItemActive || isChildActive}
+                      onClick={(e) => {
+                        if (item.id === 'settings') {
+                          e.preventDefault();
+                          openSettings();
+                        }
+                        if (hasChildren && isOpen) {
+                          e.preventDefault();
+                          toggleMenu(item.id);
+                        }
+                      }}
+                    >
+                      {/* Chevron for collapsible menus */}
+                      {hasChildren && isOpen && (
+                        <motion.div
+                          animate={{ rotate: isMenuOpen ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="ml-auto relative z-10"
+                        >
+                          <ChevronDown className={cn(
+                            "h-4 w-4 transition-colors",
+                            (isItemActive || isChildActive) ? "text-primary-foreground/70" : "text-white/40"
+                          )} />
+                        </motion.div>
+                      )}
+                    </SidebarLink>
+                  </div>
+
+                  {/* Collapsible children */}
+                  <AnimatePresence initial={false}>
+                    {hasChildren && isOpen && isMenuOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="overflow-hidden"
+                      >
+                        <div className={cn(
+                          "flex flex-col gap-1 ml-9 mt-2 mb-2 pl-3 border-l-2 transition-colors duration-300",
+                          isChildActive ? "border-primary/50" : "border-white/10"
+                        )}>
+                          {item.children?.map((child) => {
+                            const ChildIcon = child.icon;
+                            return (
+                              <SidebarLink
+                                key={child.id}
+                                link={{
+                                  label: child.label,
+                                  href: child.href,
+                                  icon: <ChildIcon className="h-4 w-4 flex-shrink-0" />,
+                                }}
+                                active={isExactActive(child.href)}
+                                className={cn(
+                                  "h-9 text-xs transition-all duration-300",
+                                  "hover:translate-x-1"
+                                )}
+                              />
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}

@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { GscIndexationUrlRow } from "./GscIndexationUrlRow";
 import type { GscIndexationUrl } from "@/lib/gsc/types";
 
@@ -18,6 +19,11 @@ interface GscIndexationUrlListProps {
     onSubmitUrl: (url: string) => void;
     isSubmitting: boolean;
     isLoading: boolean;
+    // Selection (controlled)
+    selectedUrls: Set<string>;
+    onToggleSelect: (url: string) => void;
+    onToggleAll: () => void;
+    onClearSelection: () => void;
 }
 
 export function GscIndexationUrlList({
@@ -30,8 +36,21 @@ export function GscIndexationUrlList({
     onSubmitUrl,
     isSubmitting,
     isLoading,
+    selectedUrls,
+    onToggleSelect,
+    onToggleAll,
+    onClearSelection,
 }: GscIndexationUrlListProps) {
     const totalPages = Math.ceil(total / perPage);
+
+    // Reset selection when page changes
+    useEffect(() => {
+        onClearSelection();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
+    const allSelected = urls.length > 0 && urls.every(u => selectedUrls.has(u.url));
+    const someSelected = urls.some(u => selectedUrls.has(u.url));
 
     if (isLoading) {
         return (
@@ -60,6 +79,21 @@ export function GscIndexationUrlList({
     return (
         <Card className="border-border/40">
             <CardContent className="p-4">
+                {/* Select-all header */}
+                <div className="flex items-center gap-3 py-2 px-2 mb-1 border-b border-border/30">
+                    <Checkbox
+                        checked={allSelected ? true : someSelected ? "indeterminate" : false}
+                        onCheckedChange={onToggleAll}
+                        className="shrink-0 h-3.5 w-3.5"
+                        aria-label="Tout sélectionner"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                        {selectedUrls.size > 0
+                            ? `${selectedUrls.size} sélectionné${selectedUrls.size > 1 ? "s" : ""} sur ${total}`
+                            : `${total} pages`}
+                    </span>
+                </div>
+
                 {/* URL rows */}
                 <div className="divide-y divide-border/30">
                     {urls.map((item) => (
@@ -69,6 +103,8 @@ export function GscIndexationUrlList({
                             siteUrl={siteUrl}
                             onSubmit={onSubmitUrl}
                             isSubmitting={isSubmitting}
+                            isSelected={selectedUrls.has(item.url)}
+                            onToggleSelect={onToggleSelect}
                         />
                     ))}
                 </div>

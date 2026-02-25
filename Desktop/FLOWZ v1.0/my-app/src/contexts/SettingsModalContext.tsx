@@ -13,7 +13,8 @@ export type SettingsTab =
     | "account-preferences"
     | "account-ai"
     | "account-danger"
-    | "integrations-general";
+    | "integrations-general"
+    | "integrations-gsc";
 
 interface SettingsModalContextType {
     initialTab?: SettingsTab;

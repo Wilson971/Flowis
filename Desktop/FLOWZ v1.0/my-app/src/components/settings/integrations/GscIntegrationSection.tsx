@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,17 +18,6 @@ import {
     Mail,
 } from "lucide-react";
 import { useGscConnection } from "@/hooks/integrations/useGscConnection";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 export default function GscIntegrationSection() {
     const {
@@ -41,6 +30,8 @@ export default function GscIntegrationSection() {
         disconnect,
         isDisconnecting,
     } = useGscConnection();
+
+    const [confirmingDisconnect, setConfirmingDisconnect] = useState<string | null>(null);
 
     const handleConnect = () => {
         window.location.href = "/api/gsc/oauth/authorize";
@@ -198,34 +189,42 @@ export default function GscIntegrationSection() {
                                         Synchroniser
                                     </Button>
 
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
+                                    {confirmingDisconnect === conn.connection_id ? (
+                                        <div className="flex items-center gap-1.5 ml-auto">
+                                            <span className="text-xs text-muted-foreground">Confirmer ?</span>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                className="h-7 text-xs px-2.5"
+                                                disabled={isDisconnecting}
+                                                onClick={() => {
+                                                    disconnect(conn.connection_id);
+                                                    setConfirmingDisconnect(null);
+                                                }}
+                                            >
+                                                {isDisconnecting ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Oui, supprimer"}
+                                            </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="text-destructive hover:text-destructive gap-1.5 ml-auto h-7 text-xs"
-                                                disabled={isDisconnecting}
+                                                className="h-7 text-xs px-2"
+                                                onClick={() => setConfirmingDisconnect(null)}
                                             >
-                                                <Trash2 className="h-3 w-3" />
-                                                Deconnecter
+                                                Annuler
                                             </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Deconnecter {conn.site_url} ?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Les donnees de mots-cles de ce site seront supprimees.
-                                                    Vous pourrez vous reconnecter a tout moment.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => disconnect(conn.connection_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                                    Deconnecter
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:text-destructive gap-1.5 ml-auto h-7 text-xs"
+                                            disabled={isDisconnecting}
+                                            onClick={() => setConfirmingDisconnect(conn.connection_id)}
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                            Déconnecter
+                                        </Button>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

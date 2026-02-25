@@ -90,15 +90,28 @@ export async function POST(request: NextRequest) {
             urlsToInspect = data || [];
         } else {
             // Auto-select: never inspected first, then oldest inspected
-            const { data: neverInspected } = await supabase
+            // Fetch already-inspected sitemap_url_ids first (subquery syntax not supported in Supabase JS)
+            const { data: alreadyInspected } = await supabase
+                .from('gsc_indexation_status')
+                .select('sitemap_url_id')
+                .eq('site_id', body.siteId)
+                .eq('tenant_id', user.id);
+
+            const inspectedIds = (alreadyInspected || []).map(r => r.sitemap_url_id).filter(Boolean);
+
+            let neverInspectedQuery = supabase
                 .from('gsc_sitemap_urls')
                 .select('id, url')
                 .eq('site_id', body.siteId)
                 .eq('tenant_id', user.id)
                 .eq('is_active', true)
-                .not('id', 'in', `(SELECT sitemap_url_id FROM gsc_indexation_status WHERE site_id = '${body.siteId}')`)
                 .limit(maxToInspect);
 
+            if (inspectedIds.length > 0) {
+                neverInspectedQuery = neverInspectedQuery.not('id', 'in', `(${inspectedIds.map(id => `"${id}"`).join(',')})`);
+            }
+
+            const { data: neverInspected } = await neverInspectedQuery;
             urlsToInspect = neverInspected || [];
 
             // If we have room, add oldest inspected URLs

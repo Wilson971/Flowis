@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ExternalLink, Zap } from "lucide-react";
 import {
     Tooltip,
@@ -17,14 +18,25 @@ interface GscIndexationUrlRowProps {
     siteUrl: string;
     onSubmit: (url: string) => void;
     isSubmitting: boolean;
+    isSelected: boolean;
+    onToggleSelect: (url: string) => void;
 }
 
-export function GscIndexationUrlRow({ item, siteUrl, onSubmit, isSubmitting }: GscIndexationUrlRowProps) {
+export function GscIndexationUrlRow({ item, siteUrl, onSubmit, isSubmitting, isSelected, onToggleSelect }: GscIndexationUrlRowProps) {
     // Extract relative path from full URL
     const relativePath = item.url.replace(/^https?:\/\/[^/]+/, '') || '/';
 
     return (
-        <div className="flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-muted/50 transition-colors group">
+        <div className={cn(
+            "flex items-center gap-3 py-2.5 px-2 rounded-lg hover:bg-muted/50 transition-colors group",
+            isSelected && "bg-primary/5"
+        )}>
+            <Checkbox
+                checked={isSelected}
+                onCheckedChange={() => onToggleSelect(item.url)}
+                className="shrink-0 h-3.5 w-3.5"
+                aria-label={`Sélectionner ${relativePath}`}
+            />
             <VerdictDot verdict={item.verdict} />
 
             <div className="flex-1 min-w-0">

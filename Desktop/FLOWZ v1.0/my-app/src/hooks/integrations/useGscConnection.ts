@@ -60,6 +60,10 @@ export function useGscConnection(options?: { linkedOnly?: boolean }) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["gsc-connections"] });
             queryClient.invalidateQueries({ queryKey: ["gsc-keywords"] });
+            import("sonner").then(({ toast }) => toast.success("Connexion GSC supprimée"));
+        },
+        onError: (err: Error) => {
+            import("sonner").then(({ toast }) => toast.error(`Erreur : ${err.message}`));
         },
     });
 

@@ -301,7 +301,7 @@ export function ProductVersionHistoryCard({
                         <Button
                             variant="ghost"
                             onClick={() => setDialogOpen(true)}
-                            className="w-full mt-3 h-8 text-xs font-semibold justify-between hover:bg-muted/50"
+                            className="w-full mt-3 h-8 text-xs font-semibold justify-between bg-muted/20 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         >
                             <span>Voir tout l'historique</span>
                             <ChevronRight className="w-4 h-4" />
