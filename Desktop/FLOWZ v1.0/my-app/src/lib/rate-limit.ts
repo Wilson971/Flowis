@@ -105,3 +105,21 @@ export const RATE_LIMIT_SEO_SUGGEST: RateLimitConfig = {
   maxRequests: 20,
   windowMs: 60_000,
 };
+
+/** LinkBuilder embed: 30 requests per minute per user */
+export const RATE_LIMIT_LINKBUILDER_EMBED: RateLimitConfig = {
+  maxRequests: 30,
+  windowMs: 60_000,
+};
+
+/** LinkBuilder suggest: 20 requests per minute per user */
+export const RATE_LIMIT_LINKBUILDER_SUGGEST: RateLimitConfig = {
+  maxRequests: 20,
+  windowMs: 60_000,
+};
+
+/** LinkBuilder bulk embed: 2 requests per minute per user */
+export const RATE_LIMIT_LINKBUILDER_BULK: RateLimitConfig = {
+  maxRequests: 2,
+  windowMs: 60_000,
+};

@@ -281,12 +281,14 @@ permalink:         wc.permalink          ?? metadata.permalink              ?? n
 Required in `.env.local` (within `my-app/`):
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
-- `GEMINI_API_KEY` - Google GenAI API key (server-side only)
+- `GEMINI_API_KEY` - Google GenAI API key (server-side only, used for Gemini generation AND text-multilingual-embedding-002 embeddings)
 
 ## Supabase
 
 Migrations are in `supabase/migrations/`. Key tables:
 - `blog_posts` - Articles with editor_state JSON
+- `blog_articles` - Unified blog articles table (synced + created). Has `embedding vector(768)` column for LinkBuilder semantic search
+- `article_internal_links` - Internal links between articles (suggested/accepted/rejected/inserted). Used by LinkBuilder
 - `products` - Product catalog with variations
 - `sync_queue` - WooCommerce/Shopify sync jobs
 - `profiles` - User profiles linked to auth.users
@@ -300,17 +302,26 @@ Migrations are in `supabase/migrations/`. Key tables:
 - All RLS tables use `tenant_id` (NOT `user_id`) for the ownership column
 - `studio_jobs.batch_id` has FK constraint to `batch_jobs.id` - parent row must exist before inserting jobs
 - `studio_action` enum values: `remove_bg`, `replace_bg`, `enhance`, `generate_angles`, `generate_scene`, `replace_bg_white`, `replace_bg_studio`, `replace_bg_marble`, `replace_bg_wood`, `enhance_light`, `enhance_color`, `harmonize`, `magic_edit`
+- `blog_articles.embedding` is a `vector(768)` column (pgvector) indexed with IVFFlat for cosine similarity
+- `article_internal_links` has a unique constraint on `(source_article_id, target_article_id)`
+
+**Supabase RPCs:**
+- `match_articles(query_embedding, match_tenant_id, match_store_id, match_threshold, match_count, exclude_article_id)` - Cosine similarity search for LinkBuilder
+- `get_article_link_stats(p_article_id)` - Returns outgoing/incoming/suggested link counts
 
 To apply migrations: `supabase db push`
 
 ## Important Files
 
 - `my-app/src/app/api/flowriter/stream/route.ts` - Main AI generation endpoint
+- `my-app/src/app/api/linkbuilder/` - LinkBuilder API routes (embed, suggest, save-link, bulk-embed)
 - `my-app/src/schemas/flowriter.ts` - Zod schemas with security validation
 - `my-app/src/lib/design-system/` - FLOWZ design tokens
 - `my-app/src/lib/rate-limit.ts` - Per-user per-endpoint rate limiting (in-memory sliding window)
 - `my-app/src/hooks/blog/` - Blog/article CRUD and AI actions
+- `my-app/src/hooks/linkbuilder/` - LinkBuilder hooks (useLinkSuggestions, useEmbedArticle, useBulkEmbed)
 - `my-app/src/components/article-editor/` - TipTap editor with AI features
+- `my-app/src/components/article-editor/sidebar/LinkBuilderCard.tsx` - LinkBuilder sidebar card
 - `my-app/src/features/photo-studio/` - Photo Studio feature module
 - `my-app/src/features/photo-studio/hooks/useStudioJobs.ts` - Single job CRUD + polling
 - `my-app/src/features/photo-studio/hooks/useBatchStudioJobs.ts` - Batch job creation + progress polling
@@ -323,6 +334,7 @@ Hooks are organized by domain in `my-app/src/hooks/`:
 - `sync/` - useUnifiedSync, useSyncStore, useSyncJob, useSyncProgress, useCancelSync
 - `dashboard/` - useDashboardKPIs
 - `blog/` - useBlogPost, useBlogGeneration
+- `linkbuilder/` - useLinkSuggestions, useArticleLinks, useArticleLinkStats, useSaveLink, useUpdateLinkStatus, useEmbedArticle, useBulkEmbed
 - `analytics/` - useSeoStats, useRecentActivity
 - `auth/` - useRequireAuth
 
@@ -342,6 +354,31 @@ Two distinct flows for blog content:
 2. **Standalone Editor** (`/app/blog/editor/:id`) - Manual editing with contextual AI actions
 
 FloWriter generates drafts → User edits in Standalone Editor → Publish/Schedule
+
+## LinkBuilder Workflow (Internal Linking)
+
+AI-powered internal linking suggestions using semantic embeddings:
+
+```
+Article saved → Generate embedding (Google text-multilingual-embedding-002) →
+Store vector in blog_articles.embedding (pgvector 768d) →
+Query cosine similarity via match_articles RPC →
+Display suggestions in LinkBuilderCard sidebar →
+User accepts/rejects → Track in article_internal_links table
+```
+
+### API Routes
+- `POST /api/linkbuilder/embed` - Generate embedding for a single article
+- `POST /api/linkbuilder/suggest` - Find similar articles via cosine similarity
+- `POST /api/linkbuilder/save-link` - Create/upsert internal link record
+- `PATCH /api/linkbuilder/save-link` - Update link status
+- `POST /api/linkbuilder/bulk-embed` - Batch embed all articles for a store (max 50 per request)
+
+### Key Components
+- `LinkBuilderCard` - Sidebar card in article editor showing suggestions with accept/reject actions
+- `useLinkSuggestions` - Fetches similar articles for a given article
+- `useEmbedArticle` - Generates/refreshes embedding for an article
+- `useBulkEmbed` - Batch indexes all un-embedded articles for a store
 
 ## Photo Studio Workflow
 

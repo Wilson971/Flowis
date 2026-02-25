@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 
 import { StatusCard } from '../sidebar/StatusCard';
 import { SeoScoreCard } from '../sidebar/SeoScoreCard';
+import { LinkBuilderCard } from '../sidebar/LinkBuilderCard';
 import { PublicationCard } from '../sidebar/PublicationCard';
 import { OrganizationCard } from '../sidebar/OrganizationCard';
 import { FeaturedImageCard } from '../sidebar/FeaturedImageCard';
@@ -38,6 +39,11 @@ export function EditorSidebar({
 
       {/* SEO Score Card */}
       <SeoScoreCard />
+
+      {/* LinkBuilder - Internal Linking Suggestions (only for existing articles) */}
+      {!isNew && articleId && (
+        <LinkBuilderCard />
+      )}
 
       {/* Version History Card (only for existing articles) */}
       {!isNew && articleId && (
