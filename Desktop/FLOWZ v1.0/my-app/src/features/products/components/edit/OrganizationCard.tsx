@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ProductFormValues, PRODUCT_TYPE_DEFAULT } from "../../schemas/product-schema";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
-import { getProductCardTheme } from "@/lib/design-system";
+import { motionTokens } from "@/lib/design-system";
 
 // ============================================================================
 // TYPES
@@ -112,31 +112,26 @@ export const OrganizationCard = ({
     const categoryChip = useChipField('categories');
     const tagChip = useChipField('tags');
 
-    // Get theme from design system
-    const theme = getProductCardTheme('OrganizationCard');
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
-            <Card className={theme.container}>
-                {/* Glass reflection */}
-                <div className={theme.glassReflection} />
-                {/* Gradient accent - managed by design system */}
-                <div className={theme.gradientAccent} />
+            <Card className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className={theme.iconContainer}>
-                            <FolderTree className="w-5 h-5" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+                            <FolderTree className="h-[18px] w-[18px] text-foreground/70" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
                                 Arborescence
                             </p>
-                            <h3 className="text-sm font-extrabold tracking-tight text-foreground">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                 Catégories et attributs
                             </h3>
                         </div>
@@ -180,7 +175,7 @@ export const OrganizationCard = ({
                         <Label className="text-xs font-semibold flex items-center gap-1.5">
                             Catégories
                             {watchedCategories && watchedCategories.length > 0 && (
-                                <span className="text-xs text-muted-foreground font-normal">
+                                <span className="text-xs text-muted-foreground font-normal tabular-nums">
                                     ({watchedCategories.length})
                                 </span>
                             )}
@@ -193,7 +188,7 @@ export const OrganizationCard = ({
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <PopoverTrigger asChild>
-                                                <div className="flex items-center justify-between h-8 w-full rounded-lg border border-border/50 bg-background/50 group px-3 cursor-pointer hover:bg-background/70 transition-all">
+                                                <div className="flex items-center justify-between h-8 w-full rounded-lg border border-border/50 bg-background/50 group px-3 cursor-pointer hover:bg-background/70 transition-colors">
                                                     <div className="flex items-center gap-2.5 overflow-hidden">
                                                         <FolderTree className="h-3.5 w-3.5 text-muted-foreground/70 group-hover:text-primary/70 transition-colors" />
                                                         <span className="text-xs font-medium truncate">
@@ -289,7 +284,7 @@ export const OrganizationCard = ({
                             <Tag className="h-3 w-3 text-muted-foreground" />
                             Tags
                             {watchedTags && watchedTags.length > 0 && (
-                                <span className="text-xs text-muted-foreground font-normal">
+                                <span className="text-xs text-muted-foreground font-normal tabular-nums">
                                     ({watchedTags.length})
                                 </span>
                             )}
@@ -329,7 +324,7 @@ export const OrganizationCard = ({
                         {availableTags.length > 0 ? (
                             <Popover open={tagOpen} onOpenChange={setTagOpen}>
                                 <PopoverTrigger asChild>
-                                    <div className="flex items-center justify-between h-8 w-full rounded-lg border border-border/50 bg-background/50 group px-3 cursor-pointer hover:bg-background/70 transition-all">
+                                    <div className="flex items-center justify-between h-8 w-full rounded-lg border border-border/50 bg-background/50 group px-3 cursor-pointer hover:bg-background/70 transition-colors">
                                         <div className="flex items-center gap-2.5 overflow-hidden">
                                             <Tag className="h-3.5 w-3.5 text-muted-foreground/70 group-hover:text-primary/70 transition-colors" />
                                             <span className="text-xs font-medium truncate text-muted-foreground">

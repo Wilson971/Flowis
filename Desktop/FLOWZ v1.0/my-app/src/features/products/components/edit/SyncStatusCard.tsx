@@ -26,10 +26,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-system";
 import { usePushSingleProduct, useRevertToOriginal } from "@/hooks/products";
 import { FIELD_LABELS } from "@/lib/productHelpers";
 import { toast } from "sonner";
-import { getProductCardTheme } from "@/lib/design-system";
 import type { ProductFormValues } from "../../schemas/product-schema";
 
 interface SyncStatusCardProps {
@@ -143,28 +143,25 @@ export const SyncStatusCard = ({
 
     const isSyncing = pushMutation.isPending;
     const isReverting = revertMutation.isPending;
-    const theme = getProductCardTheme('SyncStatusCard');
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
-            <Card className={theme.container}>
-                {/* Glass reflection */}
-                <div className={theme.glassReflection} />
-                {/* Gradient accent */}
-                <div className={theme.gradientAccent} />
+            <Card className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
                 <CardHeader className="pb-3 border-b border-border/10 px-5 relative z-10">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className={theme.iconContainer}>
-                                <CloudUpload className="w-5 h-5" />
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+                                <CloudUpload className="h-[18px] w-[18px] text-foreground/70" />
                             </div>
                             <div>
-                                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                                <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
                                     Synchronisation
                                 </p>
                                 <p className="text-xs text-muted-foreground">
@@ -175,7 +172,7 @@ export const SyncStatusCard = ({
                         <Badge
                             variant="outline"
                             className={cn(
-                                "text-[10px] uppercase font-bold tracking-wider border",
+                                "text-[10px] uppercase font-semibold tracking-tight border",
                                 config.badgeClass
                             )}
                         >
@@ -196,7 +193,7 @@ export const SyncStatusCard = ({
                                 {dirtyFields.slice(0, 6).map((field) => (
                                     <span
                                         key={field}
-                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-600 border border-amber-500/20"
                                     >
                                         {FIELD_LABELS[field] || field}
                                     </span>

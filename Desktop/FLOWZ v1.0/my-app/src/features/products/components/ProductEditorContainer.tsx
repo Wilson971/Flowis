@@ -3,7 +3,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FormProvider, useWatch } from "react-hook-form";
-import { AlertCircle, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -331,7 +331,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             {isLoading && (
                 <div className="container max-w-7xl mx-auto py-8 space-y-8">
                     <div className="flex items-center gap-4">
-                        <Skeleton className="h-10 w-10 rounded-lg" />
+                        <Skeleton className="h-10 w-10 rounded-xl" />
                         <div className="space-y-2">
                             <Skeleton className="h-8 w-64" />
                             <Skeleton className="h-4 w-32" />
@@ -350,8 +350,10 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             {!isLoading && (error || !product) && (
                 <div className="container max-w-7xl mx-auto py-12 text-center">
                     <div className="flex flex-col items-center gap-4">
-                        <AlertCircle className="h-12 w-12 text-destructive" />
-                        <h2 className="text-2xl font-bold">Produit introuvable</h2>
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 mx-auto mb-3">
+                            <Package className="h-5 w-5 text-muted-foreground/50" />
+                        </div>
+                        <h2 className="text-[15px] font-semibold tracking-tight">Produit introuvable</h2>
                         <p className="text-muted-foreground">
                             Le produit demandé n&apos;existe pas ou a été supprimé.
                         </p>

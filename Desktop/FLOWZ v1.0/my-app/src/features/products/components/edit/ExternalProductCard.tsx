@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-system";
 import { ExternalLink, MousePointerClick } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ProductFormValues } from "../../schemas/product-schema";
-import { getProductCardTheme } from "@/lib/design-system";
 
 /**
  * ExternalProductCard
@@ -20,7 +21,6 @@ import { getProductCardTheme } from "@/lib/design-system";
  * Cette carte ne s'affiche que si product_type === 'external'
  */
 export const ExternalProductCard = () => {
-    const theme = getProductCardTheme('ExternalProductCard');
     const { register, control } = useFormContext<ProductFormValues>();
 
     const productType = useWatch({ control, name: "product_type" });
@@ -34,24 +34,22 @@ export const ExternalProductCard = () => {
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
-            <Card className={theme.container}>
-                {/* Glass reflection */}
-                <div className={theme.glassReflection} />
-                {/* Gradient accent */}
-                <div className={theme.gradientAccent} />
+            <Card className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className={theme.iconContainer}>
-                            <ExternalLink className="w-5 h-5" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+                            <ExternalLink className="h-[18px] w-[18px] text-foreground/70" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
                                 Produit Affilié
                             </p>
-                            <h3 className="text-sm font-extrabold tracking-tight text-foreground">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                 Lien externe
                             </h3>
                         </div>
@@ -62,7 +60,7 @@ export const ExternalProductCard = () => {
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
                             <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                            <Label htmlFor="external_url" className="text-xs font-semibold">
+                            <Label htmlFor="external_url" className="text-xs font-semibold tracking-tight">
                                 URL du produit
                             </Label>
                         </div>
@@ -82,7 +80,7 @@ export const ExternalProductCard = () => {
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
                             <MousePointerClick className="h-3.5 w-3.5 text-muted-foreground" />
-                            <Label htmlFor="button_text" className="text-xs font-semibold">
+                            <Label htmlFor="button_text" className="text-xs font-semibold tracking-tight">
                                 Texte du bouton
                             </Label>
                         </div>

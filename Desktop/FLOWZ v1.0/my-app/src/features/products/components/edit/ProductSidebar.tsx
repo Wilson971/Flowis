@@ -3,6 +3,7 @@
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-system";
 import { ProductFormValues } from "../../schemas/product-schema";
 import { PricingCard } from "./PricingCard";
 import { OrganizationCard } from "./OrganizationCard";
@@ -75,63 +76,83 @@ export const ProductSidebar = ({
 
     return (
         <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
+            variants={motionTokens.variants.staggerContainer}
+            initial="hidden"
+            animate="visible"
             className="space-y-4"
         >
             {/* SEO Sidebar Widget */}
-            <SeoSidebarWidget />
+            <motion.div variants={motionTokens.variants.staggerItem}>
+                <SeoSidebarWidget />
+            </motion.div>
 
             {/* Sync History Card */}
             {productId && (
-                <SyncHistoryCard productId={productId} />
+                <motion.div variants={motionTokens.variants.staggerItem}>
+                    <SyncHistoryCard productId={productId} />
+                </motion.div>
             )}
 
             {/* Version History Card */}
             {productId && (
-                <ProductVersionHistoryCard
-                    productId={productId}
-                    onVersionRestored={onVersionRestored}
-                />
+                <motion.div variants={motionTokens.variants.staggerItem}>
+                    <ProductVersionHistoryCard
+                        productId={productId}
+                        onVersionRestored={onVersionRestored}
+                    />
+                </motion.div>
             )}
 
             {/* Performance Card (if we have stats) */}
             {(totalRevenue > 0 || totalSales > 0) && (
-                <PerformanceCard
-                    totalRevenue={totalRevenue}
-                    totalSales={totalSales}
-                    averageRating={averageRating}
-                    reviewCount={reviewCount}
-                />
+                <motion.div variants={motionTokens.variants.staggerItem}>
+                    <PerformanceCard
+                        totalRevenue={totalRevenue}
+                        totalSales={totalSales}
+                        averageRating={averageRating}
+                        reviewCount={reviewCount}
+                    />
+                </motion.div>
             )}
 
             {/* Pricing & Inventory Card */}
-            <PricingCard
-                isVariableProduct={isVariableProduct}
-                variationsCount={variationsCount}
-                onManageVariants={onManageVariants}
-            />
+            <motion.div variants={motionTokens.variants.staggerItem}>
+                <PricingCard
+                    isVariableProduct={isVariableProduct}
+                    variationsCount={variationsCount}
+                    onManageVariants={onManageVariants}
+                />
+            </motion.div>
 
             {/* Product Options Card (Featured, Purchasable, Reviews, etc.) */}
-            <ProductOptionsCard />
+            <motion.div variants={motionTokens.variants.staggerItem}>
+                <ProductOptionsCard />
+            </motion.div>
 
             {/* External Product Card (only for external products) */}
-            {productType === "external" && <ExternalProductCard />}
+            {productType === "external" && (
+                <motion.div variants={motionTokens.variants.staggerItem}>
+                    <ExternalProductCard />
+                </motion.div>
+            )}
 
             {/* Organization Card (Categories, Tags, Type, Brand) */}
-            <OrganizationCard
-                availableCategories={availableCategories}
-                isLoadingCategories={isLoadingCategories}
-                availableTags={availableTags}
-                isLoadingTags={isLoadingTags}
-            />
+            <motion.div variants={motionTokens.variants.staggerItem}>
+                <OrganizationCard
+                    availableCategories={availableCategories}
+                    isLoadingCategories={isLoadingCategories}
+                    availableTags={availableTags}
+                    isLoadingTags={isLoadingTags}
+                />
+            </motion.div>
 
             {/* Linked Products Card (Upsell, Cross-sell, Related) */}
-            <LinkedProductsCard
-                availableProducts={availableProducts}
-                isLoadingProducts={isLoadingProducts}
-            />
+            <motion.div variants={motionTokens.variants.staggerItem}>
+                <LinkedProductsCard
+                    availableProducts={availableProducts}
+                    isLoadingProducts={isLoadingProducts}
+                />
+            </motion.div>
         </motion.div>
     );
 };

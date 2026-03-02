@@ -4,7 +4,8 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { TrendingUp, ShoppingCart, DollarSign, BarChart3 } from "lucide-react";
-import { getProductCardTheme } from "@/lib/design-system";
+import { motionTokens } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
 
 interface PerformanceCardProps {
     totalRevenue?: number;
@@ -15,7 +16,7 @@ interface PerformanceCardProps {
 
 /**
  * PerformanceCard
- * 
+ *
  * Carte affichant les statistiques de performance du produit.
  * Revenus, ventes totales, note moyenne.
  */
@@ -39,15 +40,11 @@ export const PerformanceCard = ({
             label: "Revenus",
             value: formatCurrency(totalRevenue),
             icon: DollarSign,
-            color: "text-primary",
-            bgColor: "bg-primary/10",
         },
         {
             label: "Ventes",
             value: totalSales.toString(),
             icon: ShoppingCart,
-            color: "text-info",
-            bgColor: "bg-info/10",
         },
     ];
 
@@ -56,36 +53,29 @@ export const PerformanceCard = ({
             label: "Note",
             value: `${averageRating.toFixed(1)} (${reviewCount})`,
             icon: BarChart3,
-            color: "text-warning",
-            bgColor: "bg-warning/10",
         });
     }
-
-    // Get theme from design system
-    const theme = getProductCardTheme('PerformanceCard');
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
-            <Card className={theme.container}>
-                {/* Glass reflection */}
-                <div className={theme.glassReflection} />
-                {/* Gradient accent - managed by design system */}
-                <div className={theme.gradientAccent} />
+            <Card className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className={theme.iconContainer}>
-                            <TrendingUp className="w-5 h-5" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+                            <TrendingUp className="h-[18px] w-[18px] text-foreground/70" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
                                 Analytique
                             </p>
-                            <h3 className="text-sm font-extrabold tracking-tight text-foreground">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                 Performance
                             </h3>
                         </div>
@@ -100,18 +90,18 @@ export const PerformanceCard = ({
                                     key={stat.label}
                                     initial={{ opacity: 0, scale: 0.95 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 0.1 * index }}
+                                    transition={motionTokens.transitions.fast}
                                     className="flex flex-col gap-1 p-3 rounded-lg bg-muted/30 border border-border/30"
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-lg ${stat.bgColor}`}>
-                                            <Icon className={`h-3 w-3 ${stat.color}`} />
+                                        <div className="p-1.5 rounded-lg bg-muted/60">
+                                            <Icon className="h-3 w-3 text-foreground/70" />
                                         </div>
-                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                        <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
                                             {stat.label}
                                         </span>
                                     </div>
-                                    <span className="text-sm font-bold tracking-tight">
+                                    <span className="text-sm font-semibold tracking-tight tabular-nums">
                                         {stat.value}
                                     </span>
                                 </motion.div>

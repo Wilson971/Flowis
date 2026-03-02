@@ -22,7 +22,7 @@ const ProductTitleDisplay = () => {
     const title = useWatch({ control, name: "title" });
     const displayTitle = title || "Nouveau produit";
     return (
-        <h1 className="text-xl font-bold tracking-tight text-foreground truncate">
+        <h1 className="text-lg font-semibold tracking-tight text-foreground truncate">
             {displayTitle}
         </h1>
     );
@@ -227,7 +227,7 @@ export const ProductEditorHeader = ({
                         variant="outline"
                         onClick={onReset}
                         disabled={!isDirty || isSaving}
-                        className="h-10 px-6 font-bold text-xs uppercase tracking-widest border-border/50 hover:bg-muted/50 transition-all"
+                        className="h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest border-border/50 hover:bg-muted/50 transition-colors"
                     >
                         Annuler
                     </Button>
@@ -235,7 +235,7 @@ export const ProductEditorHeader = ({
                         onClick={onSave}
                         disabled={isSaving}
                         variant="outline"
-                        className="h-10 px-6 font-extrabold text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-primary/20"
+                        className="h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors shadow-sm"
                     >
                         {isSaving ? (
                             <>
@@ -254,9 +254,9 @@ export const ProductEditorHeader = ({
                         disabled={isPublishing || isDirty || (!hasPendingChanges && !hasConflict)}
                         variant="outline"
                         className={cn(
-                            "h-10 px-6 font-extrabold text-xs uppercase tracking-widest transition-all",
+                            "h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest transition-colors",
                             hasPendingChanges
-                                ? "border-primary bg-primary/15 text-primary hover:bg-primary/25 dark:bg-primary/20 dark:hover:bg-primary/30 shadow-[0_0_15px_-5px_hsl(var(--chart-1))]"
+                                ? "border-primary bg-primary/15 text-primary hover:bg-primary/25 dark:bg-primary/20 dark:hover:bg-primary/30 shadow-sm"
                                 : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                         )}
                     >
@@ -270,7 +270,7 @@ export const ProductEditorHeader = ({
                                 <Upload className="mr-2 h-4 w-4" />
                                 Publier
                                 {hasPendingChanges && (
-                                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px] font-bold bg-primary/20 text-primary dark:text-primary border-0">
+                                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px] font-semibold tracking-tight bg-primary/20 text-primary dark:text-primary border-0">
                                         {dirtyFieldsContent.length}
                                     </Badge>
                                 )}

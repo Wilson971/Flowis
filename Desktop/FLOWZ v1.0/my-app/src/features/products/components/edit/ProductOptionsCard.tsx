@@ -18,7 +18,8 @@ import {
     Package,
 } from "lucide-react";
 import { ProductFormValues } from "../../schemas/product-schema";
-import { getProductCardTheme } from "@/lib/design-system";
+import { motionTokens } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
 
 /**
  * ProductOptionsCard
@@ -33,7 +34,6 @@ import { getProductCardTheme } from "@/lib/design-system";
  */
 export const ProductOptionsCard = () => {
     const { register, setValue, control } = useFormContext<ProductFormValues>();
-    const theme = getProductCardTheme('ProductOptionsCard');
 
     const featured = useWatch({ control, name: "featured" });
     const soldIndividually = useWatch({ control, name: "sold_individually" });
@@ -44,24 +44,22 @@ export const ProductOptionsCard = () => {
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
-            <Card className={theme.container}>
-                {/* Glass reflection */}
-                <div className={theme.glassReflection} />
-                {/* Gradient accent */}
-                <div className={theme.gradientAccent} />
+            <Card className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className={theme.iconContainer}>
-                            <Settings2 className="w-5 h-5" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+                            <Settings2 className="h-[18px] w-[18px] text-foreground/70" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
                                 Configuration
                             </p>
-                            <h3 className="text-sm font-extrabold tracking-tight text-foreground">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                 Options du produit
                             </h3>
                         </div>
@@ -73,7 +71,7 @@ export const ProductOptionsCard = () => {
                         {/* Featured */}
                         <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
-                                <Star className="h-3.5 w-3.5 text-amber-500" />
+                                <Star className="h-3.5 w-3.5 text-foreground/70" />
                                 <Label htmlFor="featured" className="text-xs font-medium cursor-pointer">
                                     Produit mis en avant
                                 </Label>
@@ -82,14 +80,14 @@ export const ProductOptionsCard = () => {
                                 id="featured"
                                 checked={featured}
                                 onCheckedChange={(c) => setValue("featured", c, { shouldDirty: true })}
-                                className="h-4 w-7 scale-75 data-[state=checked]:bg-amber-500"
+                                className="h-4 w-7 scale-75 data-[state=checked]:bg-primary"
                             />
                         </div>
 
                         {/* Purchasable */}
                         <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
-                                <ShoppingCart className="h-3.5 w-3.5 text-primary" />
+                                <ShoppingCart className="h-3.5 w-3.5 text-foreground/70" />
                                 <Label htmlFor="purchasable" className="text-xs font-medium cursor-pointer">
                                     Achetable en ligne
                                 </Label>
@@ -105,7 +103,7 @@ export const ProductOptionsCard = () => {
                         {/* Sold Individually */}
                         <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
-                                <Package className="h-3.5 w-3.5 text-muted-foreground" />
+                                <Package className="h-3.5 w-3.5 text-foreground/70" />
                                 <Label htmlFor="sold_individually" className="text-xs font-medium cursor-pointer">
                                     Vente à l'unité uniquement
                                 </Label>
@@ -121,7 +119,7 @@ export const ProductOptionsCard = () => {
                         {/* Reviews Allowed */}
                         <div className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex items-center gap-2">
-                                <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                                <MessageSquare className="h-3.5 w-3.5 text-foreground/70" />
                                 <Label htmlFor="reviews_allowed" className="text-xs font-medium cursor-pointer">
                                     Autoriser les avis
                                 </Label>
@@ -140,7 +138,7 @@ export const ProductOptionsCard = () => {
                     {/* Menu Order */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                            <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            <ArrowUpDown className="h-3.5 w-3.5 text-foreground/70" />
                             <Label htmlFor="menu_order" className="text-xs font-semibold">
                                 Ordre d'affichage
                             </Label>
@@ -150,7 +148,7 @@ export const ProductOptionsCard = () => {
                             type="number"
                             {...register("menu_order", { valueAsNumber: true })}
                             placeholder="0"
-                            className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3"
+                            className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3 tabular-nums"
                         />
                         <p className="text-[10px] text-muted-foreground">
                             Les valeurs plus basses apparaissent en premier
@@ -162,7 +160,7 @@ export const ProductOptionsCard = () => {
                     {/* Purchase Note */}
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                            <StickyNote className="h-3.5 w-3.5 text-muted-foreground" />
+                            <StickyNote className="h-3.5 w-3.5 text-foreground/70" />
                             <Label htmlFor="purchase_note" className="text-xs font-semibold">
                                 Note post-achat
                             </Label>

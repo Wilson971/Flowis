@@ -19,14 +19,13 @@ import {
     CheckCircle2,
     XCircle,
     ChevronRight,
-    ChevronDown,
     Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-system";
 import { useSyncHistory, type SyncHistoryEntry } from "@/hooks/products";
 import { useForceStoreContent } from "@/hooks/products";
-import { getProductCardTheme } from "@/lib/design-system";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -148,8 +147,6 @@ export const SyncHistoryCard = ({ productId }: SyncHistoryCardProps) => {
     const displayedHistory = history.slice(0, 3);
     const hasMore = history.length > 3;
 
-    const theme = getProductCardTheme('SyncHistoryCard');
-
     if (isLoading) return null;
     if (history.length === 0) return null;
 
@@ -157,29 +154,27 @@ export const SyncHistoryCard = ({ productId }: SyncHistoryCardProps) => {
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
             <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                <div className={cn(theme.container, "rounded-xl")}>
-                    {/* Glass reflection */}
-                    <div className={theme.glassReflection} />
-                    {/* Gradient accent */}
-                    <div className={theme.gradientAccent} />
+                <div className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                    {/* Dark gradient overlay */}
+                    <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
                     {/* Trigger header */}
                     <CollapsibleTrigger className="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer relative z-10">
                         <div className="flex items-center gap-2.5">
-                            <History className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                            <History className="h-4 w-4 text-foreground/70" />
+                            <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
                                 Activité
                             </span>
                             <span className="text-[10px] text-muted-foreground">
                                 {history.length} sync
                             </span>
                         </div>
-                        <ChevronDown
+                        <ChevronRight
                             className={cn(
                                 "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
-                                isOpen && "rotate-180"
+                                isOpen && "rotate-90"
                             )}
                         />
                     </CollapsibleTrigger>

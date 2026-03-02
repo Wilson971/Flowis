@@ -1,22 +1,13 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { motionTokens } from "@/lib/design-system";
 
 interface ProductEditorLayoutProps {
     children: React.ReactNode;
     sidebar: React.ReactNode;
     className?: string;
 }
-
-const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: {
-            delayChildren: 0.1,
-            staggerChildren: 0.1
-        }
-    }
-};
 
 export const ProductEditorLayout = ({
     children,
@@ -25,18 +16,18 @@ export const ProductEditorLayout = ({
 }: ProductEditorLayoutProps) => {
     return (
         <motion.div
-            variants={staggerContainer}
+            variants={motionTokens.variants.staggerContainer}
             initial="hidden"
             animate="visible"
-            className={`grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 ${className}`}
+            className={cn("grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6", className)}
         >
             {/* Main Content */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
                 {children}
             </div>
 
             {/* Sidebar */}
-            <div>
+            <div className="min-w-0">
                 <div className="xl:sticky xl:top-24">
                     {sidebar}
                 </div>

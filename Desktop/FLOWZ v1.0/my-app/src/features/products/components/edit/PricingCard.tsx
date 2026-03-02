@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { getProductCardTheme } from "@/lib/design-system";
+import { motionTokens } from "@/lib/design-system";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import { CreditCard, CalendarDays, Percent, Sparkles } from "lucide-react";
@@ -15,6 +15,7 @@ import { ProductFormValues } from "../../schemas/product-schema";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
+import { cn } from "@/lib/utils";
 
 interface PricingCardProps {
     isVariableProduct?: boolean;
@@ -38,9 +39,6 @@ export const PricingCard = ({
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
     const hasDraft = (field: string) => remainingProposals.includes(field);
 
-    // Get theme colors from design system
-    const theme = getProductCardTheme('PricingCard');
-
     // SKU suggestion modal state
     const [skuModalOpen, setSkuModalOpen] = useState(false);
 
@@ -55,24 +53,22 @@ export const PricingCard = ({
         <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.3 }}
+            transition={motionTokens.transitions.fast}
         >
-            <Card className={theme.container}>
-                {/* Glass reflection */}
-                <div className={theme.glassReflection} />
-                {/* Gradient accent - managed by design system */}
-                <div className={theme.gradientAccent} />
+            <Card className="rounded-xl border border-border/40 bg-card relative group overflow-hidden">
+                {/* Dark gradient overlay */}
+                <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 relative z-10">
                     <div className="flex items-center gap-3">
-                        <div className={theme.iconContainer}>
-                            <CreditCard className="w-5 h-5" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+                            <CreditCard className="h-[18px] w-[18px] text-foreground/70" />
                         </div>
                         <div>
-                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                            <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
                                 Vente & Stock
                             </p>
-                            <h3 className="text-sm font-extrabold tracking-tight text-foreground">
+                            <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                 Tarification et logistique
                             </h3>
                         </div>
@@ -135,7 +131,7 @@ export const PricingCard = ({
                                         step="0.01"
                                         {...register("regular_price")}
                                         placeholder="0.00"
-                                        className="bg-background/50 border border-border/50 pl-7 h-8 font-mono text-xs"
+                                        className="bg-background/50 border border-border/50 pl-7 h-8 font-mono text-xs tabular-nums"
                                     />
                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">
                                         €
@@ -154,7 +150,7 @@ export const PricingCard = ({
                                         step="0.01"
                                         {...register("sale_price")}
                                         placeholder="0.00"
-                                        className="bg-background/50 border border-border/50 pl-7 h-8 font-mono text-xs text-success"
+                                        className="bg-background/50 border border-border/50 pl-7 h-8 font-mono text-xs text-success tabular-nums"
                                     />
                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-[10px]">
                                         €
@@ -188,7 +184,7 @@ export const PricingCard = ({
                                     exit={{ opacity: 0, height: 0 }}
                                     className="space-y-3 overflow-hidden"
                                 >
-                                    <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                    <div className="flex items-center gap-2 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
                                         <CalendarDays className="h-3 w-3" />
                                         Période de promotion
                                     </div>
@@ -266,7 +262,7 @@ export const PricingCard = ({
                                                 type="number"
                                                 {...register("stock")}
                                                 placeholder="0"
-                                                className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3"
+                                                className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3 tabular-nums"
                                             />
                                         </div>
                                         <div className="space-y-1.5">
@@ -278,7 +274,7 @@ export const PricingCard = ({
                                                 type="number"
                                                 {...register("low_stock_amount")}
                                                 placeholder="5"
-                                                className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3"
+                                                className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3 tabular-nums"
                                             />
                                         </div>
                                     </div>
@@ -309,7 +305,7 @@ export const PricingCard = ({
 
                     {/* Logistics */}
                     <div className="space-y-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <div className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
                             Logistique & Dimensions
                         </div>
                         <div className="grid grid-cols-2 gap-3">
@@ -321,7 +317,7 @@ export const PricingCard = ({
                                     id="weight"
                                     {...register("weight")}
                                     placeholder="0.00"
-                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3"
+                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs px-3 tabular-nums"
                                 />
                             </div>
                             <div className="space-y-1.5">
@@ -337,22 +333,22 @@ export const PricingCard = ({
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold">Dimensions (L × l × H cm)</Label>
+                            <Label className="text-xs font-semibold">Dimensions (L x l x H cm)</Label>
                             <div className="grid grid-cols-3 gap-2">
                                 <Input
                                     {...register("dimensions_length")}
                                     placeholder="L"
-                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs text-center px-1"
+                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs text-center px-1 tabular-nums"
                                 />
                                 <Input
                                     {...register("dimensions_width")}
                                     placeholder="l"
-                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs text-center px-1"
+                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs text-center px-1 tabular-nums"
                                 />
                                 <Input
                                     {...register("dimensions_height")}
                                     placeholder="H"
-                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs text-center px-1"
+                                    className="bg-background/50 border border-border/50 font-mono h-8 text-xs text-center px-1 tabular-nums"
                                 />
                             </div>
                         </div>
@@ -362,7 +358,7 @@ export const PricingCard = ({
 
                     {/* Tax & Visibility */}
                     <div className="space-y-3">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        <div className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
                             Fiscalité & Visibilité
                         </div>
                         <div className="grid grid-cols-2 gap-3">
