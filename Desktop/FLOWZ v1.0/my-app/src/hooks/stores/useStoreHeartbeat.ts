@@ -14,8 +14,6 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type {
     ConnectionHealth,
-    HeartbeatResult,
-    HeartbeatResponse,
     HeartbeatLog,
 } from '@/types/store';
 
@@ -26,44 +24,45 @@ import type {
 /**
  * Hook to check the connection health of a store
  */
+interface HealthCheckResponse {
+    success: boolean;
+    health: ConnectionHealth;
+    message: string;
+    response_time_ms: number;
+    store_name: string;
+}
+
 export function useStoreHeartbeat() {
     const queryClient = useQueryClient();
-    const supabase = createClient();
 
     return useMutation({
-        mutationFn: async (storeId?: string): Promise<HeartbeatResponse> => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session?.access_token) {
-                throw new Error('Non authentifié');
-            }
-
-            const response = await supabase.functions.invoke('store-heartbeat', {
-                body: { store_id: storeId },
+        mutationFn: async (storeId: string): Promise<HealthCheckResponse> => {
+            const response = await fetch('/api/stores/health-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ store_id: storeId }),
             });
 
-            if (response.error) {
-                throw new Error(response.error.message || 'Erreur lors du test de connexion');
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erreur lors du test de connexion');
             }
 
-            return response.data as HeartbeatResponse;
+            return data as HealthCheckResponse;
         },
         onSuccess: (data, storeId) => {
             // Invalidate stores query to refresh connection health status
             queryClient.invalidateQueries({ queryKey: ['stores'] });
-            if (storeId) {
-                queryClient.invalidateQueries({ queryKey: ['connection-health', storeId] });
-            }
+            queryClient.invalidateQueries({ queryKey: ['connection-health', storeId] });
 
-            // Show toast based on results
-            if (data.unhealthy_count > 0) {
-                toast.error('Problème de connexion détecté', {
-                    description: `${data.unhealthy_count} boutique(s) avec des problèmes de connexion.`,
+            if (data.health === 'healthy') {
+                toast.success(`${data.store_name} — Connecté`, {
+                    description: data.message,
                 });
-            } else if (data.healthy_count > 0) {
-                toast.success('Connexion vérifiée ✓', {
-                    description: storeId
-                        ? `La connexion est fonctionnelle (${data.results[0]?.response_time_ms}ms)`
-                        : `${data.healthy_count} boutique(s) connectée(s) correctement.`,
+            } else {
+                toast.error(`${data.store_name} — Hors ligne`, {
+                    description: data.message,
                 });
             }
         },
@@ -155,21 +154,55 @@ export function useHeartbeatLogs(storeId: string | null | undefined, limit = 10)
 }
 
 // ============================================================================
-// CHECK ALL STORES HEALTH
+// AUTO HEALTH CHECK — runs on mount + polls every 5 min
 // ============================================================================
 
 /**
- * Hook to check all stores' health at once
+ * Hook that checks health of all stores ONCE on page mount.
+ * No polling — subsequent checks are manual via the "Tester maintenant" button.
+ *
+ * Why no polling:
+ * - 5000 clients × ~7 stores × polling = hundreds of thousands of external API calls/hour
+ * - WooCommerce/Shopify would rate-limit our users
+ * - Health status rarely changes — a single check on page visit is enough
+ *
+ * Call this once in the Stores page.
  */
-export function useCheckAllStoresHealth() {
-    const heartbeat = useStoreHeartbeat();
+export function useAutoHealthCheck(storeIds: string[]) {
+    const queryClient = useQueryClient();
 
-    return {
-        checkAll: () => heartbeat.mutate(undefined),
-        isChecking: heartbeat.isPending,
-        results: heartbeat.data,
-        error: heartbeat.error,
-    };
+    return useQuery({
+        queryKey: ['auto-health-check', ...storeIds],
+        queryFn: async () => {
+            if (!storeIds.length) return [];
+
+            // Fire all health checks in parallel
+            const results = await Promise.allSettled(
+                storeIds.map(async (storeId) => {
+                    const response = await fetch('/api/stores/health-check', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ store_id: storeId }),
+                    });
+                    const data = await response.json();
+                    return { storeId, ...data } as HealthCheckResponse & { storeId: string };
+                })
+            );
+
+            // Invalidate stores query so cards show fresh health status
+            queryClient.invalidateQueries({ queryKey: ['stores'] });
+
+            return results
+                .filter((r): r is PromiseFulfilledResult<HealthCheckResponse & { storeId: string }> =>
+                    r.status === 'fulfilled'
+                )
+                .map(r => r.value);
+        },
+        enabled: storeIds.length > 0,
+        staleTime: 10 * 60 * 1000, // consider fresh for 10 min (no refetch if user navigates back quickly)
+        refetchOnWindowFocus: false,
+        refetchOnMount: 'always', // always check on page mount
+    });
 }
 
 // ============================================================================

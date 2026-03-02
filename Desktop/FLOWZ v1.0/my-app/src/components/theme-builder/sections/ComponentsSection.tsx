@@ -3,17 +3,8 @@
 /**
  * ComponentsSection
  *
- * Tabbed editor for component-level design tokens:
- *
- *   Cards        – variant list + property sub-form; each variant previewed as a
- *                  small Card with bg, border, shadow, radius applied.
- *   Badges       – variant list + property sub-form; previewed as real Badge chips.
- *   Buttons      – variant list + property sub-form; previewed as real Button elements.
- *   Hover Effects – HoverEffectPicker for the configured effect catalogue.
- *
- * Props:
- *   components – { cards, badges, buttons, hoverEffects }
- *   onChange   – called with the full updated components object on any change
+ * Tabbed editor for component-level design tokens.
+ * Types are aligned with design-system-config.json schema.
  */
 
 import * as React from "react";
@@ -23,9 +14,6 @@ import {
   TabsTrigger,
   TabsContent,
 } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -38,34 +26,33 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { VariantBuilder } from "@/components/theme-builder/controls/VariantBuilder";
-import { HoverEffectPicker, HoverEffectDescriptor } from "@/components/theme-builder/controls/HoverEffectPicker";
+import { HoverEffectPicker, type HoverEffectDescriptor } from "@/components/theme-builder/controls/HoverEffectPicker";
 import { BuilderSection } from "@/components/theme-builder/BuilderSection";
 
 // ---------------------------------------------------------------------------
-// Shared variant types
+// Types — aligned with design-system-config.json
 // ---------------------------------------------------------------------------
 
 export interface CardVariant {
-  bg: string;
-  border: string;
-  shadow: string;
-  radius: string;
+  bg: string;        // semantic token: "card", "glass", "muted"
+  border: boolean;
+  shadow: string;    // "none" | "sm" | "md" | "lg" | "xl"
+  radius: string;    // "lg" | "xl" | "2xl"
+  hover: string;     // "none" | "lift" | "scale" | "glow"
+  blur?: boolean;    // for glass variant
 }
 
 export interface BadgeVariant {
-  bg: string;
-  text: string;
-  border: string;
-  radius: string;
+  bg: string;        // "success/10", "primary/10", "muted"
+  text: string;      // "success", "primary", "muted-foreground"
+  border: boolean;
 }
 
 export interface ButtonVariant {
-  bg: string;
-  text: string;
-  border: string;
-  radius: string;
-  paddingX: string;
-  paddingY: string;
+  bg: string;        // "primary", "secondary", "transparent"
+  text: string;      // "primary-foreground", "foreground"
+  hover: string;     // "none" | "lift" | "scale" | "glow"
+  radius: string;    // "lg" | "xl"
 }
 
 export interface ComponentsConfig {
@@ -86,56 +73,116 @@ export interface ComponentsSectionProps {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CARD_VARIANT: CardVariant = {
-  bg:     "#ffffff",
-  border: "#e5e7eb",
-  shadow: "0 1px 3px 0 rgba(0,0,0,0.10)",
-  radius: "12px",
+  bg: "card",
+  border: true,
+  shadow: "sm",
+  radius: "xl",
+  hover: "none",
 };
 
 const DEFAULT_BADGE_VARIANT: BadgeVariant = {
-  bg:     "#f3f4f6",
-  text:   "#374151",
-  border: "#e5e7eb",
-  radius: "9999px",
+  bg: "muted",
+  text: "muted-foreground",
+  border: true,
 };
 
 const DEFAULT_BUTTON_VARIANT: ButtonVariant = {
-  bg:       "#6366f1",
-  text:     "#ffffff",
-  border:   "transparent",
-  radius:   "8px",
-  paddingX: "16px",
-  paddingY: "8px",
+  bg: "primary",
+  text: "primary-foreground",
+  hover: "lift",
+  radius: "lg",
 };
 
 // ---------------------------------------------------------------------------
-// Shared labeled text input for variant property forms
+// Options for selects
 // ---------------------------------------------------------------------------
 
-interface PropFieldProps {
+const BG_TOKEN_OPTIONS = [
+  "card", "glass", "muted", "background", "primary", "secondary",
+  "primary/10", "secondary/10", "success/10", "warning/10", "destructive/10", "info/10",
+  "transparent",
+];
+
+const TEXT_TOKEN_OPTIONS = [
+  "foreground", "primary", "secondary", "primary-foreground", "secondary-foreground",
+  "destructive-foreground", "muted-foreground", "success", "warning", "destructive", "info",
+];
+
+const SHADOW_OPTIONS = ["none", "sm", "md", "lg", "xl"];
+const RADIUS_OPTIONS = ["sm", "lg", "xl", "2xl"];
+const HOVER_OPTIONS = ["none", "lift", "scale", "glow"];
+
+// ---------------------------------------------------------------------------
+// Shared token select field
+// ---------------------------------------------------------------------------
+
+interface TokenSelectProps {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  placeholder?: string;
-  mono?: boolean;
+  options: string[];
 }
 
-function PropField({ label, value, onChange, placeholder, mono = true }: PropFieldProps) {
+function TokenSelect({ label, value, onChange, options }: TokenSelectProps) {
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {label}
       </Label>
-      <Input
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? label}
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className="h-8 rounded-lg text-xs font-mono bg-muted/40 border-border/60 focus:bg-card"
+          aria-label={label}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="rounded-xl border-border/60 max-h-60">
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt} className="text-xs font-mono">
+              {opt}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Toggle field
+// ---------------------------------------------------------------------------
+
+interface ToggleFieldProps {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}
+
+function ToggleField({ label, value, onChange }: ToggleFieldProps) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        {label}
+      </Label>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        onClick={() => onChange(!value)}
         className={cn(
-          "h-8 rounded-lg text-xs bg-muted/40 border-border/60 focus:bg-card",
-          mono && "font-mono"
+          "relative inline-flex h-5 w-9 items-center rounded-full",
+          "transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+          value ? "bg-primary" : "bg-muted border border-border/60"
         )}
-      />
+      >
+        <span
+          className={cn(
+            "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm",
+            "transition-transform duration-200",
+            value ? "translate-x-4.5" : "translate-x-0.5"
+          )}
+        />
+      </button>
     </div>
   );
 }
@@ -144,21 +191,20 @@ function PropField({ label, value, onChange, placeholder, mono = true }: PropFie
 // ── CARDS TAB ─────────────────────────────────────────────────────────────
 // ---------------------------------------------------------------------------
 
-interface CardSubFormProps {
-  data: CardVariant;
-  onUpdate: (updated: CardVariant) => void;
-}
-
-function CardSubForm({ data, onUpdate }: CardSubFormProps) {
+function CardSubForm({ data, onUpdate }: { data: CardVariant; onUpdate: (d: CardVariant) => void }) {
   const set = <K extends keyof CardVariant>(k: K, v: CardVariant[K]) =>
     onUpdate({ ...data, [k]: v });
 
   return (
     <div className="grid grid-cols-2 gap-3 pt-1">
-      <PropField label="Background"   value={data.bg}     onChange={(v) => set("bg", v)}     placeholder="#ffffff" />
-      <PropField label="Border color" value={data.border} onChange={(v) => set("border", v)} placeholder="#e5e7eb" />
-      <PropField label="Shadow"       value={data.shadow} onChange={(v) => set("shadow", v)} placeholder="0 2px 8px …" />
-      <PropField label="Radius"       value={data.radius} onChange={(v) => set("radius", v)} placeholder="12px" />
+      <TokenSelect label="Background" value={data.bg} onChange={(v) => set("bg", v)} options={BG_TOKEN_OPTIONS} />
+      <TokenSelect label="Shadow" value={data.shadow} onChange={(v) => set("shadow", v)} options={SHADOW_OPTIONS} />
+      <TokenSelect label="Radius" value={data.radius} onChange={(v) => set("radius", v)} options={RADIUS_OPTIONS} />
+      <TokenSelect label="Hover" value={data.hover} onChange={(v) => set("hover", v)} options={HOVER_OPTIONS} />
+      <ToggleField label="Border" value={data.border} onChange={(v) => set("border", v)} />
+      {data.bg === "glass" && (
+        <ToggleField label="Blur" value={data.blur ?? false} onChange={(v) => set("blur", v)} />
+      )}
     </div>
   );
 }
@@ -166,28 +212,28 @@ function CardSubForm({ data, onUpdate }: CardSubFormProps) {
 function CardVariantPreview(data: CardVariant) {
   return (
     <div
-      className="w-12 h-8 border"
-      style={{
-        backgroundColor: data.bg,
-        borderColor:      data.border,
-        boxShadow:        data.shadow,
-        borderRadius:     data.radius,
-      }}
+      className={cn(
+        "w-12 h-8",
+        data.border && "border border-border/60",
+        data.bg === "glass" ? "bg-card/40 backdrop-blur-sm" :
+        data.bg === "muted" ? "bg-muted" : "bg-card",
+        data.shadow === "sm" ? "shadow-sm" :
+        data.shadow === "md" ? "shadow-md" :
+        data.shadow === "lg" ? "shadow-lg" :
+        data.shadow === "xl" ? "shadow-xl" : "",
+        data.radius === "lg" ? "rounded-lg" :
+        data.radius === "xl" ? "rounded-xl" :
+        data.radius === "2xl" ? "rounded-2xl" : "rounded-lg",
+      )}
       aria-hidden="true"
     />
   );
 }
 
-interface CardsTabProps {
-  variants: Record<string, CardVariant>;
-  onChange: (variants: Record<string, CardVariant>) => void;
-}
-
-function CardsTab({ variants, onChange }: CardsTabProps) {
+function CardsTab({ variants, onChange }: { variants: Record<string, CardVariant>; onChange: (v: Record<string, CardVariant>) => void }) {
   const [selected, setSelected] = React.useState<string | null>(
     Object.keys(variants)[0] ?? null
   );
-
   const selectedData = selected ? variants[selected] : null;
 
   return (
@@ -201,7 +247,6 @@ function CardsTab({ variants, onChange }: CardsTabProps) {
         selectedVariant={selected}
         onSelect={setSelected}
       />
-
       {selectedData && selected && (
         <>
           <Separator />
@@ -214,13 +259,19 @@ function CardsTab({ variants, onChange }: CardsTabProps) {
             </div>
             {/* Live preview */}
             <div
-              className="w-full h-16 border flex items-center justify-center text-xs text-muted-foreground transition-all duration-200"
-              style={{
-                backgroundColor: selectedData.bg,
-                borderColor:     selectedData.border,
-                boxShadow:       selectedData.shadow,
-                borderRadius:    selectedData.radius,
-              }}
+              className={cn(
+                "w-full h-16 flex items-center justify-center text-xs text-muted-foreground transition-all duration-200",
+                selectedData.border && "border border-border/60",
+                selectedData.bg === "glass" ? "bg-card/40 backdrop-blur-sm" :
+                selectedData.bg === "muted" ? "bg-muted" : "bg-card",
+                selectedData.shadow === "sm" ? "shadow-sm" :
+                selectedData.shadow === "md" ? "shadow-md" :
+                selectedData.shadow === "lg" ? "shadow-lg" :
+                selectedData.shadow === "xl" ? "shadow-xl" : "",
+                selectedData.radius === "lg" ? "rounded-lg" :
+                selectedData.radius === "xl" ? "rounded-xl" :
+                selectedData.radius === "2xl" ? "rounded-2xl" : "rounded-lg",
+              )}
               aria-label={`Live preview for "${selected}" card variant`}
             >
               {selected} card
@@ -240,21 +291,15 @@ function CardsTab({ variants, onChange }: CardsTabProps) {
 // ── BADGES TAB ────────────────────────────────────────────────────────────
 // ---------------------------------------------------------------------------
 
-interface BadgeSubFormProps {
-  data: BadgeVariant;
-  onUpdate: (updated: BadgeVariant) => void;
-}
-
-function BadgeSubForm({ data, onUpdate }: BadgeSubFormProps) {
+function BadgeSubForm({ data, onUpdate }: { data: BadgeVariant; onUpdate: (d: BadgeVariant) => void }) {
   const set = <K extends keyof BadgeVariant>(k: K, v: BadgeVariant[K]) =>
     onUpdate({ ...data, [k]: v });
 
   return (
     <div className="grid grid-cols-2 gap-3 pt-1">
-      <PropField label="Background"   value={data.bg}     onChange={(v) => set("bg", v)}     placeholder="#f3f4f6" />
-      <PropField label="Text color"   value={data.text}   onChange={(v) => set("text", v)}   placeholder="#374151" />
-      <PropField label="Border color" value={data.border} onChange={(v) => set("border", v)} placeholder="#e5e7eb" />
-      <PropField label="Radius"       value={data.radius} onChange={(v) => set("radius", v)} placeholder="9999px" />
+      <TokenSelect label="Background" value={data.bg} onChange={(v) => set("bg", v)} options={BG_TOKEN_OPTIONS} />
+      <TokenSelect label="Text" value={data.text} onChange={(v) => set("text", v)} options={TEXT_TOKEN_OPTIONS} />
+      <ToggleField label="Border" value={data.border} onChange={(v) => set("border", v)} />
     </div>
   );
 }
@@ -262,13 +307,11 @@ function BadgeSubForm({ data, onUpdate }: BadgeSubFormProps) {
 function BadgeVariantPreview(data: BadgeVariant, name: string) {
   return (
     <span
-      className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium border"
-      style={{
-        backgroundColor: data.bg,
-        color:           data.text,
-        borderColor:     data.border,
-        borderRadius:    data.radius,
-      }}
+      className={cn(
+        "inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-full",
+        data.border && "border border-border/60",
+        "bg-muted text-muted-foreground"
+      )}
       aria-hidden="true"
     >
       {name}
@@ -276,16 +319,10 @@ function BadgeVariantPreview(data: BadgeVariant, name: string) {
   );
 }
 
-interface BadgesTabProps {
-  variants: Record<string, BadgeVariant>;
-  onChange: (variants: Record<string, BadgeVariant>) => void;
-}
-
-function BadgesTab({ variants, onChange }: BadgesTabProps) {
+function BadgesTab({ variants, onChange }: { variants: Record<string, BadgeVariant>; onChange: (v: Record<string, BadgeVariant>) => void }) {
   const [selected, setSelected] = React.useState<string | null>(
     Object.keys(variants)[0] ?? null
   );
-
   const selectedData = selected ? variants[selected] : null;
 
   return (
@@ -299,7 +336,6 @@ function BadgesTab({ variants, onChange }: BadgesTabProps) {
         selectedVariant={selected}
         onSelect={setSelected}
       />
-
       {selectedData && selected && (
         <>
           <Separator />
@@ -310,17 +346,14 @@ function BadgesTab({ variants, onChange }: BadgesTabProps) {
               </span>
               <Separator className="flex-1" />
             </div>
-            {/* Live preview */}
             <div className="flex items-center gap-2 py-2">
               <span className="text-xs text-muted-foreground">Preview:</span>
               <span
-                className="inline-flex items-center px-3 py-1 text-xs font-medium border transition-all duration-200"
-                style={{
-                  backgroundColor: selectedData.bg,
-                  color:           selectedData.text,
-                  borderColor:     selectedData.border,
-                  borderRadius:    selectedData.radius,
-                }}
+                className={cn(
+                  "inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-all duration-200",
+                  selectedData.border && "border border-border/60",
+                  "bg-muted text-muted-foreground"
+                )}
               >
                 {selected}
               </span>
@@ -340,41 +373,36 @@ function BadgesTab({ variants, onChange }: BadgesTabProps) {
 // ── BUTTONS TAB ───────────────────────────────────────────────────────────
 // ---------------------------------------------------------------------------
 
-interface ButtonSubFormProps {
-  data: ButtonVariant;
-  onUpdate: (updated: ButtonVariant) => void;
-}
-
-function ButtonSubForm({ data, onUpdate }: ButtonSubFormProps) {
+function ButtonSubForm({ data, onUpdate }: { data: ButtonVariant; onUpdate: (d: ButtonVariant) => void }) {
   const set = <K extends keyof ButtonVariant>(k: K, v: ButtonVariant[K]) =>
     onUpdate({ ...data, [k]: v });
 
   return (
     <div className="grid grid-cols-2 gap-3 pt-1">
-      <PropField label="Background"  value={data.bg}       onChange={(v) => set("bg", v)}       placeholder="#6366f1" />
-      <PropField label="Text color"  value={data.text}     onChange={(v) => set("text", v)}     placeholder="#ffffff" />
-      <PropField label="Border"      value={data.border}   onChange={(v) => set("border", v)}   placeholder="transparent" />
-      <PropField label="Radius"      value={data.radius}   onChange={(v) => set("radius", v)}   placeholder="8px" />
-      <PropField label="Padding X"   value={data.paddingX} onChange={(v) => set("paddingX", v)} placeholder="16px" />
-      <PropField label="Padding Y"   value={data.paddingY} onChange={(v) => set("paddingY", v)} placeholder="8px" />
+      <TokenSelect label="Background" value={data.bg} onChange={(v) => set("bg", v)} options={BG_TOKEN_OPTIONS} />
+      <TokenSelect label="Text" value={data.text} onChange={(v) => set("text", v)} options={TEXT_TOKEN_OPTIONS} />
+      <TokenSelect label="Hover Effect" value={data.hover} onChange={(v) => set("hover", v)} options={HOVER_OPTIONS} />
+      <TokenSelect label="Radius" value={data.radius} onChange={(v) => set("radius", v)} options={RADIUS_OPTIONS} />
     </div>
   );
 }
 
 function ButtonVariantPreview(data: ButtonVariant, name: string) {
+  const isPrimary = data.bg === "primary";
+  const isSecondary = data.bg === "secondary";
+  const isDestructive = data.bg === "destructive";
+  const isTransparent = data.bg === "transparent";
+
   return (
     <span
-      className="inline-flex items-center text-[10px] font-medium border"
-      style={{
-        backgroundColor: data.bg,
-        color:           data.text,
-        borderColor:     data.border,
-        borderRadius:    data.radius,
-        paddingLeft:     "8px",
-        paddingRight:    "8px",
-        paddingTop:      "4px",
-        paddingBottom:   "4px",
-      }}
+      className={cn(
+        "inline-flex items-center px-2 py-0.5 text-[10px] font-medium rounded-lg",
+        isPrimary && "bg-primary text-primary-foreground",
+        isSecondary && "bg-secondary text-secondary-foreground",
+        isDestructive && "bg-destructive text-destructive-foreground",
+        isTransparent && "bg-transparent text-foreground border border-border/60",
+        !isPrimary && !isSecondary && !isDestructive && !isTransparent && "bg-muted text-foreground",
+      )}
       aria-hidden="true"
     >
       {name}
@@ -382,16 +410,10 @@ function ButtonVariantPreview(data: ButtonVariant, name: string) {
   );
 }
 
-interface ButtonsTabProps {
-  variants: Record<string, ButtonVariant>;
-  onChange: (variants: Record<string, ButtonVariant>) => void;
-}
-
-function ButtonsTab({ variants, onChange }: ButtonsTabProps) {
+function ButtonsTab({ variants, onChange }: { variants: Record<string, ButtonVariant>; onChange: (v: Record<string, ButtonVariant>) => void }) {
   const [selected, setSelected] = React.useState<string | null>(
     Object.keys(variants)[0] ?? null
   );
-
   const selectedData = selected ? variants[selected] : null;
 
   return (
@@ -405,7 +427,6 @@ function ButtonsTab({ variants, onChange }: ButtonsTabProps) {
         selectedVariant={selected}
         onSelect={setSelected}
       />
-
       {selectedData && selected && (
         <>
           <Separator />
@@ -416,26 +437,9 @@ function ButtonsTab({ variants, onChange }: ButtonsTabProps) {
               </span>
               <Separator className="flex-1" />
             </div>
-            {/* Live preview */}
             <div className="flex items-center gap-3 py-2">
               <span className="text-xs text-muted-foreground">Preview:</span>
-              <button
-                type="button"
-                className="inline-flex items-center text-sm font-medium border transition-all duration-200"
-                style={{
-                  backgroundColor: selectedData.bg,
-                  color:           selectedData.text,
-                  borderColor:     selectedData.border,
-                  borderRadius:    selectedData.radius,
-                  paddingLeft:     selectedData.paddingX,
-                  paddingRight:    selectedData.paddingX,
-                  paddingTop:      selectedData.paddingY,
-                  paddingBottom:   selectedData.paddingY,
-                }}
-                aria-label={`Preview of "${selected}" button variant`}
-              >
-                {selected}
-              </button>
+              {ButtonVariantPreview(selectedData, selected)}
             </div>
             <ButtonSubForm
               data={selectedData}
@@ -452,12 +456,7 @@ function ButtonsTab({ variants, onChange }: ButtonsTabProps) {
 // ── HOVER EFFECTS TAB ─────────────────────────────────────────────────────
 // ---------------------------------------------------------------------------
 
-interface HoverEffectsTabProps {
-  effects: Record<string, HoverEffectDescriptor>;
-  onChange: (effects: Record<string, HoverEffectDescriptor>) => void;
-}
-
-function HoverEffectsTab({ effects, onChange }: HoverEffectsTabProps) {
+function HoverEffectsTab({ effects, onChange }: { effects: Record<string, HoverEffectDescriptor>; onChange: (e: Record<string, HoverEffectDescriptor>) => void }) {
   const [selected, setSelected] = React.useState<string>(
     Object.keys(effects)[0] ?? ""
   );
@@ -495,7 +494,6 @@ function HoverEffectsTab({ effects, onChange }: HoverEffectsTabProps) {
               <Separator className="flex-1" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Translate Y */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Translate Y (px)
@@ -503,15 +501,11 @@ function HoverEffectsTab({ effects, onChange }: HoverEffectsTabProps) {
                 <Input
                   type="number"
                   value={selectedDescriptor.translateY ?? 0}
-                  onChange={(e) =>
-                    updateDescriptor("translateY", Number(e.target.value))
-                  }
+                  onChange={(e) => updateDescriptor("translateY", Number(e.target.value))}
                   className="h-8 rounded-lg text-xs font-mono bg-muted/40 border-border/60 focus:bg-card"
                   aria-label="translateY value"
                 />
               </div>
-
-              {/* Scale */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Scale
@@ -519,16 +513,12 @@ function HoverEffectsTab({ effects, onChange }: HoverEffectsTabProps) {
                 <Input
                   type="number"
                   value={selectedDescriptor.scale ?? 1}
-                  onChange={(e) =>
-                    updateDescriptor("scale", Number(e.target.value))
-                  }
+                  onChange={(e) => updateDescriptor("scale", Number(e.target.value))}
                   step={0.01}
                   className="h-8 rounded-lg text-xs font-mono bg-muted/40 border-border/60 focus:bg-card"
                   aria-label="scale value"
                 />
               </div>
-
-              {/* Box shadow */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Box Shadow
@@ -536,9 +526,7 @@ function HoverEffectsTab({ effects, onChange }: HoverEffectsTabProps) {
                 <Input
                   type="text"
                   value={selectedDescriptor.boxShadow ?? ""}
-                  onChange={(e) =>
-                    updateDescriptor("boxShadow", e.target.value || undefined)
-                  }
+                  onChange={(e) => updateDescriptor("boxShadow", e.target.value || undefined)}
                   placeholder="0 8px 24px …"
                   className="h-8 rounded-lg text-xs font-mono bg-muted/40 border-border/60 focus:bg-card"
                   aria-label="box-shadow value"
@@ -581,31 +569,16 @@ export function ComponentsSection({
         </TabsList>
 
         <TabsContent value="cards" className="mt-0">
-          <CardsTab
-            variants={components.cards}
-            onChange={(v) => set("cards", v)}
-          />
+          <CardsTab variants={components.cards} onChange={(v) => set("cards", v)} />
         </TabsContent>
-
         <TabsContent value="badges" className="mt-0">
-          <BadgesTab
-            variants={components.badges}
-            onChange={(v) => set("badges", v)}
-          />
+          <BadgesTab variants={components.badges} onChange={(v) => set("badges", v)} />
         </TabsContent>
-
         <TabsContent value="buttons" className="mt-0">
-          <ButtonsTab
-            variants={components.buttons}
-            onChange={(v) => set("buttons", v)}
-          />
+          <ButtonsTab variants={components.buttons} onChange={(v) => set("buttons", v)} />
         </TabsContent>
-
         <TabsContent value="hover" className="mt-0">
-          <HoverEffectsTab
-            effects={components.hoverEffects}
-            onChange={(v) => set("hoverEffects", v)}
-          />
+          <HoverEffectsTab effects={components.hoverEffects} onChange={(v) => set("hoverEffects", v)} />
         </TabsContent>
       </Tabs>
     </BuilderSection>

@@ -1,12 +1,10 @@
 /**
- * Dashboard Page - Vue d'ensemble de l'application
+ * Dashboard Page - Vue d'ensemble
  */
 'use client';
 
 import { OverviewDashboard } from '@/components/dashboard/OverviewDashboard';
 
 export default function DashboardPage() {
-    return (
-        <OverviewDashboard />
-    );
+    return <OverviewDashboard activeTab="overview" />;
 }

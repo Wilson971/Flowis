@@ -50,7 +50,7 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
             role="main"
             className="flex-1 min-h-0 overflow-y-auto w-full bg-background/50 scroll-smooth custom-scrollbar"
           >
-            <div className="px-4 md:px-8 py-4 md:py-6 max-w-none mx-auto w-full h-full flex flex-col">
+            <div className="px-4 md:px-8 py-4 md:py-6 max-w-none mx-auto w-full">
               {children}
             </div>
           </main>

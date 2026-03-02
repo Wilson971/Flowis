@@ -31,6 +31,7 @@ interface FullScanState {
     passes: number;
     done: boolean;
     error: string | null;
+    isAuthError: boolean;
 }
 
 const SUPABASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("/rest/v1", "") + "/functions/v1";
@@ -44,7 +45,7 @@ export function GscIndexationTab({ siteId, siteUrl }: GscIndexationTabProps) {
     const [filterRule, setFilterRule] = useState<GscUrlFilterRule | null>(null);
     const [filterValue, setFilterValue] = useState("");
     const [scan, setScan] = useState<FullScanState>({
-        running: false, inspected: 0, remaining: null, passes: 0, done: false, error: null,
+        running: false, inspected: 0, remaining: null, passes: 0, done: false, error: null, isAuthError: false,
     });
     const abortRef = useRef<boolean>(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -149,7 +150,7 @@ export function GscIndexationTab({ siteId, siteUrl }: GscIndexationTabProps) {
         if (!siteId) return;
         abortRef.current = false;
 
-        setScan({ running: true, inspected: 0, remaining: null, passes: 0, done: false, error: null });
+        setScan({ running: true, inspected: 0, remaining: null, passes: 0, done: false, error: null, isAuthError: false });
 
         // Poll Supabase every 4s to show real-time progress independently of fetch responses
         pollRef.current = setInterval(() => {
@@ -205,7 +206,14 @@ export function GscIndexationTab({ siteId, siteUrl }: GscIndexationTabProps) {
                 await new Promise(r => setTimeout(r, 1500));
 
             } catch (err: any) {
-                setScan(prev => ({ ...prev, running: false, error: err.message }));
+                const msg: string = err.message || String(err);
+                const isAuth = msg.startsWith('GSC_AUTH_ERROR:');
+                setScan(prev => ({
+                    ...prev,
+                    running: false,
+                    error: isAuth ? msg.replace('GSC_AUTH_ERROR:', '') : msg,
+                    isAuthError: isAuth,
+                }));
                 return;
             }
         }
@@ -259,12 +267,14 @@ export function GscIndexationTab({ siteId, siteUrl }: GscIndexationTabProps) {
                     running={scan.running}
                     done={scan.done}
                     error={scan.error}
+                    isAuthError={scan.isAuthError}
                     inspected={overview ? (overview.indexed || 0) + (overview.not_indexed || 0) + (overview.errors || 0) : scan.inspected}
                     remaining={scan.remaining}
                     passes={scan.passes}
                     totalUrls={overview?.total}
                     onStop={handleStopScan}
-                    onDismiss={() => setScan({ running: false, inspected: 0, remaining: null, passes: 0, done: false, error: null })}
+                    onDismiss={() => setScan({ running: false, inspected: 0, remaining: null, passes: 0, done: false, error: null, isAuthError: false })}
+                    onReconnect={() => { window.location.href = "/api/gsc/oauth/authorize"; }}
                 />
 
                 {/* Sous-onglets */}

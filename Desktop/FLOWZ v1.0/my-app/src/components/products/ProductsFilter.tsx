@@ -10,9 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import {
     SlidersHorizontal, CheckCircle2,
     Sparkles, RefreshCw,
-    Package, Euro, ShoppingCart, Target, Layers
+    Package, Euro, ShoppingCart, Target, Layers, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { motionTokens } from "@/lib/design-system";
 
 interface ProductsFilterProps {
     statusFilter: string;
@@ -27,6 +29,7 @@ interface ProductsFilterProps {
     priceMaxFilter?: string;
     salesFilter?: string;
     seoScoreFilter?: string;
+    missingContentFilter?: string;
     onStatusChange: (value: string) => void;
     onTypeChange: (value: string) => void;
     onCategoryChange?: (value: string) => void;
@@ -38,6 +41,7 @@ interface ProductsFilterProps {
     onPriceMaxChange?: (value: string) => void;
     onSalesChange?: (value: string) => void;
     onSeoScoreChange?: (value: string) => void;
+    onMissingContentChange?: (value: string) => void;
     onReset: () => void;
 }
 
@@ -71,6 +75,7 @@ export const ProductsFilter = ({
     priceMaxFilter,
     salesFilter,
     seoScoreFilter,
+    missingContentFilter,
     onStatusChange,
     onTypeChange,
     onCategoryChange,
@@ -82,6 +87,7 @@ export const ProductsFilter = ({
     onPriceMaxChange,
     onSalesChange,
     onSeoScoreChange,
+    onMissingContentChange,
     onReset,
 }: ProductsFilterProps) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -98,7 +104,8 @@ export const ProductsFilter = ({
         (stockFilter && stockFilter !== "all" ? 1 : 0) +
         (isPriceActive ? 1 : 0) +
         (salesFilter && salesFilter !== "all" ? 1 : 0) +
-        (seoScoreFilter && seoScoreFilter !== "all" ? 1 : 0);
+        (seoScoreFilter && seoScoreFilter !== "all" ? 1 : 0) +
+        (missingContentFilter && missingContentFilter !== "all" ? 1 : 0);
 
     const filterSections: FilterSection[] = [
         {
@@ -168,6 +175,19 @@ export const ProductsFilter = ({
             currentValue: salesFilter || 'all',
             onChange: (v) => onSalesChange?.(v),
         },
+        {
+            key: 'missing_content', label: 'Contenu manquant', icon: AlertCircle,
+            options: [
+                { value: "all", label: "Tous" },
+                { value: "no_short_description", label: "Sans desc. courte" },
+                { value: "no_description", label: "Sans desc. longue" },
+                { value: "no_seo_title", label: "Sans meta titre" },
+                { value: "no_seo_description", label: "Sans meta desc." },
+                { value: "no_sku", label: "Sans SKU" },
+            ],
+            currentValue: missingContentFilter || 'all',
+            onChange: (v) => onMissingContentChange?.(v),
+        },
     ];
 
     if (categories && categories.length > 0) {
@@ -194,23 +214,34 @@ export const ProductsFilter = ({
 
     return (
         <div className="flex items-center gap-2">
-            {/* Status segmented control */}
-            <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border">
+            {/* Status segmented control — Vercel Pro */}
+            <div className="flex items-center gap-0.5 border-b border-border/40">
                 {statusOptions.map((option) => (
                     <button
                         key={option.value}
                         onClick={() => onStatusChange(option.value)}
                         className={cn(
-                            "px-2.5 py-1.5 text-[13px] font-medium rounded-md transition-colors flex items-center gap-1.5",
+                            "relative px-3 py-2 text-[13px] font-medium transition-colors flex items-center gap-1.5",
                             statusFilter === option.value
-                                ? "bg-background text-foreground shadow-sm"
+                                ? "text-foreground"
                                 : "text-muted-foreground hover:text-foreground"
                         )}
                     >
-                        {statusFilter === option.value && option.color && (
-                            <div className={cn("h-1.5 w-1.5 rounded-full", option.color)} />
+                        {option.color && (
+                            <div className={cn(
+                                "h-1.5 w-1.5 rounded-full transition-opacity",
+                                option.color,
+                                statusFilter === option.value ? "opacity-100" : "opacity-0"
+                            )} />
                         )}
                         {option.label}
+                        {statusFilter === option.value && (
+                            <motion.div
+                                layoutId="productsStatusTab"
+                                className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground"
+                                transition={motionTokens.transitions.fast}
+                            />
+                        )}
                     </button>
                 ))}
             </div>
@@ -222,32 +253,32 @@ export const ProductsFilter = ({
                         variant="outline"
                         size="sm"
                         className={cn(
-                            "h-8 text-xs gap-1.5",
-                            advancedFiltersCount > 0 && "border-primary/50 text-primary"
+                            "h-7 text-[11px] rounded-lg gap-1.5 font-medium border-border/60 hover:bg-accent hover:text-accent-foreground",
+                            advancedFiltersCount > 0 && "border-foreground/20 text-foreground"
                         )}
                     >
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Filtres
                         {advancedFiltersCount > 0 && (
-                            <span className="flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                            <span className="h-5 rounded-full px-1.5 text-[10px] font-medium bg-foreground/10 text-foreground border-0 inline-flex items-center justify-center min-w-[20px]">
                                 {advancedFiltersCount}
                             </span>
                         )}
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="start">
-                    <div className="p-3 pb-2 flex items-center justify-between">
-                        <span className="text-sm font-medium">Filtres avancés</span>
+                <PopoverContent className="w-[280px] p-0 rounded-xl border-border/40 shadow-lg" align="start">
+                    <div className="px-4 py-3 flex items-center justify-between">
+                        <span className="text-[13px] font-semibold tracking-tight text-foreground">Filtres avances</span>
                         {advancedFiltersCount > 0 && (
                             <button
                                 onClick={onReset}
-                                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                                className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors"
                             >
-                                Tout effacer
+                                Effacer
                             </button>
                         )}
                     </div>
-                    <Separator />
+                    <div className="mx-4 border-t border-border/30" />
                     <div className="py-1 max-h-[400px] overflow-y-auto">
                         {filterSections.map((section) => (
                             <FilterSectionRow key={section.key} section={section} />
@@ -293,23 +324,23 @@ function FilterSectionRow({ section }: { section: FilterSection }) {
             <button
                 onClick={() => setExpanded(!expanded)}
                 className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/60 transition-colors",
-                    expanded && "bg-muted/40"
+                    "w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-colors hover:bg-muted/30",
+                    expanded && "bg-muted/20"
                 )}
             >
-                <div className="flex items-center gap-2">
-                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{section.label}</span>
+                <div className="flex items-center gap-2.5">
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    <span className="font-medium text-foreground">{section.label}</span>
                 </div>
                 <span className={cn(
-                    "text-xs",
-                    isActive ? "text-primary font-medium" : "text-muted-foreground"
+                    "text-[11px] font-medium",
+                    isActive ? "text-foreground" : "text-muted-foreground/50"
                 )}>
                     {isActive ? activeLabel : 'Tous'}
                 </span>
             </button>
             {expanded && (
-                <div className="px-2 pb-1">
+                <div className="px-3 pb-2">
                     {section.options.map(option => (
                         <button
                             key={option.value}
@@ -320,14 +351,14 @@ function FilterSectionRow({ section }: { section: FilterSection }) {
                             className={cn(
                                 "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] transition-colors",
                                 section.currentValue === option.value
-                                    ? "bg-primary/10 text-primary font-medium"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                    ? "bg-muted/60 text-foreground font-medium"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                             )}
                         >
                             {section.currentValue === option.value && (
-                                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                <div className="h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />
                             )}
-                            <span className={cn(section.currentValue !== option.value && "ml-5")}>
+                            <span className={cn(section.currentValue !== option.value && "ml-3.5")}>
                                 {option.label}
                             </span>
                         </button>
@@ -362,23 +393,23 @@ function PriceSectionRow({
             <button
                 onClick={() => setExpanded(!expanded)}
                 className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/60 transition-colors",
-                    expanded && "bg-muted/40"
+                    "w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-colors hover:bg-muted/30",
+                    expanded && "bg-muted/20"
                 )}
             >
-                <div className="flex items-center gap-2">
-                    <Euro className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>Prix</span>
+                <div className="flex items-center gap-2.5">
+                    <Euro className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    <span className="font-medium text-foreground">Prix</span>
                 </div>
                 <span className={cn(
-                    "text-xs",
-                    isActive ? "text-primary font-medium" : "text-muted-foreground"
+                    "text-[11px] font-medium",
+                    isActive ? "text-foreground" : "text-muted-foreground/50"
                 )}>
                     {isActive ? activeLabel : 'Tous'}
                 </span>
             </button>
             {expanded && (
-                <div className="px-2 pb-1">
+                <div className="px-3 pb-2">
                     {priceOptions.map(option => (
                         <button
                             key={option.value}
@@ -389,28 +420,28 @@ function PriceSectionRow({
                             className={cn(
                                 "w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] transition-colors",
                                 currentValue === option.value
-                                    ? "bg-primary/10 text-primary font-medium"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                                    ? "bg-muted/60 text-foreground font-medium"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                             )}
                         >
                             {currentValue === option.value && (
-                                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                <div className="h-1.5 w-1.5 rounded-full bg-foreground shrink-0" />
                             )}
-                            <span className={cn(currentValue !== option.value && "ml-5")}>
+                            <span className={cn(currentValue !== option.value && "ml-3.5")}>
                                 {option.label}
                             </span>
                         </button>
                     ))}
                     {currentValue === 'custom' && (
-                        <div className="border-t border-border mt-1.5 pt-2 px-1 space-y-2">
+                        <div className="border-t border-border/30 mt-2 pt-2.5 px-1 space-y-2">
                             <div className="flex items-center gap-2">
                                 <Input type="number" placeholder="Min €" value={localPriceMin}
-                                    onChange={(e) => onLocalMinChange(e.target.value)} className="h-7 text-xs" />
-                                <span className="text-muted-foreground text-xs">–</span>
+                                    onChange={(e) => onLocalMinChange(e.target.value)} className="h-7 text-[11px] rounded-lg border-border/60" />
+                                <span className="text-muted-foreground/40 text-[11px]">–</span>
                                 <Input type="number" placeholder="Max €" value={localPriceMax}
-                                    onChange={(e) => onLocalMaxChange(e.target.value)} className="h-7 text-xs" />
+                                    onChange={(e) => onLocalMaxChange(e.target.value)} className="h-7 text-[11px] rounded-lg border-border/60" />
                             </div>
-                            <Button size="sm" className="w-full h-7 text-xs" onClick={onApplyCustom}>
+                            <Button size="sm" className="w-full h-7 text-[11px] rounded-lg font-medium" onClick={onApplyCustom}>
                                 Appliquer
                             </Button>
                         </div>

@@ -19,7 +19,7 @@ import { DashboardContext } from "@/types/dashboard";
  * Main dashboard container with premium bento grid layout,
  * animated counters, AI insights, sparkline trends.
  */
-export const OverviewDashboard = () => {
+export const OverviewDashboard = ({ activeTab = "overview" }: { activeTab?: "overview" | "seo" }) => {
   const { selectedStore, stores, isLoading: storeLoading } = useSelectedStore();
   const { context: kpiContext, kpis, isLoading: kpisLoading } = useDashboardKPIs("current_month", selectedStore?.id);
   const { profile: userProfile, isLoading: profileLoading } = useUserProfile();
@@ -35,16 +35,23 @@ export const OverviewDashboard = () => {
   const userName = userProfile?.full_name || userProfile?.username || "Utilisateur";
   const userEmail = userProfile?.email;
 
+  const connectionHealth = selectedStore?.platform_connections?.connection_health;
+  const resolvedConnectionStatus =
+    connectionHealth === "healthy"
+      ? "connected"
+      : connectionHealth === "unhealthy"
+        ? "disconnected"
+        : connectionHealth === "degraded"
+          ? "pending"
+          : !selectedStore
+            ? "disconnected"
+            : "pending"; // 'unknown' or no heartbeat yet
+
   const context: DashboardContext = {
     selectedShopId: selectedStore?.id || null,
     selectedShopName: selectedStore?.name || "Aucune boutique",
     selectedShopPlatform: selectedStore?.platform || null,
-    connectionStatus:
-      selectedStore?.status === "active"
-        ? "connected"
-        : selectedStore?.status === "error"
-          ? "pending"
-          : "disconnected",
+    connectionStatus: resolvedConnectionStatus,
     totalAccountShops: stores.length,
     activeShopsCount: stores.filter((s) => s.status === "active").length,
     shopStats: kpiContext?.shopStats || {
@@ -62,7 +69,7 @@ export const OverviewDashboard = () => {
   const isDisconnected = context.connectionStatus === "disconnected";
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden flex-1">
+    <div className="flex flex-col gap-2 flex-1 min-h-0">
       {/* Alert Banner — disabled for now, connection status shown in ConnectionHealthCard */}
       {/* <AlertBanner
         connectionLost={isDisconnected}
@@ -87,13 +94,14 @@ export const OverviewDashboard = () => {
         />
       </motion.div>
 
-      {/* KPI Bento Grid - fills remaining space */}
+      {/* KPI Bento Grid — flex-1 pour occuper tout l'espace restant */}
       <div className="flex-1 min-h-0">
         <KPICardsGrid
           kpis={kpis || undefined}
           context={context}
           activities={activities}
           isLoading={isLoading}
+          activeTab={activeTab}
         />
       </div>
     </div>

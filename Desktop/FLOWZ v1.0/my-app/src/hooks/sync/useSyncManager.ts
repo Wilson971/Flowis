@@ -18,9 +18,12 @@ export function useSyncManager() {
     const [isLoading, setIsLoading] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
     const abortRef = useRef(false);
+    const syncingRef = useRef(false);
     const retryCountRef = useRef(0);
-    const MAX_RETRIES = 50; // Increased for large catalogs
-    const RETRY_DELAY_MS = 3000; // 3 seconds between retries
+    const MAX_RETRIES = 20; // Reasonable limit for chunked syncs
+    const MAX_CONSECUTIVE_ERRORS = 3; // Stop after 3 consecutive failures
+    const RETRY_DELAY_MS = 3000;
+    const consecutiveErrorsRef = useRef(0);
 
     const invokeSync = useCallback(async (params: SyncManagerParams): Promise<SyncResponse> => {
         const supabase = createClient();
@@ -63,9 +66,13 @@ export function useSyncManager() {
     }, []);
 
     const startSync = useCallback(async (params: SyncManagerParams) => {
+        // Prevent concurrent sync launches
+        if (syncingRef.current) return;
+        syncingRef.current = true;
         setIsLoading(true);
         abortRef.current = false;
         retryCountRef.current = 0;
+        consecutiveErrorsRef.current = 0;
 
         try {
             let response = await invokeSync(params);
@@ -87,9 +94,15 @@ export function useSyncManager() {
 
                 try {
                     response = await invokeSync(params);
+                    consecutiveErrorsRef.current = 0; // Reset on success
                 } catch (err: any) {
-                    // If retry fails, wait longer and try again
-                    console.warn('[useSyncManager] Retry failed, will retry again:', err);
+                    consecutiveErrorsRef.current++;
+                    console.warn(`[useSyncManager] Retry failed (${consecutiveErrorsRef.current}/${MAX_CONSECUTIVE_ERRORS}):`, err.message);
+
+                    if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
+                        throw new Error(`Sync failed after ${MAX_CONSECUTIVE_ERRORS} consecutive errors: ${err.message}`);
+                    }
+
                     await new Promise(r => setTimeout(r, 5000));
                     response = { success: true, status: 'in_progress', can_resume: true };
                 }
@@ -112,6 +125,7 @@ export function useSyncManager() {
             });
             throw error;
         } finally {
+            syncingRef.current = false;
             setIsLoading(false);
         }
     }, [invokeSync]);

@@ -5,7 +5,7 @@
  *
  * Controls for visual effects and motion tokens:
  *
- *   Radius  – base border-radius slider with live preview boxes
+ *   Radius  – per-level sliders (base / sm / lg / xl / 2xl) with live preview
  *   Shadows – per-level (sm / md / lg / xl / glow) ShadowEditor inputs
  *   Glass   – enable toggle, backdrop-blur slider, bg-opacity slider
  *   Motion  – intensity preset select, duration sliders (fast / default / slow)
@@ -31,8 +31,16 @@ import { ShadowEditor } from "@/components/theme-builder/controls/ShadowEditor";
 import { BuilderSection } from "@/components/theme-builder/BuilderSection";
 
 // ---------------------------------------------------------------------------
-// Types
+// Types — aligned with design-system-config.json
 // ---------------------------------------------------------------------------
+
+export interface RadiusConfig {
+  base: number;
+  sm: number;
+  lg: number;
+  xl: number;
+  "2xl": number;
+}
 
 export interface ShadowLevels {
   sm: string;
@@ -48,15 +56,26 @@ export interface GlassConfig {
   opacity: number;
 }
 
+export interface MotionDurations {
+  fast: number;
+  default: number;
+  slow: number;
+}
+
+export interface MotionEasings {
+  default: string;
+  smooth: string;
+  bounce: string;
+}
+
 export interface MotionConfig {
   intensity: "none" | "subtle" | "normal" | "playful";
-  durationFast: number;
-  durationDefault: number;
-  durationSlow: number;
+  durations: MotionDurations;
+  easings: MotionEasings;
 }
 
 export interface EffectsConfig {
-  radius: number;
+  radius: RadiusConfig;
   shadows: ShadowLevels;
   glass: GlassConfig;
   motion: MotionConfig;
@@ -80,6 +99,14 @@ const SHADOW_LEVELS: { key: keyof ShadowLevels; label: string }[] = [
   { key: "glow", label: "Glow" },
 ];
 
+const RADIUS_LEVELS: { key: keyof RadiusConfig; label: string }[] = [
+  { key: "sm",   label: "Small (inputs, badges)" },
+  { key: "base", label: "Base (buttons)" },
+  { key: "lg",   label: "Large (cards)" },
+  { key: "xl",   label: "XL (modals)" },
+  { key: "2xl",  label: "2XL (large surfaces)" },
+];
+
 const MOTION_INTENSITIES = [
   { value: "none",    label: "None — no motion" },
   { value: "subtle",  label: "Subtle — minimal transitions" },
@@ -87,7 +114,6 @@ const MOTION_INTENSITIES = [
   { value: "playful", label: "Playful — expressive spring physics" },
 ] as const;
 
-/** Multipliers applied to base durations by intensity preset */
 const INTENSITY_DURATION_HINT: Record<string, string> = {
   none:    "Animations disabled — duration values are ignored.",
   subtle:  "Very short transitions. Keep durations low (100–200 ms).",
@@ -99,37 +125,31 @@ const INTENSITY_DURATION_HINT: Record<string, string> = {
 // Radius preview strip
 // ---------------------------------------------------------------------------
 
-interface RadiusPreviewProps {
-  baseRadius: number;
-}
-
-function RadiusPreview({ baseRadius }: RadiusPreviewProps) {
+function RadiusPreview({ radius }: { radius: RadiusConfig }) {
   const levels = [
-    { label: "input / btn",  multiplier: 1 },
-    { label: "card",         multiplier: 1.5 },
-    { label: "modal",        multiplier: 2 },
-    { label: "full",         multiplier: 99 },
+    { label: "sm",   value: radius.sm },
+    { label: "base", value: radius.base },
+    { label: "lg",   value: radius.lg },
+    { label: "xl",   value: radius.xl },
+    { label: "2xl",  value: radius["2xl"] },
   ];
 
   return (
     <div className="flex flex-wrap gap-3 pt-1" aria-label="Radius preview">
-      {levels.map(({ label, multiplier }) => {
-        const r = Math.min(Math.round(baseRadius * multiplier), 9999);
-        return (
-          <div key={label} className="flex flex-col items-center gap-1.5">
-            <div
-              className="w-14 h-10 bg-muted border border-border/50 transition-all duration-200"
-              style={{ borderRadius: `${r}px` }}
-              aria-hidden="true"
-            />
-            <span className="text-[9px] text-muted-foreground font-mono leading-none text-center">
-              {label}
-              <br />
-              {r}px
-            </span>
-          </div>
-        );
-      })}
+      {levels.map(({ label, value }) => (
+        <div key={label} className="flex flex-col items-center gap-1.5">
+          <div
+            className="w-14 h-10 bg-muted border border-border/50 transition-all duration-200"
+            style={{ borderRadius: `${value}px` }}
+            aria-hidden="true"
+          />
+          <span className="text-[9px] text-muted-foreground font-mono leading-none text-center">
+            {label}
+            <br />
+            {value}px
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -138,12 +158,7 @@ function RadiusPreview({ baseRadius }: RadiusPreviewProps) {
 // Glass toggle row
 // ---------------------------------------------------------------------------
 
-interface GlassToggleProps {
-  enabled: boolean;
-  onToggle: () => void;
-}
-
-function GlassToggle({ enabled, onToggle }: GlassToggleProps) {
+function GlassToggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
@@ -183,21 +198,14 @@ function GlassToggle({ enabled, onToggle }: GlassToggleProps) {
 // Glass preview
 // ---------------------------------------------------------------------------
 
-interface GlassPreviewProps {
-  blur: number;
-  opacity: number;
-}
-
-function GlassPreview({ blur, opacity }: GlassPreviewProps) {
+function GlassPreview({ blur, opacity }: { blur: number; opacity: number }) {
   return (
     <div
       className="relative overflow-hidden rounded-xl h-20 flex items-center justify-center"
       aria-label="Glass effect preview"
       aria-hidden="true"
     >
-      {/* Gradient backdrop to make the glass effect visible */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/20 to-secondary/30" />
-      {/* Glass card */}
       <div
         className="relative z-10 px-6 py-3 rounded-xl border border-white/20 text-foreground text-sm font-medium shadow-md"
         style={{
@@ -236,8 +244,8 @@ export function EffectsMotionSection({
   onChange,
   className,
 }: EffectsMotionSectionProps) {
-  // Partial updaters to keep call-sites clean
-  const setRadius = (radius: number) => onChange({ ...effects, radius });
+  const setRadius = (key: keyof RadiusConfig, value: number) =>
+    onChange({ ...effects, radius: { ...effects.radius, [key]: value } });
 
   const setShadow = (key: keyof ShadowLevels, value: string) =>
     onChange({ ...effects, shadows: { ...effects.shadows, [key]: value } });
@@ -245,8 +253,17 @@ export function EffectsMotionSection({
   const setGlass = <K extends keyof GlassConfig>(key: K, value: GlassConfig[K]) =>
     onChange({ ...effects, glass: { ...effects.glass, [key]: value } });
 
-  const setMotion = <K extends keyof MotionConfig>(key: K, value: MotionConfig[K]) =>
-    onChange({ ...effects, motion: { ...effects.motion, [key]: value } });
+  const setMotionIntensity = (intensity: MotionConfig["intensity"]) =>
+    onChange({ ...effects, motion: { ...effects.motion, intensity } });
+
+  const setDuration = (key: keyof MotionDurations, value: number) =>
+    onChange({
+      ...effects,
+      motion: {
+        ...effects.motion,
+        durations: { ...effects.motion.durations, [key]: value },
+      },
+    });
 
   return (
     <BuilderSection
@@ -258,15 +275,18 @@ export function EffectsMotionSection({
       {/* ── Radius ───────────────────────────────────────────────────── */}
       <div className="space-y-4">
         <GroupHeading>Border Radius</GroupHeading>
-        <SliderControl
-          label="Base radius"
-          value={effects.radius}
-          onChange={setRadius}
-          min={0}
-          max={24}
-          unit="px"
-        />
-        <RadiusPreview baseRadius={effects.radius} />
+        {RADIUS_LEVELS.map(({ key, label }) => (
+          <SliderControl
+            key={key}
+            label={label}
+            value={effects.radius[key] ?? 12}
+            onChange={(v) => setRadius(key, v)}
+            min={0}
+            max={32}
+            unit="px"
+          />
+        ))}
+        <RadiusPreview radius={effects.radius} />
       </div>
 
       <Separator />
@@ -336,9 +356,7 @@ export function EffectsMotionSection({
           </Label>
           <Select
             value={effects.motion.intensity}
-            onValueChange={(v) =>
-              setMotion("intensity", v as MotionConfig["intensity"])
-            }
+            onValueChange={(v) => setMotionIntensity(v as MotionConfig["intensity"])}
           >
             <SelectTrigger
               className={cn(
@@ -373,8 +391,8 @@ export function EffectsMotionSection({
         >
           <SliderControl
             label="Duration — Fast"
-            value={effects.motion.durationFast}
-            onChange={(v) => setMotion("durationFast", v)}
+            value={effects.motion.durations.fast}
+            onChange={(v) => setDuration("fast", v)}
             min={50}
             max={500}
             step={10}
@@ -382,8 +400,8 @@ export function EffectsMotionSection({
           />
           <SliderControl
             label="Duration — Default"
-            value={effects.motion.durationDefault}
-            onChange={(v) => setMotion("durationDefault", v)}
+            value={effects.motion.durations.default}
+            onChange={(v) => setDuration("default", v)}
             min={100}
             max={800}
             step={10}
@@ -391,8 +409,8 @@ export function EffectsMotionSection({
           />
           <SliderControl
             label="Duration — Slow"
-            value={effects.motion.durationSlow}
-            onChange={(v) => setMotion("durationSlow", v)}
+            value={effects.motion.durations.slow}
+            onChange={(v) => setDuration("slow", v)}
             min={200}
             max={1200}
             step={10}

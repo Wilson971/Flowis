@@ -60,6 +60,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
                                     richColors
                                     position="bottom-right"
                                     duration={4000}
+                                    visibleToasts={4}
+                                    gap={8}
+                                    expand
                                     toastOptions={{
                                         className: "bg-card/90 backdrop-blur-xl border-border/40 rounded-xl shadow-lg",
                                         style: {

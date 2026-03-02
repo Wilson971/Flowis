@@ -7,6 +7,7 @@
 
 "use client";
 
+import Link from 'next/link';
 import { Store as StoreIcon, Check, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -19,13 +20,14 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { useSelectedStore } from '../../contexts/StoreContext';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '../ui/sidebar';
 
 export function StoreSelector() {
   const { selectedStore, stores, setSelectedStore, isLoading } = useSelectedStore();
   const { open } = useSidebar();
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -127,14 +129,11 @@ export function StoreSelector() {
         <DropdownMenuSeparator className="bg-border/20 mx-1" />
 
         <div className="p-1">
-          <DropdownMenuItem asChild className="p-0">
-            {/* @ts-ignore */}
-            <Link href="/app/stores" className="flex items-center gap-2 py-2 px-3 focus:bg-primary/5 focus:text-primary rounded-lg transition-colors cursor-pointer w-full group">
+          <DropdownMenuItem className="flex items-center gap-2 py-2 px-3 cursor-pointer group" onSelect={() => { router.push('/app/stores'); }}>
               <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
                 <StoreIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <span className="text-[12px] font-bold">Gérer les boutiques</span>
-            </Link>
           </DropdownMenuItem>
         </div>
       </DropdownMenuContent>

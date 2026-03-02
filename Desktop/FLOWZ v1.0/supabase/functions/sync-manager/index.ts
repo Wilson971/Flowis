@@ -19,6 +19,63 @@ import {
 } from "../_shared/woo-helpers.ts";
 
 // ===========================================
+// SSRF Prevention — reject private/internal IPs
+// ===========================================
+
+const PRIVATE_IP_RANGES = [
+    /^127\./,                          // 127.0.0.0/8
+    /^10\./,                           // 10.0.0.0/8
+    /^172\.(1[6-9]|2\d|3[01])\./,     // 172.16.0.0/12
+    /^192\.168\./,                     // 192.168.0.0/16
+    /^169\.254\./,                     // 169.254.0.0/16
+    /^0\./,                            // 0.0.0.0/8
+    /^::1$/,                           // IPv6 loopback
+    /^fc00:/i,                         // IPv6 ULA fc00::/7
+    /^fd/i,                            // IPv6 ULA fd00::/8
+    /^fe80:/i,                         // IPv6 link-local
+    /^::ffff:(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/,  // IPv4-mapped IPv6
+];
+
+async function validatePublicUrl(url: string): Promise<void> {
+    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
+    const hostname = parsed.hostname;
+
+    // Block localhost variants
+    if (hostname === "localhost" || hostname === "[::1]") {
+        throw new Error("SSRF blocked: localhost is not allowed");
+    }
+
+    // Resolve DNS and check all IPs
+    // Deno.resolveDns is available in Deno runtime
+    try {
+        const ipv4Addresses = await Deno.resolveDns(hostname, "A").catch(() => [] as string[]);
+        const ipv6Addresses = await Deno.resolveDns(hostname, "AAAA").catch(() => [] as string[]);
+        const allAddresses = [...ipv4Addresses, ...ipv6Addresses];
+
+        // If no DNS resolution, check if hostname itself is an IP
+        if (allAddresses.length === 0) {
+            allAddresses.push(hostname);
+        }
+
+        for (const ip of allAddresses) {
+            for (const pattern of PRIVATE_IP_RANGES) {
+                if (pattern.test(ip)) {
+                    throw new Error(`SSRF blocked: ${hostname} resolves to private IP ${ip}`);
+                }
+            }
+        }
+    } catch (e: any) {
+        if (e.message?.startsWith("SSRF blocked")) throw e;
+        // If DNS resolution fails entirely, check hostname directly as IP
+        for (const pattern of PRIVATE_IP_RANGES) {
+            if (pattern.test(hostname)) {
+                throw new Error(`SSRF blocked: ${hostname} is a private IP`);
+            }
+        }
+    }
+}
+
+// ===========================================
 // Configuration
 // ===========================================
 
@@ -129,6 +186,8 @@ async function wpFetch(
     endpoint: string,
     params: Record<string, string> = {}
 ): Promise<WooApiResult> {
+    await validatePublicUrl(shopUrl);
+
     const baseUrl = shopUrl.startsWith("http") ? shopUrl : `https://${shopUrl}`;
     const url = new URL(
         endpoint.startsWith("/wp-json") ? endpoint : `/wp-json${endpoint}`,
@@ -346,6 +405,8 @@ async function wooFetch(
     endpoint: string,
     params: Record<string, string> = {}
 ): Promise<WooApiResult> {
+    await validatePublicUrl(shopUrl);
+
     const baseUrl = shopUrl.startsWith("http") ? shopUrl : `https://${shopUrl}`;
     const url = new URL(
         endpoint.startsWith("/wp-json") ? endpoint : `/wp-json${endpoint}`,
@@ -580,6 +641,25 @@ Deno.serve(async (req) => {
         const canSyncPosts = include_posts && wp_username && wp_app_password;
         if (include_posts && !canSyncPosts) {
             console.log(`[sync-manager] Posts sync requested but WordPress credentials not configured`);
+        }
+
+        // ===========================================
+        // 4b. RATE LIMIT — max 1 concurrent sync per store
+        // ===========================================
+        if (!existingJob) {
+            const { data: activeJobs } = await supabase
+                .from('sync_jobs')
+                .select('id')
+                .eq('store_id', store_id)
+                .in('status', ['pending', 'discovering', 'syncing', 'products', 'variations', 'categories'])
+                .limit(1);
+
+            if (activeJobs && activeJobs.length > 0) {
+                return new Response(
+                    JSON.stringify({ success: false, error: 'A sync is already in progress for this store', job_id: activeJobs[0].id }),
+                    { status: 409, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+                );
+            }
         }
 
         console.log(`[sync-manager] Store: ${store.name}, URL: ${shop_url}`);
@@ -870,43 +950,58 @@ Deno.serve(async (req) => {
                             transformWooCommerceProduct(p, store.id, user.id, seoPlugin)
                         );
 
-                        // Upsert products with detailed error logging
-                        const { error: upsertError, data: upsertedData } = await supabase
+                        // Upsert products — batch first, row-by-row fallback on SKU conflicts
+                        const { error: upsertError } = await supabase
                             .from("products")
                             .upsert(transformed, {
                                 onConflict: "store_id,platform_product_id",
                                 ignoreDuplicates: false
-                            })
-                            .select('id, platform_product_id');
+                            });
 
                         if (upsertError) {
-                            console.error(`[sync-manager] Products upsert error on page ${chunk.page_number}:`, upsertError);
-                            // Log detailed error for debugging
-                            await supabase.from('sync_logs').insert({
-                                job_id: jobId,
-                                message: `Failed to upsert ${transformed.length} products on page ${chunk.page_number}: ${upsertError.message}`,
-                                type: 'error'
-                            });
-                            throw new Error(upsertError.message);
-                        }
-
-                        const actualUpserted = upsertedData?.length || transformed.length;
-                        productsUpserted += actualUpserted;
-
-                        // Log if there's a discrepancy
-                        if (actualUpserted !== transformed.length) {
-                            console.warn(`[sync-manager] Upsert discrepancy: sent ${transformed.length}, got ${actualUpserted}`);
-                            await supabase.from('sync_logs').insert({
-                                job_id: jobId,
-                                message: `Upsert discrepancy on page ${chunk.page_number}: sent ${transformed.length}, upserted ${actualUpserted}`,
-                                type: 'warning'
-                            });
+                            // SKU unique constraint conflict — fallback to row-by-row upsert
+                            if (upsertError.message.includes('idx_products_sku_unique_per_store') || upsertError.message.includes('duplicate key')) {
+                                console.warn(`[sync-manager] Batch upsert SKU conflict on page ${chunk.page_number}, falling back to row-by-row`);
+                                let rowSuccess = 0;
+                                let rowFailed = 0;
+                                for (const product of transformed) {
+                                    const { error: rowError } = await supabase
+                                        .from("products")
+                                        .upsert(product, {
+                                            onConflict: "store_id,platform_product_id",
+                                            ignoreDuplicates: false
+                                        });
+                                    if (rowError) {
+                                        rowFailed++;
+                                        console.error(`[sync-manager] Row upsert failed for ${product.platform_product_id}: ${rowError.message}`);
+                                    } else {
+                                        rowSuccess++;
+                                    }
+                                }
+                                productsUpserted += rowSuccess;
+                                await supabase.from('sync_logs').insert({
+                                    job_id: jobId,
+                                    message: `Page ${chunk.page_number}: ${rowSuccess} synced, ${rowFailed} SKU conflicts (row-by-row fallback)`,
+                                    type: rowFailed > 0 ? 'warning' : 'info'
+                                });
+                            } else {
+                                console.error(`[sync-manager] Products upsert error on page ${chunk.page_number}:`, upsertError);
+                                await supabase.from('sync_logs').insert({
+                                    job_id: jobId,
+                                    message: `Failed to upsert ${transformed.length} products on page ${chunk.page_number}: ${upsertError.message}`,
+                                    type: 'error'
+                                });
+                                throw new Error(upsertError.message);
+                            }
+                        } else {
+                            // Batch succeeded — count all
+                            productsUpserted += transformed.length;
                         }
 
                         // Queue variation chunks for variable products (robust approach - no timeout issues)
                         if (variableProducts.length > 0) {
                             const variationChunksData = variableProducts.map((p: any) => ({
-                                woo_id: p.id,
+                                woo_product_id: p.id,
                                 name: p.name || `Product ${p.id}`,
                                 expected_count: p.variations?.length || 0
                             }));
@@ -1014,9 +1109,20 @@ Deno.serve(async (req) => {
                             }
                         );
 
-                        if (posts.length > 0) {
+                        // Deduplicate posts by ID within this page
+                        const seenPostIds = new Set<number>();
+                        const uniquePosts = posts.filter((p: WordPressPost) => {
+                            if (seenPostIds.has(p.id)) {
+                                console.warn(`[sync-manager] Duplicate post ID ${p.id} on page ${chunk.page_number}`);
+                                return false;
+                            }
+                            seenPostIds.add(p.id);
+                            return true;
+                        });
+
+                        if (uniquePosts.length > 0) {
                             // Transform posts
-                            const transformedPosts = posts.map((post: WordPressPost) =>
+                            const transformedPosts = uniquePosts.map((post: WordPressPost) =>
                                 transformWordPressPost(post, store.id, user.id, seoPlugin)
                             );
 
@@ -1096,6 +1202,10 @@ Deno.serve(async (req) => {
                         let hasMore = true;
 
                         while (hasMore) {
+                            if (isTimeUp()) {
+                                console.warn(`[sync-manager] Time limit reached during variation fetch for product ${wooProductId}`);
+                                break;
+                            }
                             try {
                                 const { data: variations, totalPages } = await wooFetch(
                                     shop_url, consumer_key, consumer_secret,
@@ -1283,6 +1393,10 @@ Deno.serve(async (req) => {
             let page = 1;
 
             while (page <= totalPages) {
+                if (isTimeUp()) {
+                    console.warn(`[sync-manager] Time limit reached in direct mode at page ${page}/${totalPages}`);
+                    break;
+                }
                 // IMPORTANT: Use orderby=id&order=asc for stable pagination
                 const result = await wooFetch(shop_url, consumer_key, consumer_secret, "/wc/v3/products", {
                     per_page: String(CONFIG.PRODUCTS_PER_PAGE),
@@ -1302,15 +1416,38 @@ Deno.serve(async (req) => {
                 page++;
             }
 
+            // If timed out in direct mode, return resumable status
+            if (isTimeUp() && page <= totalPages) {
+                await supabase.from('sync_jobs').update({
+                    can_resume: true,
+                    status: 'syncing',
+                    current_phase: 'products'
+                }).eq('id', jobId);
+
+                return new Response(
+                    JSON.stringify({
+                        success: true,
+                        status: 'in_progress',
+                        can_resume: true,
+                        message: `Direct mode timeout at page ${page}/${totalPages}, call again to continue`,
+                        products_synced: allProducts.length,
+                        job_id: jobId
+                    }),
+                    { status: 200, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } }
+                );
+            }
+
             // Fetch variations for variable products with pagination support
             const variableProducts = allProducts.filter(p => p.type === "variable" && p.variations?.length > 0);
             for (const product of variableProducts) {
+                if (isTimeUp()) break;
                 try {
                     const allVariations: any[] = [];
                     let varPage = 1;
                     let hasMore = true;
 
                     while (hasMore) {
+                        if (isTimeUp()) break;
                         const { data: variations, totalPages } = await wooFetch(
                             shop_url, consumer_key, consumer_secret,
                             `/wc/v3/products/${product.id}/variations`,
@@ -1358,28 +1495,47 @@ Deno.serve(async (req) => {
             let batchIndex = 0;
             for (const batch of batches) {
                 batchIndex++;
-                const { error: upsertError, data: upsertedData } = await supabase
+                const { error: upsertError } = await supabase
                     .from("products")
-                    .upsert(batch, { onConflict: "store_id,platform_product_id", ignoreDuplicates: false })
-                    .select('id, platform_product_id');
+                    .upsert(batch, { onConflict: "store_id,platform_product_id", ignoreDuplicates: false });
 
                 if (upsertError) {
-                    console.error(`[sync-manager] Products batch ${batchIndex} upsert error:`, upsertError);
-                    errors.push(`Upsert error batch ${batchIndex}: ${upsertError.message}`);
-                    // Log detailed error
-                    await supabase.from('sync_logs').insert({
-                        job_id: jobId,
-                        message: `Failed batch ${batchIndex}/${batches.length} (${batch.length} products): ${upsertError.message}`,
-                        type: 'error'
-                    });
-                } else {
-                    const actualCount = upsertedData?.length || batch.length;
-                    productsUpserted += actualCount;
-
-                    // Log discrepancy if any
-                    if (actualCount !== batch.length) {
-                        console.warn(`[sync-manager] Batch ${batchIndex} discrepancy: sent ${batch.length}, got ${actualCount}`);
+                    // SKU unique constraint conflict — fallback to row-by-row
+                    if (upsertError.message.includes('idx_products_sku_unique_per_store') || upsertError.message.includes('duplicate key')) {
+                        console.warn(`[sync-manager] Batch ${batchIndex} SKU conflict, falling back to row-by-row`);
+                        let rowSuccess = 0;
+                        let rowFailed = 0;
+                        for (const product of batch) {
+                            const { error: rowError } = await supabase
+                                .from("products")
+                                .upsert(product, {
+                                    onConflict: "store_id,platform_product_id",
+                                    ignoreDuplicates: false
+                                });
+                            if (rowError) {
+                                rowFailed++;
+                                console.error(`[sync-manager] Row upsert failed for ${product.platform_product_id}: ${rowError.message}`);
+                            } else {
+                                rowSuccess++;
+                            }
+                        }
+                        productsUpserted += rowSuccess;
+                        await supabase.from('sync_logs').insert({
+                            job_id: jobId,
+                            message: `Batch ${batchIndex}: ${rowSuccess} synced, ${rowFailed} SKU conflicts (row-by-row fallback)`,
+                            type: rowFailed > 0 ? 'warning' : 'info'
+                        });
+                    } else {
+                        console.error(`[sync-manager] Products batch ${batchIndex} upsert error:`, upsertError);
+                        errors.push(`Upsert error batch ${batchIndex}: ${upsertError.message}`);
+                        await supabase.from('sync_logs').insert({
+                            job_id: jobId,
+                            message: `Failed batch ${batchIndex}/${batches.length} (${batch.length} products): ${upsertError.message}`,
+                            type: 'error'
+                        });
                     }
+                } else {
+                    productsUpserted += batch.length;
                 }
 
                 await updateProgress({
@@ -1462,8 +1618,29 @@ Deno.serve(async (req) => {
                     }
                 }
 
-                if (allPosts.length > 0) {
-                    const transformedPosts = allPosts.map((post: WordPressPost) =>
+                // Deduplicate posts by ID (in case WordPress returns duplicates across pages)
+                const seenPostIds = new Set<number>();
+                const uniquePosts = allPosts.filter((p: WordPressPost) => {
+                    if (seenPostIds.has(p.id)) {
+                        console.warn(`[sync-manager] Duplicate post ID ${p.id} found across pages`);
+                        return false;
+                    }
+                    seenPostIds.add(p.id);
+                    return true;
+                });
+
+                if (uniquePosts.length !== allPosts.length) {
+                    const duplicateCount = allPosts.length - uniquePosts.length;
+                    console.warn(`[sync-manager] Removed ${duplicateCount} duplicate post(s)`);
+                    await supabase.from('sync_logs').insert({
+                        job_id: jobId,
+                        message: `Removed ${duplicateCount} duplicate post(s) from WordPress response`,
+                        type: 'warning'
+                    });
+                }
+
+                if (uniquePosts.length > 0) {
+                    const transformedPosts = uniquePosts.map((post: WordPressPost) =>
                         transformWordPressPost(post, store.id, user.id, seoPlugin)
                     );
 

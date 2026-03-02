@@ -19,12 +19,14 @@ type PersistedFilters = {
     price_max?: string;
     sales?: string;
     seo_score?: string;
+    missing_content?: string;
 };
 
 const ALL_FILTER_KEYS: Array<keyof PersistedFilters> = [
     'search', 'page', 'pageSize', 'status', 'type',
     'category', 'ai_status', 'sync_status', 'stock',
     'price_range', 'price_min', 'price_max', 'sales', 'seo_score',
+    'missing_content',
 ];
 
 function saveFiltersToStorage(params: URLSearchParams): void {
@@ -41,7 +43,8 @@ function saveFiltersToStorage(params: URLSearchParams): void {
             price_min:    params.get('price_min')   ?? undefined,
             price_max:    params.get('price_max')   ?? undefined,
             sales:        params.get('sales')       ?? undefined,
-            seo_score:    params.get('seo_score')   ?? undefined,
+            seo_score:       params.get('seo_score')       ?? undefined,
+            missing_content: params.get('missing_content') ?? undefined,
             page:         params.has('page')     ? Number(params.get('page'))     : undefined,
             pageSize:     params.has('pageSize') ? Number(params.get('pageSize')) : undefined,
         };
@@ -83,6 +86,7 @@ type UseTableFiltersReturn = {
     setPage: (value: number) => void;
     setPageSize: (value: number) => void;
     setFilter: (key: string, value: string | null) => void;
+    setFilters: (filters: Record<string, string | null>) => void;
     resetFilters: () => void;
     resetAll: () => void;
     [key: string]: any;
@@ -175,6 +179,14 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
         updateParams({ [key]: value || undefined, page: 1 });
     }, [updateParams]);
 
+    const setFilters = useCallback((filters: Record<string, string | null>) => {
+        const updates: Record<string, any> = { page: 1 };
+        Object.entries(filters).forEach(([key, value]) => {
+            updates[key] = value || undefined;
+        });
+        updateParams(updates);
+    }, [updateParams]);
+
     const resetFilters = useCallback(() => {
         clearFiltersFromStorage();
         const current = new URLSearchParams();
@@ -199,12 +211,13 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
             setPage,
             setPageSize,
             setFilter,
+            setFilters,
             resetFilters,
             resetAll,
         };
 
         return { ...paramsObject, ...base };
-    }, [search, page, pageSize, setSearch, setPage, setPageSize, setFilter, resetFilters, resetAll, searchParams]);
+    }, [search, page, pageSize, setSearch, setPage, setPageSize, setFilter, setFilters, resetFilters, resetAll, searchParams]);
 
     return result as UseTableFiltersReturn;
 };

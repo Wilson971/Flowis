@@ -91,7 +91,19 @@ export function useGscIndexation(
             }
         },
         onError: (err: Error) => {
-            toast.error('Échec de l\'inspection', { description: err.message });
+            const isAuthError = err.message.startsWith('GSC_AUTH_ERROR:');
+            if (isAuthError) {
+                toast.error('Connexion Google expirée', {
+                    description: 'Votre accès Google Search Console a expiré. Reconnectez votre compte.',
+                    action: {
+                        label: 'Reconnecter',
+                        onClick: () => { window.location.href = '/api/gsc/oauth/authorize'; },
+                    },
+                    duration: 8000,
+                });
+            } else {
+                toast.error('Échec de l\'inspection', { description: err.message });
+            }
         },
     });
 

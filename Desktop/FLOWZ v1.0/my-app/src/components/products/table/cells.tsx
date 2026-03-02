@@ -35,13 +35,13 @@ export const ProductSEOCell = ({ product }: { product: Product }) => {
   }
 
   return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      className="cursor-pointer flex items-center justify-center"
+    <button
       onClick={() => router.push(`/app/products/${product.id}/edit#seo`)}
+      className="flex items-center justify-center w-11 h-11 rounded-lg hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+      aria-label={`Score SEO : ${displayScore}/100`}
     >
       <SeoScoreCircle score={displayScore} size={28} />
-    </motion.div>
+    </button>
   );
 };
 
@@ -93,30 +93,23 @@ export const ProductSERPCell = ({ product }: { product: Product }) => {
 export const ProductImageCell = ({ product }: { product: Product }) => {
   if (!product.image_url) {
     return (
-      <motion.div
-        whileHover={{ scale: 1.05 }}
-        className="h-12 w-12 rounded-lg border border-dashed border-border bg-muted flex items-center justify-center"
-      >
-        <Package className="h-6 w-6 text-muted-foreground" />
-      </motion.div>
+      <div className="h-10 w-10 rounded-lg border border-dashed border-border bg-muted flex items-center justify-center flex-shrink-0">
+        <Package className="h-4 w-4 text-muted-foreground/50" />
+      </div>
     );
   }
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            className="cursor-pointer"
-          >
-            <div className="h-12 w-12 relative rounded-lg overflow-hidden border border-border bg-muted">
-              <img
-                src={product.image_url}
-                alt={product.title}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          </motion.div>
+          <div className="h-10 w-10 relative rounded-lg overflow-hidden border border-border bg-muted flex-shrink-0 cursor-pointer hover:border-primary/40 transition-colors duration-150">
+            <img
+              src={product.image_url}
+              alt={product.title}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          </div>
         </TooltipTrigger>
         <TooltipContent side="right" className="p-2 max-w-none">
           <img

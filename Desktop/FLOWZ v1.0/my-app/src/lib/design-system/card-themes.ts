@@ -176,21 +176,49 @@ export const productCardThemes: Record<string, CardThemeKey> = {
  * Le hover glow est appliqué directement sur le container (pas sur une div enfant)
  * car overflow-hidden coupe le box-shadow des éléments enfants.
  */
+/**
+ * Static mapping of icon hover classes per theme.
+ * Tailwind requires static class names — dynamic concatenation breaks detection.
+ */
+const iconHoverMap: Record<CardThemeKey, string> = {
+  commerce: 'group-hover:bg-emerald-500/10 group-hover:text-emerald-600',
+  organization: 'group-hover:bg-violet-500/10 group-hover:text-violet-600',
+  analytics: 'group-hover:bg-orange-500/10 group-hover:text-orange-600',
+  sync: 'group-hover:bg-emerald-500/10 group-hover:text-emerald-600',
+  settings: 'group-hover:bg-blue-500/10 group-hover:text-blue-600',
+  media: 'group-hover:bg-pink-500/10 group-hover:text-pink-600',
+  history: 'group-hover:bg-slate-500/10 group-hover:text-slate-600',
+  relations: 'group-hover:bg-indigo-500/10 group-hover:text-indigo-600',
+  temporal: 'group-hover:bg-amber-500/10 group-hover:text-amber-600',
+  neutral: 'group-hover:bg-primary/10 group-hover:text-primary',
+  light: 'group-hover:bg-slate-200/20 group-hover:text-slate-600',
+};
+
 export function getCardThemeClasses(theme: CardThemeKey) {
   const themeConfig = cardThemes[theme];
 
   return {
-    /** Classes pour le container de la card (inclut le hover glow sémantique) */
-    container: `border-border/40 bg-card/90 backdrop-blur-lg overflow-hidden relative group hover:border-border hover:shadow-[0_0_20px_rgba(${themeConfig.glowRgba},0.12)] transition-all duration-500`,
+    /** Classes pour le container — includes themed-card-glow for hover effect */
+    container: 'border-border/40 bg-card/90 backdrop-blur-lg overflow-hidden relative group hover:border-border themed-card-glow transition-all duration-500',
+
+    /** Inline style for the container — sets --glow-rgba for the hover glow */
+    containerStyle: {
+      '--glow-rgba': themeConfig.glowRgba,
+    } as React.CSSProperties,
 
     /** Classes pour l'overlay glass reflection */
     glassReflection: 'absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-transparent pointer-events-none',
 
     /** Classes pour le gradient accent */
-    gradientAccent: `absolute inset-0 bg-gradient-to-br from-${themeConfig.gradientFrom}/[0.02] via-transparent to-${themeConfig.gradientTo}/[0.02] pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-500`,
+    gradientAccent: 'absolute inset-0 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity duration-500',
 
-    /** Classes pour l'icon container */
-    iconContainer: `w-10 h-10 rounded-lg bg-muted/80 backdrop-blur-sm flex items-center justify-center text-muted-foreground shrink-0 group-hover:bg-${themeConfig.iconHoverBg} group-hover:text-${themeConfig.iconHoverText} transition-all duration-300 border border-border/50`,
+    /** Inline style for the gradient accent (dynamic colors via CSS vars) */
+    gradientAccentStyle: {
+      backgroundImage: `linear-gradient(to bottom right, hsl(var(--${themeConfig.gradientFrom}) / 0.02), transparent, hsl(var(--${themeConfig.gradientTo}) / 0.02))`,
+    } as React.CSSProperties,
+
+    /** Classes pour l'icon container (static hover classes) */
+    iconContainer: `w-10 h-10 rounded-lg bg-muted/80 backdrop-blur-sm flex items-center justify-center text-muted-foreground shrink-0 transition-all duration-300 border border-border/50 ${iconHoverMap[theme]}`,
 
     /** Valeurs brutes pour usage manuel */
     raw: themeConfig,

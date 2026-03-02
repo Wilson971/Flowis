@@ -52,20 +52,16 @@ function batchProgressKey(batchId: string | null) {
  * A single POST replaces the previous browser-side sequential loop,
  * making batch processing resilient to tab closure / network issues.
  */
-async function dispatchBatchProcessing(batchId: string) {
-  try {
-    const res = await fetch('/api/photo-studio/process-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ batchId }),
-    });
+async function dispatchBatchProcessing(batchId: string): Promise<void> {
+  const res = await fetch('/api/photo-studio/process-batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ batchId }),
+  });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      console.error('[Studio Batch] Server dispatch failed:', data.error || res.statusText);
-    }
-  } catch (err) {
-    console.error('[Studio Batch] Server dispatch error:', err);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || res.statusText);
   }
 }
 
@@ -153,9 +149,12 @@ export function useCreateBatchJobs() {
         metadata: { batchId: result.batchId, count: result.count },
       });
 
-      // Fire-and-forget: dispatch entire batch for server-side processing.
-      // The polling UI will reflect progress as each job completes.
-      dispatchBatchProcessing(result.batchId);
+      // Dispatch batch for server-side processing — surface errors via toast
+      dispatchBatchProcessing(result.batchId).catch((err) => {
+        toast.error('Erreur de traitement batch', {
+          description: err instanceof Error ? err.message : 'Le serveur n\'a pas pu démarrer le traitement',
+        });
+      });
     },
     onError: (error: Error) => {
       toast.error('Erreur lors de la creation du batch', {

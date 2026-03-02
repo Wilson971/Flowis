@@ -7,7 +7,7 @@
  * 3. Retourner l'état de progression pour l'affichage UI
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -38,21 +38,21 @@ export function useSyncStore() {
     // Progress state
     const [progress, setProgress] = useState<SyncProgress | null>(null);
     const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
-    const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+    const channelRef = useRef<RealtimeChannel | null>(null);
+    const syncingRef = useRef(false);
 
     // Subscribe to real-time progress updates
     useEffect(() => {
         if (!activeStoreId) {
-            // Cleanup when no active sync
-            if (channel) {
-                supabase.removeChannel(channel);
-                setChannel(null);
+            if (channelRef.current) {
+                channelRef.current.unsubscribe();
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
             }
             setProgress(null);
             return;
         }
 
-        // Create channel for this store's sync progress
         const newChannel = supabase.channel(`sync_progress:${activeStoreId}`);
 
         newChannel
@@ -67,23 +67,25 @@ export function useSyncStore() {
                     timestamp: p.timestamp,
                 });
 
-                // Auto-clear progress on completion/failure
                 if (p.phase === 'completed' || p.phase === 'failed') {
                     setTimeout(() => {
+                        syncingRef.current = false;
                         setActiveStoreId(null);
-                    }, 3000); // Keep visible for 3s
+                    }, 3000);
                 }
             })
             .subscribe((status) => {
-
-
+                if (status === 'CHANNEL_ERROR') {
+                    console.warn('[useSyncStore] Channel error for store', activeStoreId);
+                }
             });
 
-        setChannel(newChannel);
+        channelRef.current = newChannel;
 
-        // Cleanup on unmount or store change
         return () => {
+            newChannel.unsubscribe();
             supabase.removeChannel(newChannel);
+            channelRef.current = null;
         };
     }, [activeStoreId, supabase]);
 
@@ -103,7 +105,12 @@ export function useSyncStore() {
             includeVariations = true,
             includePosts = false,
         }: SyncStoreParams): Promise<SyncResult> => {
-            // Set active store to start listening for progress
+            // Prevent concurrent syncs
+            if (syncingRef.current) {
+                throw new Error('A sync is already in progress');
+            }
+            syncingRef.current = true;
+
             setActiveStoreId(storeId);
             setProgress({
                 phase: 'starting',

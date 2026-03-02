@@ -46,8 +46,11 @@ export function useBatchGeneration() {
     const queryClient = useQueryClient();
     const [activeBatchId, setActiveBatchId] = useState<string | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [lastEvent, setLastEvent] = useState<BatchSSEEvent | null>(null);
-    const [progress, setProgress] = useState({ current: 0, total: 0, field: '' });
+    // Merged into a single state object → one setState per SSE event instead of two
+    const [batchState, setBatchState] = useState<{
+        lastEvent: BatchSSEEvent | null;
+        progress: { current: number; total: number; field: string };
+    }>({ lastEvent: null, progress: { current: 0, total: 0, field: '' } });
     const abortRef = useRef<AbortController | null>(null);
 
     const startGeneration = useCallback(async (params: ModularBatchRequest): Promise<ModularBatchResponse | null> => {
@@ -58,9 +61,18 @@ export function useBatchGeneration() {
         abortRef.current?.abort();
         abortRef.current = new AbortController();
 
+        // Client-side timeout: abort if no data received within 60s
+        const SSE_TIMEOUT_MS = 60_000;
+        let lastDataAt = Date.now();
+        const timeoutInterval = setInterval(() => {
+            if (Date.now() - lastDataAt > SSE_TIMEOUT_MS) {
+                abortRef.current?.abort();
+                clearInterval(timeoutInterval);
+            }
+        }, 5_000);
+
         setIsGenerating(true);
-        setLastEvent(null);
-        setProgress({ current: 0, total: params.product_ids.length, field: '' });
+        setBatchState({ lastEvent: null, progress: { current: 0, total: params.product_ids.length, field: '' } });
 
         let batchJobId = '';
         let total = params.product_ids.length;
@@ -92,10 +104,12 @@ export function useBatchGeneration() {
             const decoder = new TextDecoder();
             let buffer = '';
 
+            try {
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
+                lastDataAt = Date.now();
                 buffer += decoder.decode(value, { stream: true });
                 const blocks = buffer.split('\n\n');
                 buffer = blocks.pop() || '';
@@ -106,35 +120,33 @@ export function useBatchGeneration() {
 
                     try {
                         const event: BatchSSEEvent = JSON.parse(dataLine.slice(6));
-                        setLastEvent(event);
 
                         switch (event.type) {
                             case 'connected':
                                 batchJobId = event.batch_job_id || '';
                                 total = event.total || params.product_ids.length;
                                 setActiveBatchId(batchJobId);
+                                setBatchState((s) => ({ lastEvent: event, progress: { ...s.progress, total } }));
                                 break;
 
                             case 'product_start':
-                                setProgress((p) => ({
-                                    ...p,
-                                    current: (event.index || 1) - 1,
-                                    field: '',
+                                setBatchState((s) => ({
+                                    lastEvent: event,
+                                    progress: { ...s.progress, current: (event.index || 1) - 1, field: '' },
                                 }));
                                 break;
 
                             case 'field_start':
-                                setProgress((p) => ({
-                                    ...p,
-                                    field: event.field || '',
+                                setBatchState((s) => ({
+                                    lastEvent: event,
+                                    progress: { ...s.progress, field: event.field || '' },
                                 }));
                                 break;
 
                             case 'product_complete':
-                                setProgress((p) => ({
-                                    ...p,
-                                    current: event.index || p.current + 1,
-                                    field: '',
+                                setBatchState((s) => ({
+                                    lastEvent: event,
+                                    progress: { ...s.progress, current: event.index || s.progress.current + 1, field: '' },
                                 }));
                                 // Invalidate per-product content so draft appears immediately
                                 if (event.product_id) {
@@ -144,14 +156,14 @@ export function useBatchGeneration() {
                                 break;
 
                             case 'product_error':
-                                setProgress((p) => ({
-                                    ...p,
-                                    current: event.index || p.current + 1,
-                                    field: '',
+                                setBatchState((s) => ({
+                                    lastEvent: event,
+                                    progress: { ...s.progress, current: event.index || s.progress.current + 1, field: '' },
                                 }));
                                 break;
 
                             case 'batch_complete': {
+                                setBatchState((s) => ({ ...s, lastEvent: event }));
                                 queryClient.invalidateQueries({ queryKey: ['products'] });
                                 queryClient.invalidateQueries({ queryKey: ['product-content'] });
                                 queryClient.invalidateQueries({ queryKey: ['product'] });
@@ -186,6 +198,7 @@ export function useBatchGeneration() {
                             }
 
                             case 'error':
+                                setBatchState((s) => ({ ...s, lastEvent: event }));
                                 toast.error('Erreur de génération', {
                                     description: event.message || 'Erreur inconnue',
                                 });
@@ -197,10 +210,13 @@ export function useBatchGeneration() {
                 }
             }
 
+            } finally {
+                reader.releaseLock();
+            }
+
             return { batch_job_id: batchJobId, total };
         } catch (error: any) {
             if (error.name === 'AbortError') {
-                // User cancelled
                 toast.info('Génération annulée');
                 return null;
             }
@@ -210,6 +226,7 @@ export function useBatchGeneration() {
             });
             return null;
         } finally {
+            clearInterval(timeoutInterval);
             setIsGenerating(false);
             abortRef.current = null;
         }
@@ -226,7 +243,7 @@ export function useBatchGeneration() {
         cancel,
         activeBatchId,
         isGenerating,
-        lastEvent,
-        progress,
+        lastEvent: batchState.lastEvent,
+        progress: batchState.progress,
     };
 }

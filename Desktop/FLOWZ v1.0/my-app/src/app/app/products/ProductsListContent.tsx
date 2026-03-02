@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { Package } from 'lucide-react';
+import { Package, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ProductsTableModern } from '@/components/products/ProductsTableModern';
@@ -64,35 +65,38 @@ export function ProductsListContent() {
     // Track whether localSearch was changed by user typing (true) vs URL sync (false)
     const isUserTypingRef = useRef(false);
 
-    // Extract filter values from URL params
-    const statusFilter = params.status || 'all';
-    const typeFilter = params.type || 'all';
-    const categoryFilter = params.category || 'all';
-    const aiStatusFilter = params.ai_status || 'all';
-    const syncStatusFilter = params.sync_status || 'all';
-    const stockFilter = params.stock || 'all';
-    const priceRangeFilter = params.price_range || 'all';
-    const priceMinFilter = params.price_min || '';
-    const priceMaxFilter = params.price_max || '';
-    const salesFilter = params.sales || 'all';
-    const seoScoreFilter = params.seo_score || 'all';
+    // Derive filter values once — all primitives, safe as useMemo deps
+    const statusFilter       = params.status           || 'all';
+    const typeFilter         = params.type             || 'all';
+    const categoryFilter     = params.category         || 'all';
+    const aiStatusFilter     = params.ai_status        || 'all';
+    const syncStatusFilter   = params.sync_status      || 'all';
+    const stockFilter        = params.stock            || 'all';
+    const priceRangeFilter   = params.price_range      || 'all';
+    const priceMinFilter     = params.price_min        || '';
+    const priceMaxFilter     = params.price_max        || '';
+    const salesFilter        = params.sales            || 'all';
+    const seoScoreFilter     = params.seo_score        || 'all';
+    const missingContentFilter = params.missing_content || 'all';
 
-    // Server-side filters — debounced search is used to avoid per-keystroke queries
+    // Server-side filters — debounced search avoids per-keystroke queries
+    // Deps are all primitives so comparison is O(1) and stable
     const serverFilters = useMemo<ProductListFilters>(() => ({
-        search: debouncedSearch || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        type: typeFilter !== 'all' ? typeFilter : undefined,
-        ai_status: aiStatusFilter !== 'all' ? aiStatusFilter : undefined,
-        sync_status: syncStatusFilter !== 'all' ? syncStatusFilter : undefined,
-        stock: stockFilter !== 'all' ? stockFilter : undefined,
-        price_range: priceRangeFilter !== 'all' ? priceRangeFilter : undefined,
-        price_min: priceMinFilter || undefined,
-        price_max: priceMaxFilter || undefined,
-        sales: salesFilter !== 'all' ? salesFilter : undefined,
-        seo_score: seoScoreFilter !== 'all' ? seoScoreFilter : undefined,
+        search:          debouncedSearch || undefined,
+        status:          statusFilter     !== 'all' ? statusFilter     : undefined,
+        type:            typeFilter       !== 'all' ? typeFilter       : undefined,
+        ai_status:       aiStatusFilter   !== 'all' ? aiStatusFilter   : undefined,
+        sync_status:     syncStatusFilter !== 'all' ? syncStatusFilter : undefined,
+        stock:           stockFilter      !== 'all' ? stockFilter      : undefined,
+        price_range:     priceRangeFilter !== 'all' ? priceRangeFilter : undefined,
+        price_min:       priceMinFilter   || undefined,
+        price_max:       priceMaxFilter   || undefined,
+        sales:           salesFilter      !== 'all' ? salesFilter      : undefined,
+        seo_score:       seoScoreFilter   !== 'all' ? seoScoreFilter   : undefined,
+        missing_content: missingContentFilter !== 'all' ? missingContentFilter : undefined,
         page,
         pageSize,
-    }), [debouncedSearch, statusFilter, typeFilter, aiStatusFilter, syncStatusFilter, stockFilter, priceRangeFilter, priceMinFilter, priceMaxFilter, salesFilter, seoScoreFilter, page, pageSize]);
+    }), [debouncedSearch, statusFilter, typeFilter, aiStatusFilter, syncStatusFilter, stockFilter, priceRangeFilter, priceMinFilter, priceMaxFilter, salesFilter, seoScoreFilter, missingContentFilter, page, pageSize]);
 
     const { data: productsData, isLoading } = useProducts(selectedStore?.id, serverFilters);
     const products = productsData?.products ?? [];
@@ -112,9 +116,10 @@ export function ProductsListContent() {
     const [isBatchPanelOpen, setIsBatchPanelOpen] = useState(false);
 
     // Column Visibility with LocalStorage Persistence
+    // Colonnes secondaires masquées par défaut — accessibles via le toggle de colonnes
     const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
         STORAGE_KEYS.PRODUCTS_COLUMN_VISIBILITY,
-        { defaultValue: {} }
+        { defaultValue: { sales: false, revenue: false, serp: false } }
     );
 
     const [generationSettings, setGenerationSettings] = useState<ModularGenerationSettings>({
@@ -331,8 +336,18 @@ export function ProductsListContent() {
             const seoLabels: Record<string, string> = { excellent: 'Excellent (80+)', good: 'Bon (50–79)', low: 'Faible (<50)', none: 'Non analysé' };
             filters.push({ id: 'seo_score', label: 'SEO', value: seoLabels[seoScoreFilter] || seoScoreFilter });
         }
+        if (missingContentFilter !== 'all') {
+            const missingLabels: Record<string, string> = {
+                no_short_description: 'Sans desc. courte',
+                no_description: 'Sans desc. longue',
+                no_seo_title: 'Sans meta titre',
+                no_seo_description: 'Sans meta desc.',
+                no_sku: 'Sans SKU',
+            };
+            filters.push({ id: 'missing_content', label: 'Contenu manquant', value: missingLabels[missingContentFilter] || missingContentFilter });
+        }
         return filters;
-    }, [statusFilter, typeFilter, categoryFilter, aiStatusFilter, syncStatusFilter, stockFilter, priceRangeFilter, priceMinFilter, priceMaxFilter, salesFilter, seoScoreFilter]);
+    }, [statusFilter, typeFilter, categoryFilter, aiStatusFilter, syncStatusFilter, stockFilter, priceRangeFilter, priceMinFilter, priceMaxFilter, salesFilter, seoScoreFilter, missingContentFilter]);
 
     // Handle single filter removal
     const handleRemoveFilter = useCallback((id: string) => {
@@ -517,6 +532,39 @@ export function ProductsListContent() {
                         />
                     </CardContent>
                 </Card>
+            </motion.div>
+
+            {/* Missing Content Quick-Filter Badges */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.25 }}
+                className="flex flex-wrap items-center gap-2"
+            >
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    Contenu manquant :
+                </span>
+                {[
+                    { id: 'no_short_description', label: 'Desc. courte' },
+                    { id: 'no_description', label: 'Desc. longue' },
+                    { id: 'no_seo_title', label: 'Meta titre' },
+                    { id: 'no_seo_description', label: 'Meta desc.' },
+                    { id: 'no_sku', label: 'SKU' },
+                ].map(({ id, label }) => (
+                    <button
+                        key={id}
+                        onClick={() => setFilter('missing_content', missingContentFilter === id ? 'all' : id)}
+                        className={cn(
+                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all duration-200 cursor-pointer',
+                            missingContentFilter === id
+                                ? 'bg-destructive/15 text-destructive border-destructive/30 shadow-sm'
+                                : 'bg-muted/50 text-muted-foreground border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20'
+                        )}
+                    >
+                        {label}
+                    </button>
+                ))}
             </motion.div>
 
             {/* Batch Progress Panel */}

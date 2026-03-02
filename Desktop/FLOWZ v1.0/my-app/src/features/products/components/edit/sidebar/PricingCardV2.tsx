@@ -24,8 +24,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motionTokens } from "@/lib/design-system";
-import { ProductFormValues } from "../../schemas/product-schema";
-import { useProductEditContext } from "../../context/ProductEditContext";
+import { ProductFormValues } from "../../../schemas/product-schema";
+import { useProductEditContext } from "../../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
 

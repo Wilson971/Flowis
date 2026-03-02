@@ -56,8 +56,8 @@ export function useSyncReports(storeId: string | null, limit = 10) {
             if (jobsError) throw jobsError;
             if (!jobs || jobs.length === 0) return [];
 
-            // Fetch logs for each job
-            const reports: SyncReport[] = await Promise.all(
+            // Fetch logs for each job — use allSettled to survive partial failures
+            const results = await Promise.allSettled(
                 (jobs as SyncJob[]).map(async (job) => {
                     const { data: logs } = await supabase
                         .from('sync_logs')
@@ -67,11 +67,9 @@ export function useSyncReports(storeId: string | null, limit = 10) {
 
                     const syncLogs = (logs || []) as SyncLog[];
 
-                    // Calculate summary from logs
                     const errorCount = syncLogs.filter(l => l.type === 'error').length;
                     const warningCount = syncLogs.filter(l => l.type === 'warning').length;
 
-                    // Calculate duration
                     let durationSeconds = 0;
                     if (job.started_at && job.completed_at) {
                         const start = new Date(job.started_at).getTime();
@@ -98,7 +96,10 @@ export function useSyncReports(storeId: string | null, limit = 10) {
                 })
             );
 
-            return reports;
+            // Extract fulfilled results, skip failed log fetches
+            return results
+                .filter((r): r is PromiseFulfilledResult<SyncReport> => r.status === 'fulfilled')
+                .map(r => r.value);
         },
         enabled: !!storeId,
     });
@@ -170,7 +171,7 @@ export function useSyncReport(jobId: string | null) {
 /**
  * Hook to fetch sync logs for a job (with realtime updates if job is active)
  */
-export function useSyncLogs(jobId: string | null) {
+export function useSyncLogs(jobId: string | null, isJobActive = false) {
     const supabase = createClient();
 
     return useQuery({
@@ -188,10 +189,10 @@ export function useSyncLogs(jobId: string | null) {
             return (data || []) as SyncLog[];
         },
         enabled: !!jobId,
-        refetchInterval: (query) => {
+        refetchInterval: () => {
             if (typeof document !== 'undefined' && document.hidden) return false;
-            // Auto-refetch every 2s if job might still be active
-            return query.state.data && query.state.data.length > 0 ? 2000 : false;
+            // Only poll while job is still active
+            return isJobActive ? 2000 : false;
         },
     });
 }

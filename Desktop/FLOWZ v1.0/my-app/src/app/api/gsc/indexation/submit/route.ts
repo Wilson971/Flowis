@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
                 submitted++;
 
                 // Record in queue as submitted
-                await supabase
+                const { error: queueErr } = await supabase
                     .from('gsc_indexation_queue')
                     .upsert({
                         site_id: body.siteId,
@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
                         submitted_at: new Date().toISOString(),
                         attempts: 1,
                     }, { onConflict: 'site_id,url,action' });
+                if (queueErr) console.error('[GSC Submit] queue upsert error:', queueErr.message);
             } catch (err) {
                 errors.push({
                     url,

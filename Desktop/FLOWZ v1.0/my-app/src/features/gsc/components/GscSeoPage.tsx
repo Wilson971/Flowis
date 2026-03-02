@@ -42,6 +42,8 @@ import { GscPagesProductsTab } from "./GscPagesProductsTab";
 import { GscOpportunitesTab } from "./GscOpportunitesTab";
 import { GscPositionTrackingTab } from "./GscPositionTrackingTab";
 import { GscIndexationTab } from "./GscIndexationTab";
+import { GscSitemapTab } from "./GscSitemapTab";
+import { GscAuditTab } from "./GscAuditTab";
 
 // ============================================================================
 // Empty State
@@ -310,11 +312,7 @@ export function GscSeoPage() {
                 {/* ── Audit ── */}
                 {activeTab === "audit" && (
                     <div className="rounded-xl border border-border bg-card p-6">
-                        <PlaceholderTab
-                            icon={ShieldCheck}
-                            title="Audit SEO"
-                            description="L'audit technique de votre site sera bientôt disponible."
-                        />
+                        <GscAuditTab siteId={effectiveSiteId} />
                     </div>
                 )}
 
@@ -339,13 +337,7 @@ export function GscSeoPage() {
 
                 {/* ── Plans de site ── */}
                 {activeTab === "sitemaps" && (
-                    <div className="rounded-xl border border-border bg-card p-6">
-                        <PlaceholderTab
-                            icon={Map}
-                            title="Plans de site"
-                            description="La gestion des sitemaps sera bientôt disponible."
-                        />
-                    </div>
+                    <GscSitemapTab siteId={effectiveSiteId} />
                 )}
 
                 {/* ── Tâches ── */}

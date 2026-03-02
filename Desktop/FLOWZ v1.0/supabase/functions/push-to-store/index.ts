@@ -382,17 +382,26 @@ function validateRequest(body: unknown): PushRequest | null {
  */
 async function verifyUserId(
     supabaseUrl: string,
-    anonKey: string,
+    serviceRoleKey: string,
     authHeader: string
 ): Promise<string | null> {
     try {
-        const authClient = createClient(supabaseUrl, anonKey, {
-            global: { headers: { Authorization: authHeader } },
+        // Extract the JWT token from the Authorization header
+        const token = authHeader.replace('Bearer ', '');
+        if (!token) return null;
+
+        // Use service role client to verify the JWT via getUser(token)
+        const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+            auth: { autoRefreshToken: false, persistSession: false },
         });
-        const { data: { user }, error } = await authClient.auth.getUser();
-        if (error || !user) return null;
+        const { data: { user }, error } = await adminClient.auth.getUser(token);
+        if (error || !user) {
+            console.error('[push-to-store] verifyUserId error:', error?.message);
+            return null;
+        }
         return user.id;
-    } catch {
+    } catch (e) {
+        console.error('[push-to-store] verifyUserId exception:', e);
         return null;
     }
 }
@@ -598,7 +607,16 @@ function buildTags(
 function buildImages(
     images: ImageInput[]
 ): Array<{ id?: number; src: string; name: string; alt: string; position: number }> {
-    return images.map((img, index) => {
+    // Deduplicate by (id, src) to avoid WooCommerce rejecting duplicate image entries
+    const seen = new Set<string>();
+    const deduped = images.filter(img => {
+        const key = `${img.id ?? ''}::${img.src ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    return deduped.map((img, index) => {
         const numericId = typeof img.id === 'number'
             ? img.id
             : (typeof img.id === 'string' && /^\d+$/.test(img.id)
@@ -738,6 +756,9 @@ async function pushDirtyVariations(
                     // We just need to remove it from DB
                     deleteDbIds.push(v.id);
                 }
+                break;
+            default:
+                console.warn(`[push-to-store] Unknown dirty_action: ${v.dirty_action} for variation ${v.id}`);
                 break;
         }
     }
@@ -1118,9 +1139,9 @@ function checkTimestampConflict(
         return { shouldPush: true }; // Can't compare invalid dates, allow push
     }
 
-    // Add 2-hour tolerance to account for timezone differences between
+    // Add 5-minute tolerance to account for clock skew between
     // WooCommerce server time and our UTC timestamps
-    const TIMEZONE_TOLERANCE_MS = 2 * 60 * 60 * 1000; // 2 hours
+    const TIMEZONE_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
     if (localDate.getTime() + TIMEZONE_TOLERANCE_MS > remoteDate.getTime()) {
         return { shouldPush: true };
     }
@@ -1561,14 +1582,41 @@ async function handleArticlePush(
             const endpoint = new URL(`/wp-json/wp/v2/posts/${platformPostId}`, baseUrl);
             const auth = btoa(`${credentials.username}:${credentials.appPassword}`);
 
-            const response = await fetch(endpoint.toString(), {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Basic ${auth}`,
-                },
-                body: JSON.stringify(updateData),
-            });
+            // Timestamp conflict check (same as product push)
+            const remoteModifiedAt = (customFields.modified || customFields.date_modified) as string | null;
+            const timestampCheck = checkTimestampConflict(
+                article.updated_at,
+                remoteModifiedAt,
+                force
+            );
+
+            if (!timestampCheck.shouldPush) {
+                results.push({
+                    id: article.id,
+                    platformId: platformPostId,
+                    success: true,
+                    skipped: true,
+                    skipReason: timestampCheck.reason,
+                });
+                continue;
+            }
+
+            const articleAbortController = new AbortController();
+            const articleTimeoutId = setTimeout(() => articleAbortController.abort(), 25000);
+            let response: Response;
+            try {
+                response = await fetch(endpoint.toString(), {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${auth}`,
+                    },
+                    body: JSON.stringify(updateData),
+                    signal: articleAbortController.signal,
+                });
+            } finally {
+                clearTimeout(articleTimeoutId);
+            }
 
             if (!response.ok) {
                 results.push({
@@ -1651,7 +1699,7 @@ serve(async (req: Request) => {
 
         // Verify user identity via Supabase Auth (server-side JWT validation)
         const authHeader = req.headers.get('Authorization') || '';
-        const userId = await verifyUserId(supabaseUrl, supabaseAnonKey, authHeader);
+        const userId = await verifyUserId(supabaseUrl, supabaseServiceKey, authHeader);
 
         if (!userId) {
             return new Response(

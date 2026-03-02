@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useSelectedStore } from "@/contexts/StoreContext";
 import { useAcceptDraft, useRejectDraft } from "@/hooks/products/useProductContent";
-import { usePushToStore } from "@/hooks/products";
+import { usePushProductBatch } from "@/hooks/products";
 import { useCancelSync } from "@/hooks/sync";
 import { CancelSyncDialog } from "../CancelSyncDialog";
 import { getGeneratedFieldsTooltip, hasRemainingDraftContent, isDraftAlreadyApplied } from "@/lib/productHelpers";
@@ -41,7 +41,7 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
   const { selectedStore } = useSelectedStore();
   const { mutate: acceptDraft, isPending: isAccepting } = useAcceptDraft();
   const { mutate: rejectDraft, isPending: isRejecting } = useRejectDraft();
-  const { mutate: pushToStore, isPending: isPushing } = usePushToStore();
+  const { mutate: pushToStore, isPending: isPushing } = usePushProductBatch();
   const { mutate: cancelSync, isPending: isCanceling } = useCancelSync();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showSerpSheet, setShowSerpSheet] = useState(false);
@@ -78,131 +78,89 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="flex items-center gap-2"
+        className="flex items-center justify-end gap-1"
       >
+        {/* Context action — visible uniquement si pertinente */}
         {hasDraftContent && (
           <TooltipProvider>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-3 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-all duration-200 text-xs font-medium shadow-none outline-none"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      acceptDraft({ productId: product.id });
-                    }}
+                    className="h-7 px-2.5 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors duration-150 text-xs font-medium shadow-none"
+                    onClick={(e) => { e.stopPropagation(); acceptDraft({ productId: product.id }); }}
                     disabled={isAccepting || isRejecting}
                   >
-                    {isAccepting ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <>
-                        <Check className="h-3.5 w-3.5 mr-1.5" />
-                        Accepter
-                      </>
-                    )}
+                    {isAccepting ? <RefreshCw className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Accepter</>}
                   </Button>
                 </TooltipTrigger>
                 {generatedFieldsTooltip && (
-                  <TooltipContent>
-                    <p className="text-xs font-medium">{generatedFieldsTooltip}</p>
-                  </TooltipContent>
+                  <TooltipContent><p className="text-xs">{generatedFieldsTooltip}</p></TooltipContent>
                 )}
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="icon"
-                    variant="outline"
-                    className="h-8 w-8 bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 transition-all duration-200 shadow-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      rejectDraft({ productId: product.id });
-                    }}
+                    variant="ghost"
+                    className="h-7 w-7 text-destructive hover:bg-destructive/10 transition-colors duration-150"
+                    onClick={(e) => { e.stopPropagation(); rejectDraft({ productId: product.id }); }}
                     disabled={isAccepting || isRejecting}
                   >
-                    {isRejecting ? (
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <X className="h-3.5 w-3.5" />
-                    )}
+                    {isRejecting ? <RefreshCw className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs font-medium">Rejeter les suggestions</p>
-                </TooltipContent>
+                <TooltipContent><p className="text-xs">Rejeter</p></TooltipContent>
               </Tooltip>
             </div>
           </TooltipProvider>
         )}
         {!hasDraftContent && shouldSync(product) && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 px-3 bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 transition-all duration-200 text-xs font-semibold shadow-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              pushToStore({ product_ids: [product.id] });
-            }}
-            disabled={isPushing}
-          >
-            {isPushing ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                Sync
-              </>
-            )}
-          </Button>
-        )}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all duration-200"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  router.push(`/app/products/${product.id}/edit`);
-                }}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="text-xs font-medium">Éditer le produit</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        {storeProductUrl && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-all duration-200"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(storeProductUrl, '_blank');
-                  }}
+                  className="h-7 w-7 text-warning hover:bg-warning/10 transition-colors duration-150 opacity-0 group-hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); pushToStore({ product_ids: [product.id] }); }}
+                  disabled={isPushing}
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  {isPushing ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs font-medium">Voir en ligne</p>
-              </TooltipContent>
+              <TooltipContent><p className="text-xs">Synchroniser</p></TooltipContent>
             </Tooltip>
           </TooltipProvider>
         )}
+
+        {/* Edit — toujours visible */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors duration-150"
+                onClick={(e) => { e.stopPropagation(); router.push(`/app/products/${product.id}/edit`); }}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p className="text-xs">Éditer</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Menu overflow — reste de toutes les actions */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-200">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors duration-150 opacity-0 group-hover:opacity-100"
+            >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -219,9 +177,35 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
                 Voir en ligne
               </DropdownMenuItem>
             )}
+            {hasDraftContent && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => { acceptDraft({ productId: product.id }); }}
+                  className="text-xs font-medium text-primary"
+                >
+                  <Check className="mr-2 h-3.5 w-3.5" />
+                  Accepter le brouillon
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => { rejectDraft({ productId: product.id }); }}
+                  className="text-xs font-medium text-destructive"
+                >
+                  <X className="mr-2 h-3.5 w-3.5" />
+                  Rejeter le brouillon
+                </DropdownMenuItem>
+              </>
+            )}
             {shouldSync(product) && !hasDraftContent && (
               <>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => { pushToStore({ product_ids: [product.id] }); }}
+                  className="text-xs font-medium"
+                >
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                  Synchroniser
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   className="text-destructive text-xs font-medium"
                   onClick={() => setShowCancelDialog(true)}

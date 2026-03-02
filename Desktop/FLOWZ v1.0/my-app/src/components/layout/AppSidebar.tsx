@@ -7,7 +7,6 @@ import {
   FileText,
   Store,
   Settings,
-  ChevronDown,
   ChevronRight,
   Sparkles,
   Camera,
@@ -19,6 +18,7 @@ import {
   ListChecks,
   Map,
   ClipboardList,
+  Palette,
 } from "lucide-react";
 import { Icon } from "@iconify/react";
 import { Sidebar, SidebarBody, SidebarLink, useSidebar } from "../ui/sidebar";
@@ -67,7 +67,9 @@ function useCollapsedMenus() {
  */
 
 // Logo component
-const logoTransition = { duration: 0.2 };
+import { motionTokens } from '@/lib/design-system';
+
+const logoTransition = motionTokens.transitions.fast;
 
 const Logo = () => {
   const { open } = useSidebar();
@@ -89,7 +91,7 @@ const Logo = () => {
         <span className="text-sm font-semibold leading-none tracking-tight text-white whitespace-pre">
           FLOWIZ
         </span>
-        <span className="text-[10px] text-neutral-500 font-medium tracking-wider">Enterprise</span>
+        <span className="text-[10px] text-neutral-400 font-medium tracking-wider">Enterprise</span>
       </motion.div>
     </div>
   );
@@ -156,8 +158,8 @@ const UserProfile = () => {
             exit={{ opacity: 0, width: 0 }}
             className="flex flex-col overflow-hidden text-left"
           >
-            <span className="text-xs font-bold text-white truncate">{displayName}</span>
-            <span className="text-[10px] text-neutral-500 truncate font-medium">{role}</span>
+            <span className="text-[13px] font-semibold text-white truncate">{displayName}</span>
+            <span className="text-[10px] text-neutral-400 truncate font-medium tracking-wide">{role}</span>
           </motion.div>
         )}
       </button>
@@ -172,6 +174,10 @@ const navItems = [
     label: "Dashboard",
     href: "/app/overview",
     icon: LayoutDashboard,
+    children: [
+      { id: "dashboard-overview", label: "Vue d'ensemble", href: "/app/overview", icon: LayoutDashboard },
+      { id: "dashboard-seo", label: "SEO & Trafic", href: "/app/overview/seo", icon: BarChart3 },
+    ],
   },
   {
     id: "products",
@@ -227,6 +233,12 @@ const navItems = [
     icon: Store,
   },
   {
+    id: "design-demo",
+    label: "Design Demo",
+    href: "/app/design-demo/vercel-pro",
+    icon: Palette,
+  },
+  {
     id: "settings",
     label: "Settings",
     href: "/settings",
@@ -244,9 +256,8 @@ export const AppSidebar = () => {
 
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
-    // For paths with query params (e.g. /app/seo?tab=analytics), match base path
     const basePath = path.split("?")[0];
-    return pathname?.startsWith(basePath);
+    return pathname?.startsWith(basePath) ?? false;
   };
 
   const isExactActive = (path: string) => {
@@ -260,6 +271,7 @@ export const AppSidebar = () => {
 
       return pathname === basePath && currentTab === matchTab;
     }
+    // Exact match (not startsWith) for non-query-param paths
     return pathname === path;
   };
 
@@ -275,7 +287,7 @@ export const AppSidebar = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex flex-col gap-1" aria-label="Navigation principale">
+          <nav className="flex flex-col gap-0.5" aria-label="Navigation principale">
             {navItems.map((item) => {
               const ItemIcon = item.icon;
               const hasChildren = item.children && item.children.length > 0;
@@ -290,7 +302,7 @@ export const AppSidebar = () => {
                       link={{
                         label: item.label,
                         href: item.href,
-                        icon: <ItemIcon className="h-5 w-5 flex-shrink-0" strokeWidth={2} />,
+                        icon: <ItemIcon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={1.8} />,
                       }}
                       active={isItemActive || isChildActive}
                       onClick={(e) => {
@@ -307,14 +319,11 @@ export const AppSidebar = () => {
                       {/* Chevron for collapsible menus */}
                       {hasChildren && isOpen && (
                         <motion.div
-                          animate={{ rotate: isMenuOpen ? 180 : 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="ml-auto relative z-10"
+                          animate={{ rotate: isMenuOpen ? 90 : 0 }}
+                          transition={motionTokens.transitions.fast}
+                          className="ml-auto"
                         >
-                          <ChevronDown className={cn(
-                            "h-4 w-4 transition-colors",
-                            (isItemActive || isChildActive) ? "text-primary-foreground/70" : "text-white/40"
-                          )} />
+                          <ChevronRight className="h-3.5 w-3.5 text-neutral-500" />
                         </motion.div>
                       )}
                     </SidebarLink>
@@ -327,13 +336,10 @@ export const AppSidebar = () => {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        transition={motionTokens.transitions.fast}
                         className="overflow-hidden"
                       >
-                        <div className={cn(
-                          "flex flex-col gap-1 ml-9 mt-2 mb-2 pl-3 border-l-2 transition-colors duration-300",
-                          isChildActive ? "border-primary/50" : "border-white/10"
-                        )}>
+                        <div className="flex flex-col gap-0.5 ml-[18px] mt-1 mb-1 pl-3 border-l border-white/[0.08]">
                           {item.children?.map((child) => {
                             const ChildIcon = child.icon;
                             return (
@@ -342,13 +348,10 @@ export const AppSidebar = () => {
                                 link={{
                                   label: child.label,
                                   href: child.href,
-                                  icon: <ChildIcon className="h-4 w-4 flex-shrink-0" />,
+                                  icon: <ChildIcon className="h-3.5 w-3.5 flex-shrink-0" />,
                                 }}
                                 active={isExactActive(child.href)}
-                                className={cn(
-                                  "h-9 text-xs transition-all duration-300",
-                                  "hover:translate-x-1"
-                                )}
+                                className="h-8"
                               />
                             );
                           })}

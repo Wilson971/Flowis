@@ -1,9 +1,9 @@
 "use client";
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { DataTable } from "@/components/ui/data-table";
 import { Card, CardContent } from "@/components/ui/card";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ProductsTableModernProps, defaultStatusConfig } from "./types";
 import { createColumns } from "./columns";
@@ -20,6 +20,7 @@ export const ProductsTableModern = ({
   onColumnVisibilityChange,
 }: ProductsTableModernProps) => {
   const router = useRouter();
+  const prefersReducedMotion = useReducedMotion();
   const [isClient, setIsClient] = useState(false);
   const [sorting, setSorting] = useState<any[]>([]);
 
@@ -27,20 +28,20 @@ export const ProductsTableModern = ({
     setIsClient(true);
   }, []);
 
-  const columns = createColumns({
+  const columns = useMemo(() => createColumns({
     selectedProducts,
     products,
     onToggleSelect,
     onToggleSelectAll,
     wooCommerceStatusConfig,
     router,
-  });
+  }), [selectedProducts, products, onToggleSelect, onToggleSelectAll, wooCommerceStatusConfig, router]);
 
   const getRowClassName = (product: { id: string }) => {
     if (generatingProductIds.includes(product.id)) {
       return "relative overflow-hidden opacity-60 animate-pulse";
     }
-    return "transition-all duration-300";
+    return "group transition-colors duration-150 hover:bg-muted/40 border-l-2 border-l-transparent hover:border-l-primary/40 cursor-pointer";
   };
 
   const isRowGenerating = (product: { id: string }) => generatingProductIds.includes(product.id);
@@ -62,11 +63,11 @@ export const ProductsTableModern = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+      animate={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      <Card className="overflow-hidden border border-border">
+      <Card className="border border-border overflow-x-auto">
         <DataTable
           columns={columns}
           data={products}

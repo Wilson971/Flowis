@@ -4,9 +4,18 @@
 
 // Store display
 export { StoreCard } from './StoreCard';
+export { StoreHealthPopover } from './StoreHealthPopover';
+export { StoreSyncStatus } from './StoreSyncStatus';
+export { StoreMetricsSection } from './StoreMetricsSection';
+export { StoreQuotaBar } from './StoreQuotaBar';
 export { StoreSettingsModal } from './StoreSettingsModal';
 
+// Bento redesign
+export { StoresGlobalStats } from './StoresGlobalStats';
+export { StoreSeoRadial } from './StoreSeoRadial';
+export { StoreCompactView } from './StoreCompactView';
+export { StoreExpandedView } from './StoreExpandedView';
+
 // Store actions
-export { EditStoreModal } from './EditStoreModal';
 export { DeleteStoreDialog } from './DeleteStoreDialog';
 export { DisconnectStoreDialog } from './DisconnectStoreDialog';

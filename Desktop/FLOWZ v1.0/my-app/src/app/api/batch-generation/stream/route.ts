@@ -23,6 +23,7 @@ import {
     buildSkuPrompt,
     buildAltTextPrompt,
     parseGeminiResponse,
+    getGenerationConfig,
 } from '@/lib/ai/product-prompts';
 import type { ModularGenerationSettings } from '@/types/imageGeneration';
 import { calculateProductSeoScore } from '@/lib/seo/analyzer';
@@ -80,7 +81,8 @@ function classifyError(error: any): { retryable: boolean; code: string; message:
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB per image
 const MAX_BATCH_IMAGE_BUDGET = 50 * 1024 * 1024; // 50 MB total per batch
 const MAX_CONCURRENT_IMAGE_FETCHES = 5;
-const MAX_PRODUCTS_PER_BATCH = 100;
+const MAX_PRODUCTS_PER_BATCH = 50;
+const MAX_IMAGES_PER_PRODUCT = 5;
 
 // ============================================================================
 // GEMINI CALL WITH RETRY
@@ -89,8 +91,15 @@ const MAX_PRODUCTS_PER_BATCH = 100;
 async function callGeminiWithRetry(
     ai: GoogleGenAI,
     prompt: string,
-    imageData?: { data: string; mimeType: string } | null
+    imageData?: { data: string; mimeType: string } | null,
+    generationConfig?: { temperature: number; topP: number; frequencyPenalty: number }
 ): Promise<string> {
+    const config = generationConfig ? {
+        temperature: generationConfig.temperature,
+        topP: generationConfig.topP,
+        frequencyPenalty: generationConfig.frequencyPenalty,
+    } : undefined;
+
     for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
         try {
             let result;
@@ -105,12 +114,14 @@ async function callGeminiWithRetry(
                             { text: prompt },
                         ],
                     },
+                    config,
                 });
             } else {
                 // Text-only call
                 result = await ai.models.generateContent({
                     model: 'gemini-2.0-flash',
                     contents: prompt,
+                    config,
                 });
             }
 
@@ -270,10 +281,11 @@ export async function POST(request: NextRequest) {
             { status: 400 }
         );
     }
-    const { product_ids, content_types, settings, store_id } = validation.data;
+    const { product_ids, content_types, store_id } = validation.data;
+    const settings = validation.data.settings as unknown as ModularGenerationSettings;
 
     // Prompt injection check on user-provided text fields in settings
-    const settingsRecord = settings as Record<string, unknown>;
+    const settingsRecord = settings as unknown as Record<string, unknown>;
     const textFieldsToCheck = [
         settingsRecord?.custom_instructions,
         settingsRecord?.brand_voice,
@@ -495,10 +507,11 @@ export async function POST(request: NextRequest) {
 
                                 if (productImages.length > 0) {
                                     const draftImages: Array<{ id?: string | number; src: string; alt: string }> = [];
+                                    const cappedImages = productImages.slice(0, MAX_IMAGES_PER_PRODUCT);
 
-                                    for (let imgIdx = 0; imgIdx < productImages.length; imgIdx++) {
+                                    for (let imgIdx = 0; imgIdx < cappedImages.length; imgIdx++) {
                                         if (isClosed) break;
-                                        const img = productImages[imgIdx];
+                                        const img = cappedImages[imgIdx];
                                         const imgSrc = img.src || img.url || '';
 
                                         // Fetch each image for vision analysis (with cache + budget)
@@ -516,7 +529,8 @@ export async function POST(request: NextRequest) {
                                         const rawAlt = await callGeminiWithRetry(
                                             ai,
                                             imgPrompt,
-                                            imgBase64
+                                            imgBase64,
+                                            getGenerationConfig('alt_text')
                                         );
                                         const parsedAlt = parseGeminiResponse(rawAlt, 'alt_text');
 
@@ -535,7 +549,7 @@ export async function POST(request: NextRequest) {
                                         fallbackBase64 = await fetchImageWithBudget(productCtx.imageUrl);
                                     }
                                     const fallbackPrompt = buildPromptForField('alt_text', productCtx, settings, !!fallbackBase64);
-                                    const rawAlt = await callGeminiWithRetry(ai, fallbackPrompt, fallbackBase64);
+                                    const rawAlt = await callGeminiWithRetry(ai, fallbackPrompt, fallbackBase64, getGenerationConfig('alt_text'));
                                     const parsedAlt = parseGeminiResponse(rawAlt, 'alt_text');
                                     draft.images = [{ src: productCtx.imageUrl, alt: parsedAlt }];
                                 }
@@ -548,7 +562,7 @@ export async function POST(request: NextRequest) {
                                     store.name
                                 );
 
-                                const rawText = await callGeminiWithRetry(ai, prompt, null);
+                                const rawText = await callGeminiWithRetry(ai, prompt, null, getGenerationConfig(fieldType));
                                 const parsed = parseGeminiResponse(rawText, fieldType);
 
                                 if (fieldType === 'seo_title') {
@@ -609,7 +623,8 @@ export async function POST(request: NextRequest) {
                         await supabase
                             .from('products')
                             .update({ draft_generated_content: mergedDraft, seo_score: seoScore })
-                            .eq('id', productId);
+                            .eq('id', productId)
+                            .eq('tenant_id', user.id);
 
                         // Mark item as completed (updated_at handled by trigger)
                         await supabase
@@ -640,7 +655,8 @@ export async function POST(request: NextRequest) {
 
                     } catch (productError: any) {
                         failCount++;
-                        const errMsg = productError.message || 'Erreur inconnue';
+                        const classified = classifyError(productError);
+                        const errMsg = classified.message;
 
                         // Mark item as failed (no completed_at column in real schema)
                         await supabase
@@ -678,7 +694,7 @@ export async function POST(request: NextRequest) {
                 const finalStatus = failCount === product_ids.length
                     ? 'failed'
                     : failCount > 0
-                        ? 'completed' // partial success still marked completed
+                        ? 'partial'
                         : 'completed';
 
                 await supabase
@@ -709,10 +725,11 @@ export async function POST(request: NextRequest) {
                     })
                     .eq('id', batchJob.id);
 
+                const fatalClassified = classifyError(fatalError);
                 sendEvent({
                     type: 'error',
-                    message: fatalError.message || 'Erreur fatale',
-                    code: classifyError(fatalError).code,
+                    message: fatalClassified.message,
+                    code: fatalClassified.code,
                 });
             } finally {
                 isClosed = true;

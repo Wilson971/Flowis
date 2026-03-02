@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { styles } from "@/lib/design-system";
 import {
     Search,
     ExternalLink,
@@ -19,9 +16,14 @@ import {
     Clock,
     CheckCircle2,
     Zap,
+    Loader2,
 } from "lucide-react";
 import { useGscConnection } from "@/hooks/integrations/useGscConnection";
 import { useGscIndexationSettings } from "@/hooks/integrations/useGscIndexationSettings";
+import {
+    SettingsCard,
+    SettingsHeader,
+} from "@/components/settings/ui/SettingsCard";
 
 // ─── Per-site auto-indexation settings row ────────────────────────────────────
 
@@ -55,16 +57,16 @@ function SiteAutoIndexSettings({ siteId, siteUrl }: { siteId: string; siteUrl: s
     };
 
     return (
-        <div className="pt-3 mt-3 border-t border-border/10 space-y-3">
+        <div className="pt-3 mt-3 border-t border-border/30 space-y-3">
             <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                <Zap className="h-3.5 w-3.5 text-primary" />
+                <Zap className="h-3.5 w-3.5 text-foreground/70" />
                 Auto-indexation
             </p>
 
             <div className="space-y-2.5">
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-0.5">
-                        <Label className="text-xs font-medium">Indexer les nouvelles pages</Label>
+                        <Label className="text-[13px] font-medium">Indexer les nouvelles pages</Label>
                         <p className="text-[11px] text-muted-foreground leading-snug">
                             Les nouvelles URLs détectées dans le sitemap seront automatiquement soumises à Google.
                         </p>
@@ -74,7 +76,7 @@ function SiteAutoIndexSettings({ siteId, siteUrl }: { siteId: string; siteUrl: s
 
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-0.5">
-                        <Label className="text-xs font-medium">Indexer les pages mises à jour</Label>
+                        <Label className="text-[13px] font-medium">Indexer les pages mises à jour</Label>
                         <p className="text-[11px] text-muted-foreground leading-snug">
                             Quand une page est modifiée (lastmod dans le sitemap), elle sera re-soumise à Google.
                         </p>
@@ -88,7 +90,7 @@ function SiteAutoIndexSettings({ siteId, siteUrl }: { siteId: string; siteUrl: s
                     size="sm"
                     onClick={handleSave}
                     disabled={isUpdating}
-                    className="h-7 text-xs gap-1.5"
+                    className="h-7 text-[11px] rounded-lg gap-1.5 font-medium"
                 >
                     {isUpdating ? <RefreshCw className="h-3 w-3 animate-spin" /> : null}
                     Enregistrer
@@ -135,9 +137,8 @@ export default function GscSettingsSection() {
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <div>
-                    <h2 className={cn(styles.text.h3)}>Google Search Console</h2>
-                    <p className={cn(styles.text.bodyMuted, "mt-1")}>Chargement...</p>
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
             </div>
         );
@@ -145,169 +146,147 @@ export default function GscSettingsSection() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className={cn(styles.text.h3)}>Google Search Console</h2>
-                <p className={cn(styles.text.bodyMuted, "mt-1")}>
-                    Connectez votre Google Search Console pour récupérer les données de mots-clés réels et améliorer vos scores SEO.
-                </p>
-            </div>
-
             {!isConnected ? (
-                <Card className={cn(styles.card.base)}>
-                    <CardContent className="p-6">
-                        <div className="flex flex-col items-center text-center gap-4 py-6">
-                            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                                <Search className="h-7 w-7 text-primary" />
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className={cn(styles.text.h4)}>Connecter Google Search Console</h3>
-                                <p className={cn(styles.text.bodyMuted, "max-w-md")}>
-                                    Accédez aux données réelles de recherche Google : mots-clés, impressions, clics, position moyenne.
-                                </p>
-                            </div>
-                            <div className="flex flex-col gap-2 text-left text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                    Mots-clés réels de votre boutique
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                    Suggestions IA basées sur les vraies recherches
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                    Score SEO enrichi avec les données de trafic
-                                </div>
-                            </div>
-                            <Button onClick={handleConnect} className="mt-2 gap-2">
-                                <ExternalLink className="h-4 w-4" />
-                                Connecter GSC
-                            </Button>
-                            <p className="text-[11px] text-muted-foreground">
-                                Accès en lecture seule. Nous ne modifions jamais vos données Search Console.
+                <SettingsCard>
+                    <div className="flex flex-col items-center text-center gap-4 py-6">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/60 ring-1 ring-border/50">
+                            <Search className="h-7 w-7 text-foreground/70" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-[15px] font-semibold tracking-tight">Connecter Google Search Console</h3>
+                            <p className="text-xs text-muted-foreground max-w-md">
+                                Accédez aux données réelles de recherche Google : mots-clés, impressions, clics, position moyenne.
                             </p>
                         </div>
-                    </CardContent>
-                </Card>
+                        <div className="flex flex-col gap-2 text-left text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                Mots-clés réels de votre boutique
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                Suggestions IA basées sur les vraies recherches
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                Score SEO enrichi avec les données de trafic
+                            </div>
+                        </div>
+                        <Button onClick={handleConnect} className="mt-2 h-8 text-[11px] rounded-lg gap-1.5 font-medium">
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Connecter GSC
+                        </Button>
+                        <p className="text-[11px] text-muted-foreground">
+                            Accès en lecture seule. Nous ne modifions jamais vos données Search Console.
+                        </p>
+                    </div>
+                </SettingsCard>
             ) : (
                 <div className="space-y-4">
-                    {/* Connection header */}
-                    <Card className={cn(styles.card.base)}>
-                        <CardHeader>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                        <Search className="h-5 w-5 text-emerald-500" />
-                                    </div>
-                                    <div>
-                                        <CardTitle className="text-base">Google Search Console</CardTitle>
-                                        <CardDescription className="text-xs">
-                                            {connections.length} site{connections.length > 1 ? "s" : ""} connecté{connections.length > 1 ? "s" : ""}
-                                        </CardDescription>
-                                    </div>
-                                </div>
-                                <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                                    Connecté
-                                </Badge>
+                    {/* Connection header card */}
+                    <SettingsCard>
+                        <SettingsHeader
+                            icon={Search}
+                            title="Google Search Console"
+                            description={`${connections.length} site${connections.length > 1 ? "s" : ""} connecté${connections.length > 1 ? "s" : ""}`}
+                        >
+                            <Badge className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-emerald-500/10 text-emerald-600">
+                                Connecté
+                            </Badge>
+                        </SettingsHeader>
+
+                        {activeConnection?.email && (
+                            <div className="flex items-center gap-2 text-sm mt-4 pt-4 border-t border-border/30">
+                                <Mail className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground">Compte :</span>
+                                <span className="text-[13px] font-medium">{activeConnection.email}</span>
                             </div>
-                        </CardHeader>
-                        <CardContent className="pt-0 space-y-2">
-                            {activeConnection?.email && (
-                                <div className="flex items-center gap-2 text-sm">
-                                    <Mail className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-muted-foreground">Compte :</span>
-                                    <span className="font-medium">{activeConnection.email}</span>
-                                </div>
-                            )}
-                            <p className="text-[11px] text-muted-foreground">
-                                Les données sont synchronisées automatiquement toutes les 6 heures.
-                                Les données GSC ont un délai de 2-3 jours par rapport au temps réel.
-                            </p>
-                        </CardContent>
-                    </Card>
+                        )}
+                        <p className="text-[11px] text-muted-foreground mt-2">
+                            Les données sont synchronisées automatiquement toutes les 6 heures.
+                            Les données GSC ont un délai de 2-3 jours par rapport au temps réel.
+                        </p>
+                    </SettingsCard>
 
                     {/* Per-site cards */}
                     {connections.map((conn) => (
-                        <Card key={conn.site_id} className={cn(styles.card.base)}>
-                            <CardContent className="p-4 space-y-0">
-                                {/* Site header */}
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-sm font-medium">
-                                        <Globe className="h-4 w-4 text-primary" />
-                                        {conn.site_url}
-                                    </div>
-                                    <Badge
-                                        variant="outline"
-                                        className={cn(
-                                            "text-[10px]",
-                                            conn.is_active
-                                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                                : "bg-muted text-muted-foreground"
-                                        )}
-                                    >
-                                        {conn.is_active ? "Actif" : "Inactif"}
-                                    </Badge>
+                        <SettingsCard key={conn.site_id} noPadding className="p-4">
+                            {/* Site header */}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-[13px] font-medium">
+                                    <Globe className="h-4 w-4 text-muted-foreground/60" />
+                                    {conn.site_url}
                                 </div>
+                                <Badge
+                                    className={cn(
+                                        "h-5 rounded-full px-2 text-[10px] font-medium border-0",
+                                        conn.is_active
+                                            ? "bg-emerald-500/10 text-emerald-600"
+                                            : "bg-muted text-muted-foreground"
+                                    )}
+                                >
+                                    {conn.is_active ? "Actif" : "Inactif"}
+                                </Badge>
+                            </div>
 
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-                                    <Clock className="h-3.5 w-3.5" />
-                                    Dernière sync : {formatDate(conn.last_synced_at || null)}
-                                </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                                <Clock className="h-3.5 w-3.5" />
+                                Dernière sync : {formatDate(conn.last_synced_at || null)}
+                            </div>
 
-                                <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border/10">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => sync({ siteId: conn.site_id })}
-                                        disabled={isSyncing}
-                                        className="gap-1.5 h-7 text-xs"
-                                    >
-                                        <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
-                                        Synchroniser
-                                    </Button>
+                            <div className="flex items-center gap-2 pt-3 mt-3 border-t border-border/30">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => sync({ siteId: conn.site_id })}
+                                    disabled={isSyncing}
+                                    className="h-7 text-[11px] rounded-lg gap-1.5 font-medium"
+                                >
+                                    <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
+                                    Synchroniser
+                                </Button>
 
-                                    {confirmingDisconnect === conn.connection_id ? (
-                                        <div className="flex items-center gap-1.5 ml-auto">
-                                            <span className="text-xs text-muted-foreground">Confirmer ?</span>
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                className="h-7 text-xs px-2.5"
-                                                disabled={isDisconnecting}
-                                                onClick={() => {
-                                                    disconnect(conn.connection_id);
-                                                    setConfirmingDisconnect(null);
-                                                }}
-                                            >
-                                                {isDisconnecting ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Oui, supprimer"}
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 text-xs px-2"
-                                                onClick={() => setConfirmingDisconnect(null)}
-                                            >
-                                                Annuler
-                                            </Button>
-                                        </div>
-                                    ) : (
+                                {confirmingDisconnect === conn.connection_id ? (
+                                    <div className="flex items-center gap-1.5 ml-auto">
+                                        <span className="text-xs text-muted-foreground">Confirmer ?</span>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            className="h-7 text-[11px] rounded-lg px-2.5"
+                                            disabled={isDisconnecting}
+                                            onClick={() => {
+                                                disconnect(conn.connection_id);
+                                                setConfirmingDisconnect(null);
+                                            }}
+                                        >
+                                            {isDisconnecting ? <RefreshCw className="h-3 w-3 animate-spin" /> : "Oui, supprimer"}
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="text-destructive hover:text-destructive gap-1.5 ml-auto h-7 text-xs"
-                                            disabled={isDisconnecting}
-                                            onClick={() => setConfirmingDisconnect(conn.connection_id)}
+                                            className="h-7 text-[11px] rounded-lg px-2"
+                                            onClick={() => setConfirmingDisconnect(null)}
                                         >
-                                            <Trash2 className="h-3 w-3" />
-                                            Déconnecter
+                                            Annuler
                                         </Button>
-                                    )}
-                                </div>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-destructive hover:text-destructive gap-1.5 ml-auto h-7 text-[11px] rounded-lg"
+                                        disabled={isDisconnecting}
+                                        onClick={() => setConfirmingDisconnect(conn.connection_id)}
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                        Déconnecter
+                                    </Button>
+                                )}
+                            </div>
 
-                                {/* Auto-indexation settings */}
-                                <SiteAutoIndexSettings siteId={conn.site_id} siteUrl={conn.site_url} />
-                            </CardContent>
-                        </Card>
+                            {/* Auto-indexation settings */}
+                            <SiteAutoIndexSettings siteId={conn.site_id} siteUrl={conn.site_url} />
+                        </SettingsCard>
                     ))}
                 </div>
             )}

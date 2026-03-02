@@ -33,14 +33,26 @@ export function ProductsPagination({
     onPageSizeChange,
     className,
 }: ProductsPaginationProps) {
+    const startItem = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
     return (
-        <div className={cn("flex items-center justify-between px-2 py-4", className)}>
+        <div className={cn("flex items-center justify-between px-4 py-3", className)}>
             <div className="flex-1 text-sm text-muted-foreground">
-                {totalItems} produit{totalItems > 1 ? "s" : ""} au total
+                {totalItems === 0 ? (
+                    "Aucun produit"
+                ) : (
+                    <>
+                        <span className="font-medium text-foreground">{startItem}–{endItem}</span>
+                        {" "}sur{" "}
+                        <span className="font-medium text-foreground">{totalItems.toLocaleString('fr-FR')}</span>
+                        {" "}produit{totalItems > 1 ? "s" : ""}
+                    </>
+                )}
             </div>
             <div className="flex items-center space-x-6 lg:space-x-8">
                 <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium">Lignes par page</p>
+                    <p className="text-sm text-muted-foreground hidden sm:block">Lignes</p>
                     <Select
                         value={`${pageSize}`}
                         onValueChange={(value) => {
@@ -59,8 +71,10 @@ export function ProductsPagination({
                         </SelectContent>
                     </Select>
                 </div>
-                <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Page {currentPage} sur {totalPages}
+                <div className="flex items-center justify-center text-sm text-muted-foreground whitespace-nowrap">
+                    <span className="font-medium text-foreground">{currentPage}</span>
+                    <span className="mx-1">/</span>
+                    <span>{totalPages}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                     <Button

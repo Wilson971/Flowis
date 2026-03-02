@@ -64,6 +64,9 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
         ai_optimized_products: 0,
         seo_avg_score_prev_month: null,
         ai_optimized_prev_month: null,
+        review_blog_posts: 0,
+        scheduled_blog_posts: 0,
+        last_blog_created_at: null,
       };
 
       // Construct Context
@@ -122,7 +125,9 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
           totalArticles: Number(stat.total_blog_posts),
           publishedCount: Number(stat.published_blog_posts),
           draftCount: Number(stat.draft_blog_posts),
-          lastCreatedAt: stat.last_sync_date
+          reviewCount: Number(stat.review_blog_posts ?? 0),
+          scheduledCount: Number(stat.scheduled_blog_posts ?? 0),
+          lastCreatedAt: stat.last_blog_created_at ?? stat.last_sync_date,
         },
         // Real last sync from stores.last_synced_at
         storeLastSyncedAt: stat.store_last_synced_at ?? null,
@@ -138,6 +143,7 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
   });
 
   // Upsert daily KPI snapshot once per store per day
+  // supabase client excluded from deps — it's a stable singleton per the client module
   useEffect(() => {
     if (!effectiveStoreId || isLoading) return;
     const key = `snapshot-${effectiveStoreId}-${new Date().toISOString().slice(0, 10)}`;
@@ -147,7 +153,8 @@ export const useDashboardKPIs = (period: KPIPeriod = 'current_month', storeId?: 
         if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
       })
       .catch(() => { /* silent — snapshot is best-effort */ });
-  }, [effectiveStoreId, isLoading, supabase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveStoreId, isLoading]);
 
   return {
     context: data?.context,

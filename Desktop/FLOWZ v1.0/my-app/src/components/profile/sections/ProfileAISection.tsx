@@ -5,10 +5,11 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { styles, motionTokens } from '@/lib/design-system';
+import { motionTokens } from '@/lib/design-system';
 import { motion } from 'framer-motion';
 import { Loader2, Sparkles, Languages, PenLine, Mic2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/profile/useUserProfile';
+import { SettingsCard, SettingsHeader } from '@/components/settings/ui/SettingsCard';
 
 const AI_LANGUAGES = [
   { code: 'fr', label: 'Français' },
@@ -82,53 +83,48 @@ export function ProfileAISection() {
       initial="hidden"
       animate="visible"
     >
-      <motion.div variants={motionTokens.variants.staggerItem} className="space-y-1">
-        <h2 className={styles.text.h2}>Intelligence Artificielle</h2>
-        <p className={styles.text.bodyMuted}>
-          Configurez les valeurs par défaut de FloWriter.
-        </p>
-      </motion.div>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-5">
+          <SettingsHeader
+            icon={Sparkles}
+            title="Paramètres FloWriter par défaut"
+            description="Pré-remplissent automatiquement le wizard de génération."
+          />
 
-      <motion.div variants={motionTokens.variants.staggerItem} className={cn(styles.card.glass, 'p-6 space-y-5')}>
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, 'bg-primary/10')}>
-            <Sparkles className="h-4 w-4 text-primary" />
+          <div className="space-y-4">
+            {aiFields.map(({ label, icon: Icon, value, onChange, options }) => (
+              <div key={label} className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground/60" />
+                  <span className="text-[13px] font-medium text-foreground">{label}</span>
+                </Label>
+                <Select value={value} onValueChange={onChange}>
+                  <SelectTrigger className="rounded-lg">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {options.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
           </div>
-          <div>
-            <h3 className={styles.text.h4}>Paramètres FloWriter par défaut</h3>
-            <p className={styles.text.bodySmall}>Pré-remplissent automatiquement le wizard de génération.</p>
+
+          <div className="flex justify-end pt-2 border-t border-border/40">
+            <Button
+              onClick={handleSave}
+              disabled={updateProfile.isPending}
+              className="h-8 text-[11px] rounded-lg gap-1.5 font-medium"
+            >
+              {updateProfile.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Enregistrer les préférences
+            </Button>
           </div>
-        </div>
-
-        <div className="space-y-4">
-          {aiFields.map(({ label, icon: Icon, value, onChange, options }) => (
-            <div key={label} className="space-y-1.5">
-              <Label className="flex items-center gap-1.5 text-sm font-medium">
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                {label}
-              </Label>
-              <Select value={value} onValueChange={onChange}>
-                <SelectTrigger className="rounded-lg">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end pt-2 border-t border-border/40">
-          <Button onClick={handleSave} disabled={updateProfile.isPending} className="rounded-lg">
-            {updateProfile.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Enregistrer les préférences
-          </Button>
-        </div>
+        </SettingsCard>
       </motion.div>
     </motion.div>
   );

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type {
   WorkspaceMember,
+  WorkspaceInvitation,
   InviteMemberParams,
   UpdateMemberRoleParams,
   RemoveMemberParams,
@@ -47,77 +48,92 @@ export function useWorkspaceMembers(workspaceId: string | undefined) {
   })
 }
 
+export function useWorkspaceInvitations(workspaceId: string | undefined) {
+  const supabase = createClient()
+
+  return useQuery({
+    queryKey: ['workspace-invitations', workspaceId],
+    queryFn: async (): Promise<WorkspaceInvitation[]> => {
+      if (!workspaceId) return []
+
+      const { data, error } = await supabase
+        .from('workspace_invitations')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      return (data || []) as WorkspaceInvitation[]
+    },
+    enabled: !!workspaceId,
+  })
+}
+
 export function useInviteMember() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
 
   return useMutation({
     mutationFn: async ({ workspaceId, email, role }: InviteMemberParams) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
+      const res = await fetch('/api/workspace/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId, email, role }),
+      })
 
-      // Look up user by email in profiles
-      const { data: targetProfile, error: lookupError } = await supabase
-        .from('profiles')
-        .select('id, email, full_name')
-        .eq('email', email)
-        .single()
+      const data = await res.json()
 
-      if (lookupError || !targetProfile) {
-        throw new Error(`Aucun utilisateur trouvé avec l'email ${email}`)
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'invitation')
       }
 
-      // Check if already a member
-      const { data: existing } = await supabase
-        .from('workspace_members')
-        .select('id, status')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', targetProfile.id)
-        .single()
-
-      if (existing && existing.status === 'active') {
-        throw new Error('Cet utilisateur est déjà membre du workspace')
-      }
-
-      // If previously removed, re-activate
-      if (existing && existing.status === 'suspended') {
-        const { error: updateError } = await supabase
-          .from('workspace_members')
-          .update({
-            role: role as WorkspaceRole,
-            status: 'active',
-            invited_by: user.id,
-            invited_at: new Date().toISOString(),
-            accepted_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id)
-
-        if (updateError) throw updateError
-        return
-      }
-
-      // Insert new member
-      const { error: insertError } = await supabase
-        .from('workspace_members')
-        .insert({
-          workspace_id: workspaceId,
-          user_id: targetProfile.id,
-          role: role as WorkspaceRole,
-          status: 'active',
-          invited_by: user.id,
-          accepted_at: new Date().toISOString(),
-        })
-
-      if (insertError) throw insertError
+      return data as { type: 'direct' | 'invitation'; warning?: string }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['workspace-members', variables.workspaceId] })
-      toast.success('Membre ajouté avec succès')
+      queryClient.invalidateQueries({ queryKey: ['workspace-invitations', variables.workspaceId] })
+      if (result?.type === 'invitation') {
+        if (result.warning) {
+          toast.warning('Invitation créée', {
+            description: result.warning,
+          })
+        } else {
+          toast.success('Invitation envoyée par email', {
+            description: `${variables.email} recevra un lien pour rejoindre le workspace`,
+          })
+        }
+      } else {
+        toast.success('Membre ajouté avec succès')
+      }
     },
     onError: (error: Error) => {
       toast.error('Erreur lors de l\'invitation', {
         description: error.message,
       })
+    },
+  })
+}
+
+export function useCancelInvitation() {
+  const queryClient = useQueryClient()
+  const supabase = createClient()
+
+  return useMutation({
+    mutationFn: async ({ invitationId, workspaceId }: { invitationId: string; workspaceId: string }) => {
+      const { error } = await supabase
+        .from('workspace_invitations')
+        .update({ status: 'cancelled' })
+        .eq('id', invitationId)
+
+      if (error) throw error
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-invitations', variables.workspaceId] })
+      toast.success('Invitation annulée')
+    },
+    onError: (error: Error) => {
+      toast.error('Erreur', { description: error.message })
     },
   })
 }
@@ -128,7 +144,6 @@ export function useUpdateMemberRole() {
 
   return useMutation({
     mutationFn: async ({ memberId, workspaceId, role }: UpdateMemberRoleParams) => {
-      // Guard: Cannot change owner role
       const { data: member } = await supabase
         .from('workspace_members')
         .select('role')
@@ -139,7 +154,6 @@ export function useUpdateMemberRole() {
         throw new Error('Impossible de modifier le rôle du propriétaire')
       }
 
-      // Guard: Cannot promote to owner
       if (role === 'owner') {
         throw new Error('Le transfert de propriété n\'est pas disponible')
       }
@@ -169,7 +183,6 @@ export function useRemoveMember() {
 
   return useMutation({
     mutationFn: async ({ memberId, workspaceId }: RemoveMemberParams) => {
-      // Guard: Cannot remove owner
       const { data: member } = await supabase
         .from('workspace_members')
         .select('role')
@@ -182,7 +195,7 @@ export function useRemoveMember() {
 
       const { error } = await supabase
         .from('workspace_members')
-        .update({ status: 'suspended' as const })
+        .update({ status: 'suspended' })
         .eq('id', memberId)
 
       if (error) throw error

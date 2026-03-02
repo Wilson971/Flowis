@@ -175,8 +175,17 @@ export function useUnifiedSync() {
         throw new Error(`Failed to queue sync: ${insertError.message}`);
       }
 
-      // Update product sync status
-      const queuedProductIds = jobs.map((j) => j.product_id);
+      // Validate all jobs were inserted
+      if (!insertedJobs || insertedJobs.length !== jobs.length) {
+        const inserted = insertedJobs?.length ?? 0;
+        console.warn(`[useUnifiedSync] Partial insert: ${inserted}/${jobs.length} jobs created`);
+        result.errors.push(`Only ${inserted}/${jobs.length} jobs were queued`);
+      }
+
+      // Update product sync status — only for actually inserted jobs
+      const queuedProductIds = insertedJobs
+        ? insertedJobs.map((j) => j.product_id)
+        : jobs.map((j) => j.product_id);
 
       await supabase
         .from('products')

@@ -41,7 +41,7 @@ const structureOptionsSchema = z.object({
     benefits_count: z.number().int().min(1).max(20).default(5),
     specs_table: z.boolean().default(false),
     cta: z.boolean().default(true),
-    blocks: z.array(z.any()).optional(),
+    blocks: z.array(z.record(z.string(), z.unknown())).max(20).optional(),
     useBlockBuilder: z.boolean().optional(),
 });
 

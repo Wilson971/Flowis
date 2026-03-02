@@ -27,6 +27,7 @@ export interface HoverEffectDescriptor {
   translateY?: number;
   scale?: number;
   boxShadow?: string;
+  shadow?: string;  // semantic shadow level ("lg", "xl", etc.)
 }
 
 export interface HoverEffectPickerProps {

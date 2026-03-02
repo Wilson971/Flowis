@@ -19,6 +19,10 @@ import {
   CheckCircle2,
   Clock,
   ArrowUpDown,
+  PenLine,
+  EyeOff,
+  Globe,
+  Ban,
 } from "lucide-react";
 import { Product } from "./types";
 import { ProductSEOCell, ProductSERPCell, ProductImageCell } from "./cells";
@@ -132,19 +136,29 @@ export function createColumns({
         const status = metadata.status || 'draft';
         const config = wooCommerceStatusConfig[status] || { label: status, variant: "neutral" };
 
+        const statusIcon: Record<string, React.ReactNode> = {
+          success: <CheckCircle2 className="h-3 w-3" />,
+          warning: <Clock className="h-3 w-3" />,
+          info:    <Globe className="h-3 w-3" />,
+          neutral: <PenLine className="h-3 w-3" />,
+          error:   <Ban className="h-3 w-3" />,
+        };
+
         return (
-          <div className="flex items-center gap-2">
-            <div className={cn(
-              "h-2 w-2 rounded-full",
-              config.variant === "success" && "bg-success",
-              config.variant === "warning" && "bg-warning",
-              config.variant === "info" && "bg-info",
-              config.variant === "neutral" && "bg-muted-foreground/30"
-            )} />
-            <span className="text-sm text-muted-foreground font-medium">
-              {config.label}
-            </span>
-          </div>
+          <Badge
+            variant="outline"
+            className={cn(
+              "inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium border shadow-none rounded-full",
+              config.variant === "success" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+              config.variant === "warning" && "bg-amber-500/10 text-amber-600 border-amber-500/20",
+              config.variant === "info"    && "bg-blue-500/10 text-blue-600 border-blue-500/20",
+              config.variant === "neutral" && "bg-muted/60 text-muted-foreground border-border/50",
+              config.variant === "error"   && "bg-destructive/10 text-destructive border-destructive/20",
+            )}
+          >
+            {statusIcon[config.variant] ?? statusIcon.neutral}
+            {config.label}
+          </Badge>
         );
       },
     },

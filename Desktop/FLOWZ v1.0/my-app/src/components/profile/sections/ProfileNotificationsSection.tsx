@@ -4,10 +4,11 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { styles, motionTokens } from '@/lib/design-system';
+import { motionTokens } from '@/lib/design-system';
 import { motion } from 'framer-motion';
 import { Shield, Mail, Bell } from 'lucide-react';
 import { useUserProfile } from '@/hooks/profile/useUserProfile';
+import { SettingsCard, SettingsHeader } from '@/components/settings/ui/SettingsCard';
 
 export function ProfileNotificationsSection() {
   const { profile, updateProfile } = useUserProfile();
@@ -65,50 +66,45 @@ export function ProfileNotificationsSection() {
       initial="hidden"
       animate="visible"
     >
-      <motion.div variants={motionTokens.variants.staggerItem} className="space-y-1">
-        <h2 className={styles.text.h2}>Notifications</h2>
-        <p className={styles.text.bodyMuted}>Gérez vos préférences de notifications.</p>
-      </motion.div>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-5">
+          <SettingsHeader
+            icon={Bell}
+            title="Canaux de notification"
+            description="Choisissez comment vous souhaitez être notifié."
+          />
 
-      <motion.div variants={motionTokens.variants.staggerItem} className={cn(styles.card.glass, 'p-6')}>
-        <div className="flex items-center gap-3 mb-5">
-          <div className={cn(styles.iconContainer.sm, 'bg-primary/10')}>
-            <Bell className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className={styles.text.h4}>Canaux de notification</h3>
-            <p className={styles.text.bodySmall}>Choisissez comment vous souhaitez être notifié.</p>
-          </div>
-        </div>
-
-        <div className="space-y-1 divide-y divide-border/40">
-          {rows.map(({ key, icon: Icon, label, description, value, disabled, badge }) => (
-            <div key={label} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
-              <div className="flex items-start gap-3 flex-1 min-w-0 pr-4">
-                <div className={cn(styles.iconContainer.sm, 'bg-muted/60 shrink-0 mt-0.5')}>
-                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Label className={cn(styles.text.label, disabled && 'text-muted-foreground')}>
-                      {label}
-                    </Label>
-                    {badge && (
-                      <Badge variant="secondary" className="text-[10px]">{badge}</Badge>
-                    )}
+          <div className="divide-y divide-border/40">
+            {rows.map(({ key, icon: Icon, label, description, value, disabled, badge }) => (
+              <div key={label} className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+                <div className="flex items-start gap-3 flex-1 min-w-0 pr-4">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60 ring-1 ring-border/40 shrink-0">
+                    <Icon className="h-3.5 w-3.5 text-foreground/70" />
                   </div>
-                  <p className={cn(styles.text.bodySmall, 'mt-0.5')}>{description}</p>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Label className={cn('text-[13px] font-medium text-foreground', disabled && 'text-muted-foreground')}>
+                        {label}
+                      </Label>
+                      {badge && (
+                        <Badge variant="secondary" className="h-5 rounded-full px-2 text-[10px] font-medium border-0">
+                          {badge}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                  </div>
                 </div>
+                <Switch
+                  checked={value}
+                  disabled={disabled || updateProfile.isPending}
+                  onCheckedChange={key ? (v) => handleToggle(key, v) : undefined}
+                  className="shrink-0"
+                />
               </div>
-              <Switch
-                checked={value}
-                disabled={disabled || updateProfile.isPending}
-                onCheckedChange={key ? (v) => handleToggle(key, v) : undefined}
-                className="shrink-0"
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </SettingsCard>
       </motion.div>
     </motion.div>
   );

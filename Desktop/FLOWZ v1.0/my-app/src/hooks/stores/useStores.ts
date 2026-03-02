@@ -310,3 +310,125 @@ export function useDeleteStore() {
         },
     });
 }
+
+/**
+ * Pause a store (sets paused_at = now)
+ */
+export function usePauseStore() {
+    const queryClient = useQueryClient();
+    const supabase = createClient();
+
+    return useMutation({
+        mutationFn: async (storeId: string) => {
+            const { error } = await supabase
+                .from('stores')
+                .update({ paused_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                .eq('id', storeId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stores'] });
+            toast.success('Boutique mise en pause');
+        },
+        onError: (error: Error) => {
+            toast.error('Erreur', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Resume a store (clears paused_at)
+ */
+export function useResumeStore() {
+    const queryClient = useQueryClient();
+    const supabase = createClient();
+
+    return useMutation({
+        mutationFn: async (storeId: string) => {
+            const { error } = await supabase
+                .from('stores')
+                .update({ paused_at: null, updated_at: new Date().toISOString() })
+                .eq('id', storeId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stores'] });
+            toast.success('Boutique reprise');
+        },
+        onError: (error: Error) => {
+            toast.error('Erreur', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Duplicate a store (copies name + platform, no credentials)
+ */
+export function useDuplicateStore() {
+    const queryClient = useQueryClient();
+    const supabase = createClient();
+
+    return useMutation({
+        mutationFn: async (storeId: string) => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Non authentifié');
+
+            const { data: source, error: fetchErr } = await supabase
+                .from('stores')
+                .select('name, platform, description, currency, primary_language, country_code')
+                .eq('id', storeId)
+                .single();
+            if (fetchErr) throw fetchErr;
+
+            const { data, error } = await supabase
+                .from('stores')
+                .insert({
+                    tenant_id: user.id,
+                    name: `Copie de ${source.name}`,
+                    platform: source.platform,
+                    description: source.description,
+                    currency: source.currency,
+                    primary_language: source.primary_language,
+                    country_code: source.country_code,
+                    active: false,
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            return data as Store;
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['stores'] });
+            toast.success('Boutique dupliquée', {
+                description: `"${data.name}" créée — configurez les identifiants API.`,
+            });
+        },
+        onError: (error: Error) => {
+            toast.error('Erreur de duplication', { description: error.message });
+        },
+    });
+}
+
+/**
+ * Toggle active state of a store
+ */
+export function useToggleActive() {
+    const queryClient = useQueryClient();
+    const supabase = createClient();
+
+    return useMutation({
+        mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+            const { error } = await supabase
+                .from('stores')
+                .update({ active, updated_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['stores'] });
+        },
+        onError: (error: Error) => {
+            toast.error('Erreur de mise à jour', { description: error.message });
+        },
+    });
+}

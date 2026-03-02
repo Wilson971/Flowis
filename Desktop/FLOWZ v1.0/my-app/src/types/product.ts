@@ -322,7 +322,7 @@ export interface BatchGenerationSettings {
   model: string;
   tone: string;
   language: string;
-  global_config: boolean;
+  global_config?: boolean;
   word_limits?: {
     title?: number;
     short_description?: number;

@@ -1,15 +1,87 @@
 /**
- * POST /api/gsc/sitemap
- *
- * Fetches and parses the sitemap XML for a GSC site.
- * Enriches with product/blog URLs from FLOWZ database.
- * Upserts into gsc_sitemap_urls table.
+ * GET  /api/gsc/sitemap  - List sitemap URLs from gsc_sitemap_urls (paginated, filtered)
+ * POST /api/gsc/sitemap  - Parse sitemap XML + enrich + upsert into gsc_sitemap_urls
  */
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { parseSitemap } from '@/lib/gsc/client';
 import { z } from 'zod';
+
+// ============================================================================
+// GET — Read stored sitemap URLs
+// ============================================================================
+
+const getSchema = z.object({
+    siteId: z.string().uuid(),
+    page: z.coerce.number().int().min(1).default(1),
+    perPage: z.coerce.number().int().min(1).max(200).default(50),
+    source: z.enum(['sitemap', 'product', 'blog']).optional(),
+    search: z.string().optional(),
+});
+
+export async function GET(request: NextRequest) {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    }
+
+    const params = Object.fromEntries(request.nextUrl.searchParams.entries());
+    const parsed = getSchema.safeParse(params);
+    if (!parsed.success) {
+        return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 });
+    }
+    const { siteId, page, perPage, source, search } = parsed.data;
+
+    // Verify ownership
+    const { data: site, error: siteError } = await supabase
+        .from('gsc_sites')
+        .select('id')
+        .eq('id', siteId)
+        .eq('tenant_id', user.id)
+        .single();
+
+    if (siteError || !site) {
+        return NextResponse.json({ error: 'Site non trouvé' }, { status: 404 });
+    }
+
+    const from = (page - 1) * perPage;
+    const to = from + perPage - 1;
+
+    let query = supabase
+        .from('gsc_sitemap_urls')
+        .select('id, url, source, lastmod, is_active, last_seen_at', { count: 'exact' })
+        .eq('site_id', siteId)
+        .eq('tenant_id', user.id)
+        .order('last_seen_at', { ascending: false })
+        .range(from, to);
+
+    if (source) query = query.eq('source', source);
+    if (search) query = query.ilike('url', `%${search}%`);
+
+    const { data: urls, count, error: urlsError } = await query;
+    if (urlsError) {
+        return NextResponse.json({ error: urlsError.message }, { status: 500 });
+    }
+
+    // Stats per source
+    const { data: statsRows } = await supabase
+        .from('gsc_sitemap_urls')
+        .select('source')
+        .eq('site_id', siteId)
+        .eq('tenant_id', user.id)
+        .eq('is_active', true);
+
+    const stats = { sitemap: 0, product: 0, blog: 0 };
+    for (const row of statsRows || []) {
+        if (row.source === 'sitemap') stats.sitemap++;
+        else if (row.source === 'product') stats.product++;
+        else if (row.source === 'blog') stats.blog++;
+    }
+
+    return NextResponse.json({ urls: urls || [], total: count ?? 0, stats });
+}
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;

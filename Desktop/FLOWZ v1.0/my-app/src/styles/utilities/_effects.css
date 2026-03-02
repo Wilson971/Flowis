@@ -306,6 +306,15 @@
   border-color: var(--border-accent);
 }
 
+/* Themed Card Glow — uses --glow-rgba CSS variable set inline */
+.themed-card-glow {
+  transition: box-shadow 500ms ease, border-color 500ms ease;
+}
+
+.themed-card-glow:hover {
+  box-shadow: 0 0 24px rgba(var(--glow-rgba), 0.18);
+}
+
 /* Active Press Effect */
 .active-press:active {
   transform: translateY(0);

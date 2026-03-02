@@ -246,50 +246,26 @@ export const SidebarLink = ({
     <Link
       href={link.href}
       className={cn(
-        "flex items-center group/sidebar h-11 rounded-xl transition-all duration-300 relative overflow-hidden",
+        "flex items-center group/sidebar h-9 rounded-lg transition-colors duration-200 relative",
         animate && !open
-          ? "justify-center px-0 w-11 mx-auto"
-          : "justify-start gap-3 px-3",
+          ? "justify-center px-0 w-10 mx-auto"
+          : "justify-start gap-2.5 px-2.5",
         active
-          ? "bg-primary text-primary-foreground shadow-[0_4px_12px_-2px_color-mix(in_srgb,var(--primary),transparent_60%)]"
-          : "text-neutral-400 hover:text-white",
-        !active && "hover:translate-x-1",
+          ? "bg-white/[0.08] text-white"
+          : "text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200",
         className
       )}
       onClick={onClick}
       {...props}
     >
-      {/* Animated Hover Background */}
-      {!active && (
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300" />
-      )}
-
-      {/* Animated Left Border Indicator */}
-      {!active && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-primary/70 rounded-r-md group-hover/sidebar:h-3/4 opacity-0 group-hover/sidebar:opacity-100 transition-all duration-300" />
-      )}
-
-      {active && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.2 }}
-          className="absolute inset-0 bg-primary blur-lg shadow-[0_0_15px_rgba(20,184,166,0.5)]"
-          transition={motionTokens.transitions.spring}
-        />
-      )}
-
-      <motion.div
-        whileHover={{ scale: 1.1, rotate: active ? 0 : 5 }}
-        whileTap={motionTokens.variants.pressScale}
+      <div
         className={cn(
-          "flex-shrink-0 flex items-center justify-center w-5 h-5 transition-colors relative z-10",
-          active
-            ? "text-primary-foreground"
-            : "text-neutral-400 group-hover/sidebar:text-primary"
+          "flex-shrink-0 flex items-center justify-center w-5 h-5 transition-colors",
+          active ? "text-white" : "text-neutral-400 group-hover/sidebar:text-neutral-300"
         )}
       >
         {link.icon}
-      </motion.div>
+      </div>
 
       <motion.span
         animate={{
@@ -300,8 +276,8 @@ export const SidebarLink = ({
           duration: motionTokens.durations.fast,
         }}
         className={cn(
-          "text-sm font-medium leading-none group-hover/sidebar:translate-x-0.5 transition-transform duration-150 whitespace-pre inline-block !p-0 !m-0 relative z-10",
-          active ? "text-primary-foreground" : "text-neutral-400 group-hover/sidebar:text-white"
+          "text-[13px] font-medium leading-none whitespace-pre inline-block !p-0 !m-0",
+          active ? "text-white" : "text-neutral-400 group-hover/sidebar:text-neutral-200"
         )}
       >
         {link.label}

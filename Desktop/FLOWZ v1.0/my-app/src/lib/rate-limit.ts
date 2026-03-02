@@ -15,13 +15,16 @@ const store = new Map<string, RateLimitEntry>();
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 let lastCleanup = Date.now();
 
-function cleanup(windowMs: number): void {
+/** Max window across all presets — used for cleanup to avoid cross-endpoint corruption */
+const MAX_WINDOW_MS = 5 * 60_000;
+
+function cleanup(): void {
   const now = Date.now();
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
   lastCleanup = now;
 
   for (const [key, entry] of store) {
-    entry.timestamps = entry.timestamps.filter((t) => now - t < windowMs);
+    entry.timestamps = entry.timestamps.filter((t) => now - t < MAX_WINDOW_MS);
     if (entry.timestamps.length === 0) store.delete(key);
   }
 }
@@ -50,7 +53,7 @@ export function checkRateLimit(
   const key = `${userId}:${endpoint}`;
   const now = Date.now();
 
-  cleanup(config.windowMs);
+  cleanup();
 
   let entry = store.get(key);
   if (!entry) {

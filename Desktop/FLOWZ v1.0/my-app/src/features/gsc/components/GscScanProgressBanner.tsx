@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { XCircle, CheckCircle2, Zap, AlertTriangle } from "lucide-react";
+import { XCircle, CheckCircle2, Zap, AlertTriangle, RefreshCw, Check, Loader2, Circle } from "lucide-react";
 
 interface GscScanProgressBannerProps {
     running: boolean;
     done: boolean;
     error: string | null;
+    isAuthError?: boolean;
     inspected: number;
     remaining: number | null;
     passes: number;
@@ -17,6 +18,7 @@ interface GscScanProgressBannerProps {
     totalUrls?: number;
     onStop: () => void;
     onDismiss: () => void;
+    onReconnect?: () => void;
 }
 
 const SCAN_MESSAGES = [
@@ -79,10 +81,122 @@ function UrlTicker({ passes }: { passes: number }) {
     );
 }
 
+// ── Scan Step Indicator (Vercel-style segmented progress) ──────────────────
+
+type StepStatus = "done" | "active" | "pending";
+
+const SCAN_STEPS = [
+    { key: "connexion", label: "Connexion" },
+    { key: "retrieval", label: "Récupération" },
+    { key: "inspection", label: "Inspection" },
+    { key: "finalization", label: "Finalisation" },
+] as const;
+
+function deriveCurrentStep(
+    inspected: number,
+    remaining: number | null,
+    passes: number,
+    progress: number | null
+): number {
+    if (progress !== null && progress >= 95) return 3; // Finalisation
+    if (inspected > 0) return 2; // Inspection
+    if (remaining !== null) return 1; // Récupération
+    return 0; // Connexion
+}
+
+function ScanStepIndicator({
+    inspected,
+    remaining,
+    passes,
+    progress,
+}: {
+    inspected: number;
+    remaining: number | null;
+    passes: number;
+    progress: number | null;
+}) {
+    const currentStep = deriveCurrentStep(inspected, remaining, passes, progress);
+
+    function getStatus(index: number): StepStatus {
+        if (index < currentStep) return "done";
+        if (index === currentStep) return "active";
+        return "pending";
+    }
+
+    return (
+        <div className="flex items-center gap-0 w-full">
+            {SCAN_STEPS.map((step, i) => {
+                const status = getStatus(i);
+                const isInspection = step.key === "inspection";
+
+                return (
+                    <div key={step.key} className="flex items-center flex-1 min-w-0 last:flex-none">
+                        {/* Step node */}
+                        <div className={cn(
+                            "flex items-center gap-1.5 shrink-0",
+                            status === "done" && "text-emerald-400",
+                            status === "active" && "text-violet-400",
+                            status === "pending" && "text-white/25"
+                        )}>
+                            {/* Icon */}
+                            <div className={cn(
+                                "w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300",
+                                status === "done" && "bg-emerald-500/20 border border-emerald-500/40",
+                                status === "active" && "bg-violet-500/20 border border-violet-500/40 shadow-[0_0_8px_rgba(139,92,246,0.3)]",
+                                status === "pending" && "bg-white/[0.04] border border-white/[0.08]"
+                            )}>
+                                {status === "done" && <Check className="w-3 h-3" />}
+                                {status === "active" && <Loader2 className="w-3 h-3 animate-spin" />}
+                                {status === "pending" && <Circle className="w-2 h-2" />}
+                            </div>
+
+                            {/* Label + mini progress */}
+                            <div className="hidden sm:flex flex-col min-w-0">
+                                <span className={cn(
+                                    "text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap transition-colors duration-300",
+                                    status === "done" && "text-emerald-400",
+                                    status === "active" && "text-white",
+                                    status === "pending" && "text-white/25"
+                                )}>
+                                    {step.label}
+                                </span>
+                                {isInspection && status === "active" && progress !== null && (
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        <div className="h-1 w-16 bg-white/[0.06] rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-violet-500 rounded-full transition-all duration-700 ease-out"
+                                                style={{ width: `${Math.min(progress, 94)}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-[9px] tabular-nums text-violet-300/70">{progress}%</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Connector line */}
+                        {i < SCAN_STEPS.length - 1 && (
+                            <div className={cn(
+                                "flex-1 h-px mx-2 transition-colors duration-300",
+                                i < currentStep
+                                    ? "bg-emerald-500/40"
+                                    : i === currentStep
+                                        ? "bg-gradient-to-r from-violet-500/40 to-white/[0.06]"
+                                        : "bg-white/[0.06]"
+                            )} />
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export function GscScanProgressBanner({
     running,
     done,
     error,
+    isAuthError,
     inspected,
     remaining,
     passes,
@@ -90,6 +204,7 @@ export function GscScanProgressBanner({
     totalUrls,
     onStop,
     onDismiss,
+    onReconnect,
 }: GscScanProgressBannerProps) {
     if (!running && !done && !error) return null;
 
@@ -101,7 +216,41 @@ export function GscScanProgressBanner({
         ? Math.min(100, Math.round((inspected / total) * 100))
         : null;
 
-    // ── Error state ──────────────────────────────────────────────────────────
+    // ── Auth error state (token révoqué) ─────────────────────────────────────
+    if (error && isAuthError) {
+        return (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+                <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-amber-400">Connexion Google expirée</p>
+                        <p className="text-xs text-amber-300/70 mt-1">
+                            Votre accès Google Search Console a expiré ou été révoqué. Reconnectez votre compte pour relancer l&apos;inspection.
+                        </p>
+                        {onReconnect && (
+                            <button
+                                onClick={onReconnect}
+                                className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
+                            >
+                                <RefreshCw className="w-3 h-3" />
+                                Reconnecter Google Search Console
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        onClick={onDismiss}
+                        className="text-amber-400/60 hover:text-amber-400 transition-colors text-lg leading-none shrink-0"
+                    >
+                        ×
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // ── Generic error state ───────────────────────────────────────────────────
     if (error) {
         return (
             <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
@@ -199,29 +348,13 @@ export function GscScanProgressBanner({
                     </div>
                 </div>
 
-                {/* Progress bar */}
-                {progress !== null ? (
-                    <div className="space-y-1">
-                        <div className="flex justify-between text-[10px] text-violet-300/60">
-                            <span>Progression</span>
-                            <span className="font-semibold text-violet-300">{progress}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-violet-500 to-violet-400 rounded-full transition-all duration-700 ease-out relative"
-                                style={{ width: `${progress}%` }}
-                            >
-                                {/* Shimmer effect */}
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_1.5s_infinite]" style={{ backgroundSize: "200% 100%" }} />
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    // Indeterminate bar when no total known yet
-                    <div className="h-1.5 w-full bg-white/[0.06] rounded-full overflow-hidden">
-                        <div className="h-full w-1/3 bg-gradient-to-r from-violet-500 to-violet-400 rounded-full animate-[indeterminate_1.8s_ease-in-out_infinite]" />
-                    </div>
-                )}
+                {/* Segmented progress steps */}
+                <ScanStepIndicator
+                    inspected={inspected}
+                    remaining={remaining}
+                    passes={passes}
+                    progress={progress}
+                />
             </div>
         </div>
     );

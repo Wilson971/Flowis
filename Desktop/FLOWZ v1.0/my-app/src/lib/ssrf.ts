@@ -160,8 +160,12 @@ export async function fetchImageSafe(
     );
   }
 
+  const ALLOWED_IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+  const rawMime = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const mimeType = ALLOWED_IMAGE_MIMES.includes(rawMime) ? rawMime : 'image/jpeg';
+
   return {
     data: Buffer.from(buffer).toString('base64'),
-    mimeType: response.headers.get('content-type') || 'image/jpeg',
+    mimeType,
   };
 }

@@ -1,20 +1,24 @@
 /**
  * gsc-sync — Edge Function
  *
- * Scheduled every 6 hours to sync GSC keyword data for all active connections.
- * Runs with service_role key → bypasses RLS.
+ * Scheduled every 6 hours to sync ALL GSC data for all active sites:
+ *   - Keywords (page + query dimensions)
+ *   - Daily stats (date dimension, 90 days)
+ *   - Country stats (country dimension)
+ *   - Device stats (device dimension)
  *
- * For each active gsc_connection:
- *   1. Decrypt tokens
- *   2. Refresh access token if needed
- *   3. Fetch searchAnalytics data (last_28_days)
- *   4. Upsert gsc_keywords rows
+ * Uses the current schema: separate encrypted token fields on gsc_connections
+ * (access_token_encrypted, refresh_token_encrypted, token_expires_at).
+ *
+ * Iterates over gsc_sites (joined with gsc_connections) — not gsc_connections directly.
  *
  * Deploy: supabase functions deploy gsc-sync --no-verify-jwt
  * Cron: every 6 hours via pg_cron
  */
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { scryptSync, createDecipheriv, createCipheriv, randomBytes } from "node:crypto";
+import { Buffer } from "node:buffer";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -23,108 +27,71 @@ const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 const GSC_TOKEN_ENCRYPTION_KEY = Deno.env.get("GSC_TOKEN_ENCRYPTION_KEY")!;
 
 // ============================================================================
-// Crypto (AES-256-GCM — mirrors lib/gsc/crypto.ts for Deno runtime)
+// Crypto (AES-256-GCM — mirrors lib/gsc/crypto.ts exactly, using node:crypto)
 // ============================================================================
 
-async function deriveKey(): Promise<CryptoKey> {
-    const encoder = new TextEncoder();
-    const keyMaterial = await crypto.subtle.importKey(
-        "raw",
-        encoder.encode(GSC_TOKEN_ENCRYPTION_KEY),
-        "PBKDF2",
-        false,
-        ["deriveKey"]
-    );
-    return crypto.subtle.deriveKey(
-        { name: "PBKDF2", salt: encoder.encode("flowz-gsc-salt"), iterations: 100000, hash: "SHA-256" },
-        keyMaterial,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["decrypt", "encrypt"]
-    );
+function getEncryptionKey(): Buffer {
+    return scryptSync(GSC_TOKEN_ENCRYPTION_KEY, "flowz-gsc-salt", 32);
 }
 
-interface GscTokens {
-    access_token: string;
-    refresh_token: string;
-    expiry_at: string;
-    scope: string;
-}
-
-async function decryptTokens(encryptedStr: string): Promise<GscTokens> {
-    // Format from Node.js: salt:iv:tag:ciphertext (hex)
+/**
+ * Decrypt a single encrypted token string.
+ * Format: salt:iv:tag:ciphertext (hex-encoded).
+ * Uses scryptSync (same KDF as the Node.js API route).
+ */
+function decryptToken(encryptedStr: string): string {
+    const key = getEncryptionKey();
     const parts = encryptedStr.split(":");
     if (parts.length !== 4) throw new Error("Invalid encrypted token format");
 
-    const [_saltHex, ivHex, tagHex, ciphertextHex] = parts;
+    const [, ivHex, tagHex, ciphertext] = parts;
+    const iv = Buffer.from(ivHex, "hex");
+    const tag = Buffer.from(tagHex, "hex");
 
-    // For Deno/WebCrypto, we need to derive key differently than Node's scryptSync
-    // Use PBKDF2 instead (consistent with deriveKey above)
-    const key = await deriveKey();
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(tag);
 
-    const iv = hexToBytes(ivHex);
-    const tag = hexToBytes(tagHex);
-    const ciphertext = hexToBytes(ciphertextHex);
+    let decrypted = decipher.update(ciphertext, "hex", "utf8");
+    decrypted += decipher.final("utf8");
 
-    // AES-GCM expects ciphertext + tag concatenated
-    const combined = new Uint8Array(ciphertext.length + tag.length);
-    combined.set(ciphertext);
-    combined.set(tag, ciphertext.length);
-
-    const decrypted = await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv },
-        key,
-        combined
-    );
-
-    const text = new TextDecoder().decode(decrypted);
-    return JSON.parse(text);
+    return decrypted;
 }
 
-async function encryptTokens(tokens: GscTokens): Promise<string> {
-    const key = await deriveKey();
-    const iv = crypto.getRandomValues(new Uint8Array(16));
-    const salt = crypto.getRandomValues(new Uint8Array(16));
+/**
+ * Encrypt a single token string.
+ * Returns salt:iv:tag:ciphertext (hex-encoded).
+ */
+function encryptToken(tokenValue: string): string {
+    const key = getEncryptionKey();
+    const salt = randomBytes(16);
+    const iv = randomBytes(16);
 
-    const encoder = new TextEncoder();
-    const data = encoder.encode(JSON.stringify(tokens));
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
 
-    const encrypted = await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv, tagLength: 128 },
-        key,
-        data
-    );
+    let encrypted = cipher.update(tokenValue, "utf8", "hex");
+    encrypted += cipher.final("hex");
 
-    // Split ciphertext and tag (last 16 bytes = tag)
-    const encryptedBytes = new Uint8Array(encrypted);
-    const ciphertext = encryptedBytes.slice(0, encryptedBytes.length - 16);
-    const tag = encryptedBytes.slice(encryptedBytes.length - 16);
+    const tag = cipher.getAuthTag();
 
     return [
-        bytesToHex(salt),
-        bytesToHex(iv),
-        bytesToHex(tag),
-        bytesToHex(ciphertext),
+        salt.toString("hex"),
+        iv.toString("hex"),
+        tag.toString("hex"),
+        encrypted,
     ].join(":");
-}
-
-function hexToBytes(hex: string): Uint8Array {
-    const bytes = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) {
-        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
-    }
-    return bytes;
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 // ============================================================================
 // Google API Helpers
 // ============================================================================
 
-async function refreshAccessToken(tokens: GscTokens): Promise<GscTokens> {
+interface TokenSet {
+    access_token: string;
+    refresh_token: string;
+    expiry_at: string;
+}
+
+async function refreshAccessToken(tokens: TokenSet): Promise<TokenSet> {
     const response = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -146,12 +113,11 @@ async function refreshAccessToken(tokens: GscTokens): Promise<GscTokens> {
         access_token: data.access_token,
         refresh_token: data.refresh_token || tokens.refresh_token,
         expiry_at: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-        scope: data.scope || tokens.scope,
     };
 }
 
-function needsRefresh(tokens: GscTokens): boolean {
-    return Date.now() > new Date(tokens.expiry_at).getTime() - 5 * 60 * 1000;
+function needsRefresh(expiryAt: string): boolean {
+    return Date.now() > new Date(expiryAt).getTime() - 5 * 60 * 1000;
 }
 
 interface SearchAnalyticsRow {
@@ -162,16 +128,14 @@ interface SearchAnalyticsRow {
     position: number;
 }
 
-async function fetchSearchAnalytics(
+async function fetchGscAnalytics(
     accessToken: string,
     siteUrl: string,
-    dateRange: string = "last_28_days"
+    dimensions: string[],
+    startDate: string,
+    endDate: string,
+    rowLimit: number = 5000
 ): Promise<SearchAnalyticsRow[]> {
-    const end = new Date();
-    end.setDate(end.getDate() - 3); // GSC data lag
-    const start = new Date(end);
-    start.setDate(start.getDate() - (dateRange === "last_7_days" ? 7 : 28));
-
     const encodedSiteUrl = encodeURIComponent(siteUrl);
     const url = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodedSiteUrl}/searchAnalytics/query`;
 
@@ -182,21 +146,61 @@ async function fetchSearchAnalytics(
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            startDate: start.toISOString().slice(0, 10),
-            endDate: end.toISOString().slice(0, 10),
-            dimensions: ["page", "query"],
-            rowLimit: 5000,
+            startDate,
+            endDate,
+            dimensions,
+            rowLimit,
             dataState: "all",
         }),
     });
 
     if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(`GSC API error: ${err.error?.message || response.status}`);
+        throw new Error(`GSC API error (${dimensions.join(",")}): ${err.error?.message || response.status}`);
     }
 
     const data = await response.json();
     return data.rows || [];
+}
+
+// ============================================================================
+// Date helpers
+// ============================================================================
+
+function getDateBounds(daysBack: number): { startDate: string; endDate: string } {
+    const end = new Date();
+    end.setDate(end.getDate() - 3); // GSC data lag
+    const start = new Date(end);
+    start.setDate(start.getDate() - daysBack);
+    return {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+    };
+}
+
+// ============================================================================
+// Batch upsert helper
+// ============================================================================
+
+async function batchUpsert(
+    supabase: ReturnType<typeof createClient>,
+    table: string,
+    rows: Record<string, unknown>[],
+    onConflict: string,
+    batchSize = 500
+): Promise<number> {
+    let errors = 0;
+    for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        const { error } = await supabase
+            .from(table)
+            .upsert(batch, { onConflict });
+        if (error) {
+            console.error(`[gsc-sync] ${table} upsert error:`, error.message);
+            errors++;
+        }
+    }
+    return errors;
 }
 
 // ============================================================================
@@ -208,56 +212,89 @@ Deno.serve(async (_req: Request) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Fetch all active connections
-    const { data: connections, error: connError } = await supabase
-        .from("gsc_connections")
-        .select("*")
-        .eq("active", true);
+    // Fetch all active sites with their parent connection
+    const { data: sites, error: siteError } = await supabase
+        .from("gsc_sites")
+        .select(`
+            id,
+            site_url,
+            tenant_id,
+            gsc_connection_id,
+            gsc_connections!inner (
+                id,
+                access_token_encrypted,
+                refresh_token_encrypted,
+                token_expires_at,
+                is_active
+            )
+        `)
+        .eq("is_active", true);
 
-    if (connError) {
-        console.error("[gsc-sync] Failed to fetch connections:", connError.message);
-        return new Response(JSON.stringify({ error: connError.message }), { status: 500 });
+    if (siteError) {
+        console.error("[gsc-sync] Failed to fetch sites:", siteError.message);
+        return new Response(JSON.stringify({ error: siteError.message }), { status: 500 });
     }
 
-    if (!connections || connections.length === 0) {
-        console.log("[gsc-sync] No active connections found.");
+    // Filter to only sites whose connection is also active
+    const activeSites = (sites || []).filter(
+        (s: any) => s.gsc_connections?.is_active === true
+    );
+
+    if (activeSites.length === 0) {
+        console.log("[gsc-sync] No active sites found.");
         return new Response(JSON.stringify({ synced: 0 }));
     }
 
-    console.log(`[gsc-sync] Processing ${connections.length} connection(s)...`);
+    console.log(`[gsc-sync] Processing ${activeSites.length} site(s)...`);
 
     let successCount = 0;
     let failCount = 0;
+    const errors: string[] = [];
+    const dateRange28 = getDateBounds(28);
+    const dateRange90 = getDateBounds(90);
 
-    for (const conn of connections) {
+    for (let idx = 0; idx < activeSites.length; idx++) {
+        const site = activeSites[idx] as any;
+        const conn = site.gsc_connections;
+        const siteId = site.id;
+        const tenantId = site.tenant_id;
+        const siteUrl = site.site_url;
+
         try {
-            // Mark as syncing
-            await supabase
-                .from("gsc_connections")
-                .update({ sync_status: "syncing", sync_error: null })
-                .eq("id", conn.id);
+            // ── 1. Decrypt tokens (separate fields) ──
+            let tokens: TokenSet = {
+                access_token: decryptToken(conn.access_token_encrypted),
+                refresh_token: decryptToken(conn.refresh_token_encrypted),
+                expiry_at: conn.token_expires_at,
+            };
 
-            // Decrypt + refresh tokens
-            let tokens = await decryptTokens(conn.tokens_encrypted);
-
-            if (needsRefresh(tokens)) {
+            // ── 2. Refresh if needed ──
+            if (needsRefresh(tokens.expiry_at)) {
                 tokens = await refreshAccessToken(tokens);
-                // Save refreshed tokens
-                const encrypted = await encryptTokens(tokens);
+                // Save refreshed tokens back
                 await supabase
                     .from("gsc_connections")
-                    .update({ tokens_encrypted: encrypted })
+                    .update({
+                        access_token_encrypted: encryptToken(tokens.access_token),
+                        refresh_token_encrypted: encryptToken(tokens.refresh_token),
+                        token_expires_at: tokens.expiry_at,
+                    })
                     .eq("id", conn.id);
             }
 
-            // Fetch search analytics (last_28_days)
-            const rows = await fetchSearchAnalytics(tokens.access_token, conn.site_url, "last_28_days");
+            const now = new Date().toISOString();
 
-            // Upsert keywords
-            if (rows.length > 0) {
-                const keywordRows = rows.map(row => ({
-                    connection_id: conn.id,
-                    tenant_id: conn.tenant_id,
+            // ── 3. Keywords (page + query, last 28 days) ──
+            const keywordRows = await fetchGscAnalytics(
+                tokens.access_token, siteUrl,
+                ["page", "query"],
+                dateRange28.startDate, dateRange28.endDate,
+                5000
+            );
+            if (keywordRows.length > 0) {
+                const mapped = keywordRows.map(row => ({
+                    site_id: siteId,
+                    tenant_id: tenantId,
                     page_url: row.keys[0],
                     query: row.keys[1],
                     date_range: "last_28_days",
@@ -265,51 +302,115 @@ Deno.serve(async (_req: Request) => {
                     impressions: row.impressions,
                     ctr: Math.round(row.ctr * 10000) / 10000,
                     position: Math.round(row.position * 100) / 100,
-                    fetched_at: new Date().toISOString(),
+                    fetched_at: now,
                 }));
-
-                // Batch upsert
-                const batchSize = 500;
-                for (let i = 0; i < keywordRows.length; i += batchSize) {
-                    const batch = keywordRows.slice(i, i + batchSize);
-                    const { error: upsertError } = await supabase
-                        .from("gsc_keywords")
-                        .upsert(batch, { onConflict: "connection_id,page_url,date_range,query" });
-
-                    if (upsertError) {
-                        console.error(`[gsc-sync] Upsert error for ${conn.id}:`, upsertError.message);
-                    }
-                }
+                await batchUpsert(supabase, "gsc_keywords", mapped, "site_id,page_url,date_range,query");
             }
 
-            // Mark success
-            await supabase
-                .from("gsc_connections")
-                .update({
-                    sync_status: "success",
-                    last_synced_at: new Date().toISOString(),
-                    sync_error: null,
-                })
-                .eq("id", conn.id);
+            // ── 4. Daily stats (date dimension, 90 days) ──
+            let dailySynced = 0;
+            try {
+                const dailyRows = await fetchGscAnalytics(
+                    tokens.access_token, siteUrl,
+                    ["date"],
+                    dateRange90.startDate, dateRange90.endDate,
+                    1000
+                );
+                if (dailyRows.length > 0) {
+                    const mapped = dailyRows.map(row => ({
+                        site_id: siteId,
+                        tenant_id: tenantId,
+                        stat_date: row.keys[0],
+                        clicks: row.clicks,
+                        impressions: row.impressions,
+                        ctr: Math.round(row.ctr * 10000) / 10000,
+                        position: Math.round(row.position * 100) / 100,
+                        fetched_at: now,
+                    }));
+                    await batchUpsert(supabase, "gsc_daily_stats", mapped, "site_id,stat_date");
+                    dailySynced = dailyRows.length;
+                }
+            } catch (err: any) {
+                console.error(`[gsc-sync] Site ${siteId} daily stats error:`, err.message);
+            }
 
-            console.log(`[gsc-sync] Connection ${conn.id}: synced ${rows.length} keywords`);
+            // ── 5. Country stats ──
+            let countrySynced = 0;
+            try {
+                const countryRows = await fetchGscAnalytics(
+                    tokens.access_token, siteUrl,
+                    ["country"],
+                    dateRange28.startDate, dateRange28.endDate,
+                    50
+                );
+                if (countryRows.length > 0) {
+                    const mapped = countryRows.map(row => ({
+                        site_id: siteId,
+                        tenant_id: tenantId,
+                        country: row.keys[0],
+                        date_range: "last_28_days",
+                        clicks: row.clicks,
+                        impressions: row.impressions,
+                        ctr: Math.round(row.ctr * 10000) / 10000,
+                        position: Math.round(row.position * 100) / 100,
+                        fetched_at: now,
+                    }));
+                    await batchUpsert(supabase, "gsc_country_stats", mapped, "site_id,country,date_range");
+                    countrySynced = countryRows.length;
+                }
+            } catch (err: any) {
+                console.error(`[gsc-sync] Site ${siteId} country stats error:`, err.message);
+            }
+
+            // ── 6. Device stats ──
+            let deviceSynced = 0;
+            try {
+                const deviceRows = await fetchGscAnalytics(
+                    tokens.access_token, siteUrl,
+                    ["device"],
+                    dateRange28.startDate, dateRange28.endDate,
+                    10
+                );
+                if (deviceRows.length > 0) {
+                    const mapped = deviceRows.map(row => ({
+                        site_id: siteId,
+                        tenant_id: tenantId,
+                        device: row.keys[0],
+                        date_range: "last_28_days",
+                        clicks: row.clicks,
+                        impressions: row.impressions,
+                        ctr: Math.round(row.ctr * 10000) / 10000,
+                        position: Math.round(row.position * 100) / 100,
+                        fetched_at: now,
+                    }));
+                    await batchUpsert(supabase, "gsc_device_stats", mapped, "site_id,device,date_range");
+                    deviceSynced = deviceRows.length;
+                }
+            } catch (err: any) {
+                console.error(`[gsc-sync] Site ${siteId} device stats error:`, err.message);
+            }
+
+            // ── 7. Update last_synced_at on the site ──
+            await supabase
+                .from("gsc_sites")
+                .update({ last_synced_at: now })
+                .eq("id", siteId);
+
+            console.log(
+                `[gsc-sync] Site ${siteId}: ${keywordRows.length} keywords, ` +
+                `${dailySynced} daily, ${countrySynced} countries, ${deviceSynced} devices`
+            );
             successCount++;
 
         } catch (err: any) {
-            console.error(`[gsc-sync] Connection ${conn.id} failed:`, err.message);
+            const msg = `Site ${siteId} (${siteUrl}): ${err.message}`;
+            console.error(`[gsc-sync] ${msg}`);
+            errors.push(msg);
             failCount++;
-
-            await supabase
-                .from("gsc_connections")
-                .update({
-                    sync_status: "error",
-                    sync_error: (err.message || "Unknown error").slice(0, 500),
-                })
-                .eq("id", conn.id);
         }
 
-        // Rate limit: 600ms delay between connections
-        if (connections.indexOf(conn) < connections.length - 1) {
+        // Rate limit: 600ms delay between sites
+        if (idx < activeSites.length - 1) {
             await new Promise(r => setTimeout(r, 600));
         }
     }
@@ -319,6 +420,7 @@ Deno.serve(async (_req: Request) => {
     return new Response(JSON.stringify({
         synced: successCount,
         failed: failCount,
-        total: connections.length,
+        total: activeSites.length,
+        ...(errors.length > 0 && { errors }),
     }));
 });

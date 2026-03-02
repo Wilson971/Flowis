@@ -23,18 +23,35 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Stats via RPC
-        const { data: stats, error: statsError } = await supabase.rpc('get_gsc_queue_stats', {
-            p_tenant_id: user.id,
-            p_site_id: siteId,
-        });
-
-        if (statsError) throw statsError;
-
-        // Queue items (paginated)
         const page = parseInt(params.get('page') || '1', 10);
         const perPage = Math.min(parseInt(params.get('perPage') || '50', 10), 100);
 
+        // Stats computed directly (avoids RPC GROUP BY issue)
+        const { data: allItems } = await supabase
+            .from('gsc_indexation_queue')
+            .select('status')
+            .eq('site_id', siteId)
+            .eq('tenant_id', user.id);
+
+        const rows = allItems || [];
+        const submitted = rows.filter(r => r.status === 'submitted').length;
+        const pending = rows.filter(r => r.status === 'pending' || r.status === 'quota_exceeded').length;
+        const failed = rows.filter(r => r.status === 'failed').length;
+
+        // Daily quota from settings
+        const { data: settings } = await supabase
+            .from('gsc_indexation_settings')
+            .select('daily_submission_count, quota_reset_date')
+            .eq('site_id', siteId)
+            .eq('tenant_id', user.id)
+            .single();
+
+        const today = new Date().toISOString().slice(0, 10);
+        const dailyQuotaUsed = settings?.quota_reset_date === today
+            ? (settings?.daily_submission_count || 0)
+            : 0;
+
+        // Paginated queue items
         const { data: items, count } = await supabase
             .from('gsc_indexation_queue')
             .select('id, url, action, status, attempts, submitted_at, error_message, created_at', { count: 'exact' })
@@ -44,7 +61,14 @@ export async function GET(request: NextRequest) {
             .range((page - 1) * perPage, page * perPage - 1);
 
         return NextResponse.json({
-            stats: stats || { total_submitted: 0, pending: 0, submitted: 0, failed: 0, daily_quota_used: 0, daily_quota_limit: 200 },
+            stats: {
+                total_submitted: rows.length,
+                submitted,
+                pending,
+                failed,
+                daily_quota_used: dailyQuotaUsed,
+                daily_quota_limit: 200,
+            },
             items: items || [],
             total: count || 0,
             page,

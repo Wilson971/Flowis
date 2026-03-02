@@ -15,7 +15,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { styles, motionTokens } from '@/lib/design-system';
+import { motionTokens } from '@/lib/design-system';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
@@ -29,8 +29,10 @@ import {
   ExternalLink,
   CheckCircle2,
   Mail,
-  ChevronDown,
+  ChevronRight,
   ArrowRight,
+  ShoppingBag,
+  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSelectedStore as useSelectedStoreContext } from '@/contexts/StoreContext';
@@ -42,13 +44,12 @@ import {
 } from '@/hooks/integrations/useWebhooks';
 import { useGscConnection } from '@/hooks/integrations/useGscConnection';
 import { useSettingsModal } from '@/contexts/SettingsModalContext';
+import { useStoreHeartbeat } from '@/hooks/stores/useStoreHeartbeat';
 
-// ─── Integration Card shell ───────────────────────────────────────────────────
+// ─── Vercel-style Integration Section ─────────────────────────────────────────
 
-interface IntegrationCardProps {
+interface IntegrationSectionProps {
   icon: React.ElementType;
-  iconColor?: string;
-  iconBg?: string;
   title: string;
   description: string;
   badge?: React.ReactNode;
@@ -57,50 +58,55 @@ interface IntegrationCardProps {
   defaultOpen?: boolean;
 }
 
-function IntegrationCard({
+function IntegrationSection({
   icon: Icon,
-  iconColor = 'text-primary',
-  iconBg = 'bg-primary/10',
   title,
   description,
   badge,
   action,
   children,
   defaultOpen = false,
-}: IntegrationCardProps) {
+}: IntegrationSectionProps) {
   const [expanded, setExpanded] = useState(defaultOpen);
-
   const hasContent = !!children;
 
   return (
-    <div className={cn(styles.card.base, 'overflow-hidden')}>
-      {/* Header */}
+    <div className="group">
+      {/* Header row */}
       <div
         className={cn(
-          'flex items-center gap-3 p-4',
+          'flex items-center gap-4 py-4 px-1',
           hasContent && 'cursor-pointer select-none'
         )}
         onClick={() => hasContent && setExpanded((p) => !p)}
       >
-        <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', iconBg)}>
-          <Icon className={cn('h-4.5 w-4.5', iconColor)} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+          <Icon className="h-[18px] w-[18px] text-foreground/70" />
         </div>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-semibold text-foreground">{title}</p>
+          <div className="flex items-center gap-2.5">
+            <span className="text-[13px] font-semibold text-foreground tracking-tight">{title}</span>
             {badge}
           </div>
-          <p className="text-xs text-muted-foreground truncate">{description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         </div>
+
         <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
           {action}
           {hasContent && (
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 text-muted-foreground transition-transform duration-200',
-                expanded && 'rotate-180'
-              )}
-            />
+            <div className={cn(
+              'flex h-6 w-6 items-center justify-center rounded-md transition-colors',
+              'hover:bg-muted/80'
+            )}>
+              <ChevronRight
+                className={cn(
+                  'h-3.5 w-3.5 text-muted-foreground/60 transition-transform',
+                  motionTokens.transitions.fast,
+                  expanded && 'rotate-90'
+                )}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -116,12 +122,110 @@ function IntegrationCard({
             transition={motionTokens.transitions.default}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 pt-0 border-t border-border/30">
+            <div className="pb-4 pl-[56px]">
               {children}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── Store Row ────────────────────────────────────────────────────────────────
+
+const HEALTH_CONFIG: Record<string, { label: string; dotClass: string }> = {
+  healthy: {
+    label: 'Connecté',
+    dotClass: 'bg-emerald-500',
+  },
+  degraded: {
+    label: 'Dégradé',
+    dotClass: 'bg-amber-500',
+  },
+  unhealthy: {
+    label: 'Hors ligne',
+    dotClass: 'bg-red-500',
+  },
+  unknown: {
+    label: 'Non vérifié',
+    dotClass: 'bg-muted-foreground/30',
+  },
+};
+
+function StoreHealthList({ stores }: { stores: any[] }) {
+  const heartbeat = useStoreHeartbeat();
+
+  const handleTest = (storeId: string) => {
+    heartbeat.mutate(storeId);
+  };
+
+  return (
+    <div className="space-y-0.5">
+      {stores.map((store: any) => {
+        const health: string = store.platform_connections?.connection_health || 'unknown';
+        const config = HEALTH_CONFIG[health] || HEALTH_CONFIG.unknown;
+        const platformLabel =
+          store.platform === 'woocommerce'
+            ? 'WooCommerce'
+            : store.platform === 'shopify'
+              ? 'Shopify'
+              : store.platform;
+        const shopUrl = store.platform_connections?.shop_url;
+        const isTestingThis = heartbeat.isPending && heartbeat.variables === store.id;
+
+        return (
+          <div
+            key={store.id}
+            className={cn(
+              'flex items-center justify-between rounded-lg px-3 py-2.5',
+              'transition-colors hover:bg-muted/40'
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold',
+                'bg-muted/60 text-foreground/70 ring-1 ring-border/40'
+              )}>
+                {platformLabel.charAt(0)}
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-foreground">{store.name}</p>
+                <p className="text-[11px] text-muted-foreground truncate max-w-[200px]">
+                  {shopUrl || platformLabel}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {/* Status pill */}
+              <button
+                type="button"
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-2.5 py-1',
+                  'text-[11px] text-muted-foreground transition-colors',
+                  'hover:bg-muted/60 cursor-pointer',
+                  isTestingThis && 'pointer-events-none opacity-50'
+                )}
+                title={health === 'unknown' ? 'Tester la connexion' : `${config.label} — Re-tester`}
+                onClick={() => handleTest(store.id)}
+                disabled={heartbeat.isPending}
+              >
+                {isTestingThis ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <div className={cn('h-1.5 w-1.5 rounded-full shrink-0', config.dotClass)} />
+                )}
+                <span>{isTestingThis ? 'Test…' : config.label}</span>
+              </button>
+
+              <span className="text-[11px] text-muted-foreground/60 font-medium">
+                {platformLabel}
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -169,117 +273,66 @@ export function ProfileIntegrationsSection() {
 
   return (
     <motion.div
-      className="space-y-6 w-full"
+      className="w-full"
       variants={motionTokens.variants.staggerContainer}
       initial="hidden"
       animate="visible"
     >
-      {/* Header */}
-      <motion.div variants={motionTokens.variants.staggerItem} className="space-y-1">
-        <h2 className={styles.text.h2}>Intégrations</h2>
-        <p className={styles.text.bodyMuted}>Vos plateformes e-commerce et connecteurs externes.</p>
-      </motion.div>
-
-      {/* Cards grid */}
+      {/* Integration list — separated by thin dividers like Vercel */}
       <motion.div
         variants={motionTokens.variants.staggerContainer}
-        className="grid grid-cols-1 gap-3"
+        className="rounded-xl border border-border/40 bg-card divide-y divide-border/40 overflow-hidden relative"
       >
+        <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
         {/* ── Boutiques connectées ─────────────────────────────── */}
-        <motion.div variants={motionTokens.variants.staggerItem}>
-          <IntegrationCard
-            icon={Plug}
-            iconColor="text-violet-500"
-            iconBg="bg-violet-500/10"
+        <motion.div variants={motionTokens.variants.staggerItem} className="px-4">
+          <IntegrationSection
+            icon={ShoppingBag}
             title="Boutiques connectées"
             description="WooCommerce · Shopify"
             badge={
               storeCount > 0 ? (
-                <Badge variant="outline" className="text-[10px] bg-violet-500/10 text-violet-600 border-violet-500/20">
+                <Badge variant="success" size="sm">
                   {storeCount} active{storeCount > 1 ? 's' : ''}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">Aucune</Badge>
+                <Badge variant="neutral" size="sm">
+                  Aucune
+                </Badge>
               )
             }
             defaultOpen={storeCount > 0}
           >
             {storesLoading ? (
-              <div className="space-y-2 pt-3">
+              <div className="space-y-2">
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-14 bg-muted/30 rounded-lg animate-pulse" />
+                  <div key={i} className="h-12 bg-muted/30 rounded-lg animate-pulse" />
                 ))}
               </div>
             ) : stores && stores.length > 0 ? (
-              <div className="divide-y divide-border/30 pt-3">
-                {stores.map((store: any) => {
-                  const health = store.platform_connections?.connection_health || 'unknown';
-                  const healthColor =
-                    health === 'healthy'
-                      ? 'bg-emerald-500'
-                      : health === 'unhealthy'
-                        ? 'bg-destructive'
-                        : 'bg-muted-foreground';
-                  const healthLabel =
-                    health === 'healthy' ? 'Connecté' : health === 'unhealthy' ? 'Erreur' : 'Inconnu';
-                  const platformLabel =
-                    store.platform === 'woocommerce'
-                      ? 'WooCommerce'
-                      : store.platform === 'shopify'
-                        ? 'Shopify'
-                        : store.platform;
-                  const shopUrl = store.platform_connections?.shop_url;
-                  return (
-                    <div key={store.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={cn(
-                            'h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold',
-                            store.platform === 'woocommerce'
-                              ? 'bg-purple-500/10 text-purple-600'
-                              : 'bg-emerald-500/10 text-emerald-600'
-                          )}
-                        >
-                          {platformLabel.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{store.name}</p>
-                          <p className="text-xs text-muted-foreground truncate max-w-[180px]">
-                            {shopUrl || platformLabel}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={cn('h-2 w-2 rounded-full', healthColor)} />
-                        <span className="text-xs text-muted-foreground">{healthLabel}</span>
-                        <Badge variant="outline" className="text-[10px]">{platformLabel}</Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <StoreHealthList stores={stores} />
             ) : (
-              <div className="py-4 text-center">
-                <Plug className="h-6 w-6 text-muted-foreground/40 mx-auto mb-1.5" />
-                <p className={styles.text.bodyMuted}>Aucune boutique connectée</p>
+              <div className="py-6 text-center">
+                <p className="text-sm text-muted-foreground">Aucune boutique connectée</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Connectez votre première boutique depuis les paramètres
+                </p>
               </div>
             )}
-          </IntegrationCard>
+          </IntegrationSection>
         </motion.div>
 
         {/* ── Webhooks ─────────────────────────────────────────── */}
-        <motion.div variants={motionTokens.variants.staggerItem}>
-          <IntegrationCard
-            icon={Webhook}
-            iconColor="text-amber-500"
-            iconBg="bg-amber-500/10"
+        <motion.div variants={motionTokens.variants.staggerItem} className="px-4">
+          <IntegrationSection
+            icon={Zap}
             title="Webhooks"
             description="Automatisez vos workflows · Zapier, Make, n8n…"
             badge={
               webhooks.length > 0 ? (
-                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/20">
-                  {webhooks.length} endpoint{webhooks.length > 1 ? 's' : ''}
+                <Badge variant="neutral" size="sm">
+                  {webhooks.length}
                 </Badge>
               ) : undefined
             }
@@ -287,7 +340,7 @@ export function ProfileIntegrationsSection() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 text-xs rounded-lg gap-1.5"
+                className="h-7 text-[11px] rounded-lg gap-1 font-medium border-border/60 hover:bg-accent"
                 onClick={(e) => { e.stopPropagation(); setShowCreateDialog(true); }}
               >
                 <Plus className="h-3 w-3" />
@@ -296,7 +349,7 @@ export function ProfileIntegrationsSection() {
             }
             defaultOpen={webhooks.length > 0}
           >
-            <div className="pt-3 space-y-3">
+            <div className="space-y-3">
               {webhooksLoading ? (
                 <div className="space-y-2">
                   {[1, 2].map((i) => (
@@ -304,24 +357,30 @@ export function ProfileIntegrationsSection() {
                   ))}
                 </div>
               ) : webhooks.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {webhooks.map((webhook) => (
                     <div
                       key={webhook.id}
-                      className="flex items-center gap-3 rounded-lg border border-border/50 p-3 bg-card/50"
+                      className={cn(
+                        'flex items-center gap-3 rounded-lg px-3 py-2.5',
+                        'transition-colors hover:bg-muted/40'
+                      )}
                     >
-                      <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <Globe className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{webhook.url}</p>
-                        <p className="text-[10px] text-muted-foreground truncate font-mono">
-                          {webhook.events.join(', ')}
+                        <p className="text-[13px] font-medium text-foreground truncate">{webhook.url}</p>
+                        <p className="text-[10px] text-muted-foreground/60 truncate font-mono mt-0.5">
+                          {webhook.events.join(' · ')}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className={cn('h-2 w-2 rounded-full', webhook.active ? 'bg-emerald-500' : 'bg-muted-foreground')} />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <div className={cn(
+                          'h-1.5 w-1.5 rounded-full mr-1',
+                          webhook.active ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                        )} />
                         <button
                           type="button"
-                          className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
+                          className="p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-colors"
                           title="Copier le secret"
                           onClick={() => handleCopySecret(webhook.secret)}
                         >
@@ -329,7 +388,7 @@ export function ProfileIntegrationsSection() {
                         </button>
                         <button
                           type="button"
-                          className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+                          className="p-1.5 rounded-md text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-colors"
                           title="Supprimer"
                           onClick={() => deleteWebhook.mutate(webhook.id)}
                         >
@@ -340,98 +399,102 @@ export function ProfileIntegrationsSection() {
                   ))}
                 </div>
               ) : (
-                <div className="py-3 text-center">
-                  <Webhook className="h-6 w-6 text-muted-foreground/40 mx-auto mb-1.5" />
+                <div className="py-6 text-center">
                   <p className="text-sm text-muted-foreground">Aucun webhook configuré</p>
-                  <p className="text-xs text-muted-foreground/60 mt-0.5">Ajoutez un endpoint pour automatiser vos workflows</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">
+                    Ajoutez un endpoint pour automatiser vos workflows
+                  </p>
                 </div>
               )}
 
               {/* Events reference */}
-              <div className="pt-2 border-t border-border/30 space-y-1.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+              <div className="pt-3 border-t border-border/30">
+                <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">
                   Événements disponibles
                 </p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {WEBHOOK_EVENTS.map((e) => (
-                    <Badge key={e.value} variant="outline" className="text-[10px] font-mono">
+                    <span
+                      key={e.value}
+                      className="inline-flex items-center rounded-md bg-muted/40 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground/70"
+                    >
                       {e.value}
-                    </Badge>
+                    </span>
                   ))}
                 </div>
               </div>
             </div>
-          </IntegrationCard>
+          </IntegrationSection>
         </motion.div>
 
         {/* ── Google Search Console ─────────────────────────────── */}
-        <motion.div variants={motionTokens.variants.staggerItem}>
-          <IntegrationCard
+        <motion.div variants={motionTokens.variants.staggerItem} className="px-4">
+          <IntegrationSection
             icon={Search}
-            iconColor={isConnected ? 'text-emerald-500' : 'text-primary'}
-            iconBg={isConnected ? 'bg-emerald-500/10' : 'bg-primary/10'}
             title="Google Search Console"
             description="Mots-clés réels · Impressions · Position moyenne"
             badge={
               gscLoading ? undefined : isConnected ? (
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                <Badge variant="success" size="sm">
                   {connections.length} site{connections.length > 1 ? 's' : ''} connecté{connections.length > 1 ? 's' : ''}
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">Non connecté</Badge>
+                <Badge variant="neutral" size="sm">
+                  Non connecté
+                </Badge>
               )
             }
             action={
               !isConnected && !gscLoading ? (
                 <Button
                   size="sm"
-                  className="h-7 text-xs rounded-lg gap-1.5"
+                  className="h-7 text-[11px] rounded-lg gap-1 font-medium"
                   onClick={(e) => { e.stopPropagation(); window.location.href = '/api/gsc/oauth/authorize'; }}
                 >
-                  <ExternalLink className="h-3 w-3" />
                   Connecter
+                  <ArrowRight className="h-3 w-3" />
                 </Button>
               ) : undefined
             }
             defaultOpen={isConnected}
           >
             {gscLoading ? (
-              <div className="pt-3 h-10 bg-muted/30 rounded-lg animate-pulse" />
+              <div className="h-10 bg-muted/30 rounded-lg animate-pulse" />
             ) : !isConnected ? (
-              <div className="pt-3 space-y-3">
-                <div className="flex flex-col gap-1.5">
+              <div className="space-y-4">
+                <div className="space-y-2">
                   {[
                     'Mots-clés réels de votre boutique',
                     'Suggestions IA basées sur les vraies recherches',
                     'Score SEO enrichi avec les données de trafic',
                   ].map((item) => (
-                    <div key={item} className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    <div key={item} className="flex items-center gap-2.5">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/70 shrink-0" />
                       <span className="text-xs text-muted-foreground">{item}</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground/60">
+                <p className="text-[11px] text-muted-foreground/50">
                   Accès en lecture seule. Nous ne modifions jamais vos données Search Console.
                 </p>
               </div>
             ) : (
-              <div className="pt-3 space-y-3">
+              <div className="space-y-3">
                 {activeConnection?.email && (
-                  <div className="flex items-center gap-2 rounded-lg bg-muted/30 px-3 py-2">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground">Compte :</span>
-                    <span className="text-xs font-medium">{activeConnection.email}</span>
+                  <div className="flex items-center gap-2.5 rounded-lg bg-muted/30 px-3 py-2">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                    <span className="text-[11px] text-muted-foreground">Compte</span>
+                    <span className="text-[11px] font-medium text-foreground">{activeConnection.email}</span>
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground">
-                  {connections.length} site{connections.length > 1 ? 's' : ''} connecté{connections.length > 1 ? 's' : ''} · Sync toutes les 6h
+                <p className="text-[11px] text-muted-foreground/60">
+                  {connections.length} site{connections.length > 1 ? 's' : ''} connecté{connections.length > 1 ? 's' : ''} · Sync automatique toutes les 6h
                 </p>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-xs gap-1.5 rounded-lg"
+                    className="h-7 text-[11px] gap-1 rounded-lg font-medium border-border/60 hover:bg-accent"
                     onClick={(e) => { e.stopPropagation(); window.location.href = '/api/gsc/oauth/authorize'; }}
                   >
                     <Plus className="h-3 w-3" />
@@ -440,16 +503,16 @@ export function ProfileIntegrationsSection() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs gap-1.5 rounded-lg ml-auto"
+                    className="h-7 text-[11px] gap-1 rounded-lg font-medium text-muted-foreground hover:text-foreground ml-auto"
                     onClick={(e) => { e.stopPropagation(); openSettings('integrations-gsc'); }}
                   >
-                    Voir les paramètres
+                    Paramètres
                     <ArrowRight className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
             )}
-          </IntegrationCard>
+          </IntegrationSection>
         </motion.div>
 
       </motion.div>
@@ -467,20 +530,20 @@ export function ProfileIntegrationsSection() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Webhook className="h-5 w-5 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Zap className="h-4 w-4 text-foreground/70" />
               Nouveau webhook
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-[13px]">
               Configurez un endpoint pour recevoir des événements FLOWZ.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium">URL de destination</Label>
+              <Label className="text-[13px] font-medium">URL de destination</Label>
               <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
                 <Input
                   value={newWebhookUrl}
                   onChange={(e) => setNewWebhookUrl(e.target.value)}
@@ -488,11 +551,11 @@ export function ProfileIntegrationsSection() {
                   className="pl-8 rounded-lg font-mono text-sm"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Doit commencer par https://</p>
+              <p className="text-[11px] text-muted-foreground/60">Doit commencer par https://</p>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Événements</Label>
+            <div className="space-y-2.5">
+              <Label className="text-[13px] font-medium">Événements</Label>
               <div className="space-y-2">
                 {WEBHOOK_EVENTS.map((event) => (
                   <div key={event.value} className="flex items-center gap-2.5">
@@ -503,15 +566,15 @@ export function ProfileIntegrationsSection() {
                       className="rounded"
                     />
                     <label htmlFor={event.value} className="flex-1 cursor-pointer">
-                      <span className="text-sm font-medium">{event.label}</span>
-                      <span className="block font-mono text-[10px] text-muted-foreground">{event.value}</span>
+                      <span className="text-[13px] font-medium">{event.label}</span>
+                      <span className="block font-mono text-[10px] text-muted-foreground/60">{event.value}</span>
                     </label>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            <div className="rounded-lg bg-muted/40 p-3 text-[11px] text-muted-foreground/70">
               Un secret HMAC sera généré automatiquement pour sécuriser vos webhooks.
             </div>
           </div>
@@ -519,7 +582,7 @@ export function ProfileIntegrationsSection() {
           <DialogFooter>
             <Button
               variant="outline"
-              className="rounded-lg"
+              className="rounded-lg border-border/60"
               onClick={() => { setShowCreateDialog(false); setNewWebhookUrl(''); setSelectedEvents([]); }}
             >
               Annuler

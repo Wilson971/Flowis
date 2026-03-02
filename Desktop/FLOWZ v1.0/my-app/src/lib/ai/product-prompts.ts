@@ -6,6 +6,7 @@
  */
 
 import type { ModularGenerationSettings } from '@/types/imageGeneration';
+import { detectPromptInjection, sanitizeUserInput } from '@/lib/ai/prompt-safety';
 
 // ============================================================================
 // CONSTANTS
@@ -43,51 +44,151 @@ const POWER_WORDS_FR = [
 ];
 
 // ============================================================================
+// BANNED WORDS — words that sound robotic/AI-generated
+// ============================================================================
+
+const BANNED_WORDS_FR = [
+    'exceptionnel', 'incontournable', 'révolutionnaire', 'unique en son genre',
+    'incroyable', 'fantastique', 'de qualité supérieure', 'haut de gamme',
+    'sublimez', 'transcendez', 'réinventez', "n'attendez plus",
+    'game-changer', 'cutting-edge', 'seamless',
+];
+
+const BANNED_WORDS_EN = [
+    'elevate', 'transform', 'unlock', 'game-changer', 'seamless',
+    'cutting-edge', 'leverage', 'harness', 'incredible', 'amazing',
+    'fantastic', 'wonderful', 'revolutionary',
+];
+
+// ============================================================================
+// COPYWRITING FRAMEWORKS
+// ============================================================================
+
+const FRAMEWORKS = {
+    PAS: `FRAMEWORK PAS (Problème → Agitation → Solution):
+- Identifie le problème concret que le client rencontre au quotidien
+- Amplifie pourquoi ne rien faire n'est pas une option (frustration, perte de temps, inconfort)
+- Présente le produit comme LA réponse, avec des bénéfices spécifiques et concrets`,
+
+    FAB: `FRAMEWORK FAB (Caractéristique → Avantage → Bénéfice):
+- Pour chaque caractéristique clé, explique l'avantage technique
+- Traduis immédiatement cet avantage en bénéfice concret pour la vie du client
+- Commence toujours par le bénéfice, pas par la caractéristique technique`,
+
+    BAB: `FRAMEWORK BAB (Avant → Après → Pont):
+- Décris la situation actuelle insatisfaisante du client (1-2 phrases)
+- Peins le tableau de sa vie améliorée avec ce produit (détails sensoriels)
+- Explique comment le produit rend cette transformation possible`,
+} as const;
+
+/**
+ * Select the best copywriting framework based on product context
+ */
+function selectFramework(product: ProductContext): string {
+    // Technical products with specs → FAB
+    if (product.attributes && product.attributes.length >= 3) {
+        return FRAMEWORKS.FAB;
+    }
+    // Products with existing description suggesting lifestyle → BAB
+    if (product.categories?.some(c =>
+        /décor|lifestyle|mode|beauté|maison|jardin/i.test(c)
+    )) {
+        return FRAMEWORKS.BAB;
+    }
+    // Default: PAS works for most products
+    return FRAMEWORKS.PAS;
+}
+
+// ============================================================================
+// SHARED QUALITY RULES — injected into all content prompts
+// ============================================================================
+
+function getBannedWordsRule(language: string): string {
+    const words = language === 'en' ? BANNED_WORDS_EN : BANNED_WORDS_FR;
+    return `MOTS INTERDITS (ne JAMAIS utiliser) : ${words.join(', ')}`;
+}
+
+const SHARED_QUALITY_RULES = `
+QUALITÉ RÉDACTIONNELLE (CRITIQUE — appliquer systématiquement):
+- ANTI-RÉPÉTITION : le nom complet du produit apparaît UNE SEULE FOIS (premier titre ou première phrase). Ensuite, utilise des pronoms (il, ce, celui-ci), des synonymes ou des périphrases
+- La marque et le modèle ne doivent JAMAIS apparaître plus de 2 fois dans tout le texte
+- INTERDIT de répéter un même mot (hors articles/prépositions) plus de 2 fois dans tout le texte
+- Varie le vocabulaire : synonymes, périphrases, termes du même champ sémantique
+- RYTHME : alterne phrases courtes (3-8 mots), moyennes (8-15 mots) et longues (15-25 mots). Jamais 2 phrases consécutives de même longueur
+- Ne commence JAMAIS deux phrases consécutives par le même mot
+- Traduis CHAQUE caractéristique technique en bénéfice concret pour le client
+- Utilise "vous/votre" naturellement pour impliquer le lecteur
+- NE JAMAIS inclure le prix, réductions ou montants en euros
+- Écris comme un vendeur passionné qui connaît le produit, pas comme une IA qui reformule des fiches techniques`;
+
+// ============================================================================
 // PRODUCT CONTEXT BUILDER (shared across prompts)
 // ============================================================================
 
-interface ProductContext {
+export interface ProductContext {
     title: string;
     currentDescription?: string;
     shortDescription?: string;
     categories?: string[];
     attributes?: Array<{ name: string; options?: string[] }>;
-    price?: number;
+    price?: number | string;
     sku?: string;
     imageUrl?: string;
     tags?: string[];
 }
 
+/**
+ * Sanitize a product text field: strip injection patterns and control chars.
+ * Returns empty string if injection is detected (field is omitted from context).
+ */
+function safeProductField(value: string, maxLen: number = 500): string {
+    if (!value) return '';
+    if (detectPromptInjection(value)) return '';
+    return sanitizeUserInput(value, maxLen);
+}
+
 function buildProductContext(product: ProductContext): string {
     const parts: string[] = [];
 
-    parts.push(`NOM DU PRODUIT: "${product.title}"`);
+    const safeTitle = safeProductField(product.title, 200);
+    parts.push(`NOM DU PRODUIT: "${safeTitle}"`);
 
     if (product.categories?.length) {
-        parts.push(`CATÉGORIES: ${product.categories.join(' > ')}`);
+        const safeCats = product.categories
+            .map(c => safeProductField(c, 100))
+            .filter(Boolean);
+        if (safeCats.length) parts.push(`CATÉGORIES: ${safeCats.join(' > ')}`);
     }
 
-    if (product.price) {
-        parts.push(`PRIX: ${product.price} €`);
-    }
+    // M3 fix: price is NOT included in prompt context (rule: never mention price)
 
     if (product.attributes?.length) {
         const attrs = product.attributes
-            .map(a => `${a.name}: ${a.options?.join(', ') || 'N/A'}`)
+            .map(a => {
+                const name = safeProductField(a.name, 100);
+                const opts = a.options?.map(o => safeProductField(o, 100)).filter(Boolean).join(', ') || 'N/A';
+                return name ? `${name}: ${opts}` : '';
+            })
+            .filter(Boolean)
             .join('\n  ');
-        parts.push(`ATTRIBUTS:\n  ${attrs}`);
+        if (attrs) parts.push(`ATTRIBUTS:\n  ${attrs}`);
     }
 
     if (product.tags?.length) {
-        parts.push(`TAGS: ${product.tags.join(', ')}`);
+        const safeTags = product.tags
+            .map(t => safeProductField(t, 100))
+            .filter(Boolean);
+        if (safeTags.length) parts.push(`TAGS: ${safeTags.join(', ')}`);
     }
 
     if (product.shortDescription) {
-        parts.push(`DESCRIPTION COURTE ACTUELLE: "${product.shortDescription.slice(0, 200)}"`);
+        const safe = safeProductField(product.shortDescription, 200);
+        if (safe) parts.push(`DESCRIPTION COURTE ACTUELLE: "${safe}"`);
     }
 
     if (product.currentDescription) {
-        parts.push(`DESCRIPTION ACTUELLE (extrait): "${product.currentDescription.slice(0, 500)}"`);
+        const safe = safeProductField(product.currentDescription, 500);
+        if (safe) parts.push(`DESCRIPTION ACTUELLE (extrait): "${safe}"`);
     }
 
     return parts.join('\n');
@@ -141,17 +242,20 @@ export function buildShortDescriptionPrompt(
 ): string {
     const wordLimit = settings.word_limits?.short_description || 50;
 
-    return `Tu es un copywriter e-commerce expert. Rédige une description courte de produit percutante et orientée conversion.
+    return `Tu es un vendeur passionné qui connaît parfaitement ce produit. Rédige une accroche courte qui donne envie d'acheter — comme si tu parlais à un client en boutique.
 
 ${buildProductContext(product)}
 
 CONTRAINTES:
 - ${wordLimit} mots maximum
 - 2-3 phrases percutantes
-- Commence par le BÉNÉFICE PRINCIPAL pour le client
+- Commence par le BÉNÉFICE PRINCIPAL pour le client (pas par le nom du produit)
 - Inclus un argument de vente unique (USP)
 - Termine par un micro-CTA implicite
 - Pas de HTML, texte brut uniquement
+
+${SHARED_QUALITY_RULES}
+${getBannedWordsRule(settings.language)}
 
 TON: ${getToneInstruction(settings.tone)}
 LANGUE: ${getLanguageName(settings.language)}
@@ -168,6 +272,7 @@ export function buildDescriptionPrompt(
 ): string {
     const wordLimit = settings.word_limits?.description || 300;
     const opts = settings.structure_options;
+    const framework = selectFramework(product);
 
     // Build structure instructions from settings
     const structureParts: string[] = [];
@@ -180,26 +285,37 @@ export function buildDescriptionPrompt(
         ? `\nSTRUCTURE HTML DEMANDÉE:\n${structureParts.join('\n')}`
         : '';
 
-    return `Tu es un rédacteur e-commerce expert en SEO et en conversion. Rédige une description produit complète en HTML.
+    return `Tu es un rédacteur e-commerce chevronné. Tu écris comme un humain passionné par les produits, pas comme une IA. Ton objectif : que le client se projette et ait envie d'acheter.
 
 ${buildProductContext(product)}
+
+${framework}
 
 CONTRAINTES SEO:
 - ${wordLimit} mots environ
 - Densité de mots-clés: 1-2% (naturelle, pas de bourrage)
-- Utilise des synonymes et variations sémantiques du nom du produit
+- Utilise au moins 5 synonymes ou termes du même champ sémantique que le produit
 - Structure avec balises HTML (h2, p, ul, li, strong, table si demandé)
 - Pas de balises <h1> (réservé au titre produit)
 - Pas de <div>, <span>, <style>, <script>
 ${structureStr}
 
-STRUCTURE TYPE:
-1. <h2> Introduction / accroche (1-2 phrases captivantes)
-2. <p> Paragraphe principal avec bénéfices
-3. <h2> Caractéristiques / Points forts
-4. <ul> Liste des bénéfices clés
-${opts.specs_table ? '5. <h2> Spécifications techniques\n6. <table> Tableau des specs' : ''}
-${opts.cta ? '7. <p><strong> Appel à l\'action</strong></p>' : ''}
+${SHARED_QUALITY_RULES}
+${getBannedWordsRule(settings.language)}
+
+STRUCTURE DES LISTES À PUCES:
+- Chaque puce doit suivre le format : caractéristique concrète → bénéfice pour le client
+- Commence chaque puce par un mot DIFFÉRENT (verbe d'action varié)
+- Pas de structure parallèle systématique — varie les formulations
+
+TITRES <h2>:
+- Chaque titre doit apporter un angle DIFFÉRENT (pas de reformulations)
+- Interdiction de reprendre le nom du produit dans plus d'un seul titre
+
+HUMANISATION:
+- Inclus au moins un détail sensoriel (toucher, visuel, sensation d'usage)
+- Inclus un cas d'usage concret tiré de la vie quotidienne
+- Tu peux inclure une concession honnête si pertinent ("ce n'est pas le plus léger, mais...")
 
 TON: ${getToneInstruction(settings.tone)}
 LANGUE: ${getLanguageName(settings.language)}
@@ -255,17 +371,25 @@ export function buildMetaDescriptionPrompt(
     product: ProductContext,
     settings: ModularGenerationSettings
 ): string {
-    return `Tu es un expert SEO e-commerce. Génère une meta description optimisée pour le référencement et le taux de clic.
+    return `Tu es un copywriter SEO. Rédige une meta description qui donne envie de cliquer — comme un pitch de 2 phrases à un client pressé.
 
 ${buildProductContext(product)}
 
-CONTRAINTES SEO STRICTES:
+CONTRAINTES SEO:
 - Longueur: ${SEO_CONSTANTS.metaDescription.minLength}-${SEO_CONSTANTS.metaDescription.maxLength} caractères (optimal: ${SEO_CONSTANTS.metaDescription.optimalLength})
-- Commence par un verbe d'action ou le bénéfice principal
-- Inclus le mot-clé principal naturellement
-- Ajoute un CTA implicite (Découvrez, Profitez, Commandez)
-- Utilise des chiffres si pertinent (prix, pourcentage, quantité)
-- Crée un sentiment d'urgence ou d'exclusivité
+- Commence par le bénéfice principal ou un verbe d'action fort
+- Inclus le mot-clé principal une seule fois, naturellement
+- Termine par un CTA implicite (un verbe d'action, pas un "cliquez ici")
+- NE JAMAIS inclure le prix, réductions ou montants en euros
+
+QUALITÉ RÉDACTIONNELLE:
+- Ne mentionne le nom du produit qu'UNE SEULE FOIS — utilise ensuite un pronom ou un synonyme
+- Ne répète JAMAIS un mot ou un nombre déjà présent dans la phrase
+- Fusionne les infos redondantes (marque, modèle, catégorie) en une seule mention fluide
+- Chaque mot doit compter — aucun remplissage
+- Écris de façon naturelle, comme un vendeur qui résume le produit en une phrase
+
+${getBannedWordsRule(settings.language)}
 
 TON: ${getToneInstruction(settings.tone)}
 LANGUE: ${getLanguageName(settings.language)}
@@ -340,6 +464,37 @@ Réponds UNIQUEMENT avec l'alt text, sans guillemets.`;
 }
 
 // ============================================================================
+// GEMINI GENERATION CONFIG
+// ============================================================================
+
+/**
+ * Get optimal Gemini generation config per field type.
+ * Higher temperature = more creative/varied text, less repetitive.
+ */
+export function getGenerationConfig(fieldType: string): { temperature: number; topP: number; frequencyPenalty: number } {
+    switch (fieldType) {
+        case 'title':
+        case 'seo_title':
+        case 'sku':
+            // Titles need precision, low creativity
+            return { temperature: 0.6, topP: 0.85, frequencyPenalty: 0.2 };
+
+        case 'short_description':
+        case 'meta_description':
+        case 'alt_text':
+            // Short copy needs creativity + anti-repetition
+            return { temperature: 0.8, topP: 0.9, frequencyPenalty: 0.4 };
+
+        case 'description':
+            // Long descriptions need max creativity and vocabulary diversity
+            return { temperature: 0.85, topP: 0.92, frequencyPenalty: 0.5 };
+
+        default:
+            return { temperature: 0.7, topP: 0.9, frequencyPenalty: 0.3 };
+    }
+}
+
+// ============================================================================
 // RESPONSE PARSING
 // ============================================================================
 
@@ -375,8 +530,20 @@ export function parseGeminiResponse(rawText: string, fieldType: string): string 
             break;
 
         case 'description':
-            // HTML is expected - just normalize whitespace
-            cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+            // HTML is expected — sanitize: allow only safe tags, strip event handlers & dangerous attrs
+            cleaned = cleaned
+                .replace(/<script[\s\S]*?<\/script>/gi, '')
+                .replace(/<style[\s\S]*?<\/style>/gi, '')
+                .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+                .replace(/<object[\s\S]*?<\/object>/gi, '')
+                .replace(/<embed[\s\S]*?>/gi, '')
+                .replace(/<link[\s\S]*?>/gi, '')
+                .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+                .replace(/\bon\w+\s*=\s*\S+/gi, '')
+                .replace(/javascript\s*:/gi, '')
+                .replace(/data\s*:/gi, 'data_blocked:')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
             break;
     }
 

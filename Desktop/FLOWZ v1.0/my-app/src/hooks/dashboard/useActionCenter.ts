@@ -14,6 +14,8 @@ import {
   Camera,
   RefreshCw,
   AlertTriangle,
+  BarChart2,
+  CalendarClock,
 } from "lucide-react";
 
 // ============================================================================
@@ -406,6 +408,36 @@ export function useActionCenter({
       });
     }
 
+    if (items.length < 6) {
+      items.push({
+        id: "seo-report",
+        priority: "low",
+        mode: "link",
+        title: "Rapport SEO & Trafic",
+        description: "Positions, impressions, clics",
+        impact: "Google Search Console",
+        cta: "Analyser",
+        href: "/app/overview/seo",
+        icon: BarChart2,
+        group: "suggestion",
+      });
+    }
+
+    if (items.length < 6) {
+      items.push({
+        id: "schedule-post",
+        priority: "low",
+        mode: "link",
+        title: "Planifier une publication",
+        description: "Programmer vos articles",
+        impact: "Régularité SEO",
+        cta: "Planifier",
+        href: "/app/blog",
+        icon: CalendarClock,
+        group: "suggestion",
+      });
+    }
+
     // Sort by priority
     items.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
 
@@ -431,7 +463,7 @@ export function useActionCenter({
 
   return {
     actions,
-    topActions: actions.slice(0, 4),
+    topActions: actions.slice(0, 6),
     totalCount: actions.length,
     resolvedCount: 0, // TODO: track resolved actions via activity_log
     grouped,

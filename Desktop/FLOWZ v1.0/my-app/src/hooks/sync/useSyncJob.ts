@@ -194,7 +194,7 @@ export function useStartSync() {
                     .select()
                     .single();
 
-                if (insertError) throw insertError;
+                if (insertError || !job) throw insertError ?? new Error('Failed to create sync job');
 
                 // Call sync-manager edge function
                 const { error: fnError } = await supabase.functions.invoke('sync-manager', {

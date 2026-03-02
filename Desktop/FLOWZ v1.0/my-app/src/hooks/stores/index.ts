@@ -10,6 +10,11 @@ export {
     useCreateStore,
     useUpdateStore,
     useDeleteStore,
+    useToggleActive,
+    // Scope 7 — Advanced actions
+    usePauseStore,
+    useResumeStore,
+    useDuplicateStore,
 } from './useStores';
 
 // Heartbeat & Health
@@ -17,7 +22,6 @@ export {
     useStoreHeartbeat,
     useConnectionHealth,
     useHeartbeatLogs,
-    useCheckAllStoresHealth,
     getHealthColor,
     getHealthBgColor,
     getHealthLabel,
@@ -42,6 +46,27 @@ export {
     useStoreKPIs,
     useAllStoresKPIs,
 } from './useStoreKPIs';
+
+// Realtime sync progress + latest sync job
+export {
+    useStoreRealtime,
+    useLatestSyncJob,
+} from './useStoreRealtime';
+export type { LatestSyncJob } from './useStoreRealtime';
+
+// AI Quota (Scope 5)
+export { useStoreAIQuota } from './useStoreAIQuota';
+
+// Members & Access (Scope 8)
+export {
+    useStoreMembers,
+    useStoreInvitations,
+    useStoreAuditLog,
+    useInviteStoreMember,
+    useUpdateMemberRole,
+    useRemoveStoreMember,
+    useCancelInvitation,
+} from './useStoreMembers';
 
 // Watermark
 export {
@@ -73,4 +98,23 @@ export type {
     ReconnectStoreParams,
     ScheduleDeletionParams,
     StoreSyncSettings,
+    StoreSyncConfig,
+    SyncEntity,
+    SyncFrequency,
+    SyncProgressPayload,
+    StoreHealthCheck,
+    HealthCheckStatus,
+    HealthErrorCode,
+    StoreMetrics,
+    StoreAIQuota,
+    StoreAIQuotaByFeature,
+    // Scope 8
+    StoreMemberRole,
+    StoreMember,
+    StoreInvitation,
+    StoreAuditLogEntry,
+    // Scope 6
+    AIProvider,
+    ToneOfVoice,
+    StoreAISettings,
 } from '@/types/store';

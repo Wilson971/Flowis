@@ -59,6 +59,8 @@ export type BlogStats = {
   totalArticles: number;
   publishedCount: number;
   draftCount: number;
+  reviewCount: number;
+  scheduledCount: number;
   lastCreatedAt: string | null; // Date de dernière création
 };
 

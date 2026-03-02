@@ -37,10 +37,9 @@ export interface UseDraftActionsReturn {
 
 const DEFAULT_GENERATION_SETTINGS: BatchGenerationSettings = {
     provider: "gemini",
-    model: "gemini-1.5-pro", // Updated model name if needed
+    model: "gemini-2.0-flash",
     tone: "professional",
     language: "fr",
-    global_config: true,
     word_limits: {
         title: 10,
         short_description: 30,
@@ -57,7 +56,6 @@ const DEFAULT_GENERATION_SETTINGS: BatchGenerationSettings = {
     },
     image_analysis: false,
     transform_mode: "optimize",
-    respect_editorial_lock: true,
 };
 
 // ============================================================================
@@ -98,8 +96,8 @@ export const useDraftActions = ({
             { productId, field },
             {
                 onSuccess: (response: any) => {
-                    // L'edge function retourne maintenant working_content dans data
-                    const wc = (response?.data?.working_content as Partial<ContentData>) || {};
+                    // response IS the product row returned by Supabase .select().single()
+                    const wc = (response?.working_content as Partial<ContentData>) || {};
 
                     if (!useEdited && (!wc || Object.keys(wc).length === 0)) {
 

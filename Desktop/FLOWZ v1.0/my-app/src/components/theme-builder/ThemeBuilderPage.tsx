@@ -340,7 +340,12 @@ export function ThemeBuilderPage() {
                 animate="visible"
               >
                 <EffectsMotionSection
-                  effects={(config.effects as EffectsConfig) ?? { radius: {}, shadows: {}, glass: { enabled: false, blur: 12, opacity: 0.1 }, motion: { intensity: "normal", durations: {}, easings: {} } }}
+                  effects={(config.effects as EffectsConfig) ?? {
+                    radius: { base: 12, sm: 8, lg: 16, xl: 20, "2xl": 24 },
+                    shadows: { sm: "0 1px 2px rgba(0,0,0,0.05)", md: "0 4px 6px -1px rgba(0,0,0,0.1)", lg: "0 10px 15px -3px rgba(0,0,0,0.1)", xl: "0 20px 25px -5px rgba(0,0,0,0.1)", glow: "0 0 20px rgba(16,185,129,0.3)" },
+                    glass: { enabled: false, blur: 12, opacity: 0.1 },
+                    motion: { intensity: "normal", durations: { fast: 200, default: 300, slow: 400 }, easings: { default: "cubic-bezier(0.4,0,0.2,1)", smooth: "cubic-bezier(0.23,1,0.32,1)", bounce: "cubic-bezier(0.68,-0.55,0.265,1.55)" } }
+                  }}
                   onChange={handleEffectsChange}
                 />
               </motion.div>

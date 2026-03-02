@@ -14,7 +14,10 @@ import { Slider } from '@/components/ui/slider'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  SettingsCard,
+  SettingsHeader,
+} from '@/components/settings/ui/SettingsCard'
 import {
   Droplets,
   Image,
@@ -30,7 +33,7 @@ import {
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { styles, motionTokens } from '@/lib/design-system'
+import { motionTokens } from '@/lib/design-system'
 import type { WatermarkPosition } from '@/types/store'
 
 const POSITION_GRID: { value: WatermarkPosition; short: string }[] = [
@@ -92,7 +95,7 @@ export default function StoreWatermarkSection() {
         animate="visible"
       >
         <Store className="h-10 w-10 text-muted-foreground/40" />
-        <p className={styles.text.bodyMuted}>Sélectionnez une boutique dans la barre latérale</p>
+        <p className="text-sm text-muted-foreground">Sélectionnez une boutique dans la barre latérale</p>
       </motion.div>
     )
   }
@@ -106,249 +109,228 @@ export default function StoreWatermarkSection() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header */}
-      <motion.div variants={motionTokens.variants.staggerItem} className="space-y-1">
-        <h2 className={styles.text.h2}>Watermark</h2>
-        <p className={styles.text.bodyMuted}>Filigrane automatique sur vos images</p>
-      </motion.div>
-
       {/* Enable toggle card */}
-      <motion.div
-        variants={motionTokens.variants.staggerItem}
-        className={cn(styles.card.glass, 'p-6 space-y-4')}
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, styles.iconContainer.muted, 'bg-primary/10')}>
-            <Droplets className="h-4 w-4 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h3 className={styles.text.h4}>Filigrane</h3>
-            <p className={styles.text.bodySmall}>Protégez vos images produit</p>
-          </div>
-          <Switch
-            checked={settings.enabled}
-            onCheckedChange={(checked) => toggleWatermark(storeId!, checked)}
-          />
-        </div>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-4">
+          <SettingsHeader
+            icon={Droplets}
+            title="Filigrane"
+            description="Protégez vos images produit"
+          >
+            <Switch
+              checked={settings.enabled}
+              onCheckedChange={(checked) => toggleWatermark(storeId!, checked)}
+            />
+          </SettingsHeader>
 
-        {!settings.enabled && (
-          <p className={cn(styles.text.bodySmall, 'text-center py-4 text-muted-foreground/60')}>
-            Activez le watermark pour configurer les options
-          </p>
-        )}
+          {!settings.enabled && (
+            <p className="text-xs text-muted-foreground/60 text-center py-4">
+              Activez le watermark pour configurer les options
+            </p>
+          )}
+        </SettingsCard>
       </motion.div>
 
       {settings.enabled && (
         <>
           {/* Image / Text source card */}
-          <motion.div
-            variants={motionTokens.variants.staggerItem}
-            className={cn(styles.card.glass, 'p-6 space-y-4')}
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(styles.iconContainer.sm, styles.iconContainer.muted, 'bg-primary/10')}>
-                <Image className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <h3 className={styles.text.h4}>Source du watermark</h3>
-                <p className={styles.text.bodySmall}>Image ou texte</p>
-              </div>
-            </div>
+          <motion.div variants={motionTokens.variants.staggerItem}>
+            <SettingsCard className="space-y-4">
+              <SettingsHeader
+                icon={Image}
+                title="Source du watermark"
+                description="Image ou texte"
+              />
 
-            {/* Image upload */}
-            <div className="space-y-2">
-              <Label className="text-sm flex items-center gap-1.5">
-                <Image className="h-3.5 w-3.5 text-muted-foreground" />
-                Image
-              </Label>
-              {settings.image_url ? (
-                <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-16 rounded-lg border bg-muted/30 overflow-hidden">
-                    <img
-                      src={settings.image_url}
-                      alt="Watermark"
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className={cn(styles.text.bodySmall, 'truncate max-w-[200px]')}>
-                      {settings.image_url.split('/').pop()}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadImage.isPending}
-                        className="rounded-lg"
-                      >
-                        {uploadImage.isPending ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Upload className="mr-1 h-3 w-3" />
-                        )}
-                        Changer
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSettingChange('image_url', null)}
-                        className="rounded-lg text-muted-foreground"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
+              {/* Image upload */}
+              <div className="space-y-2">
+                <Label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                  <Image className="h-3.5 w-3.5 text-muted-foreground/60" />
+                  Image
+                </Label>
+                {settings.image_url ? (
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-xl border border-border/40 bg-muted/30 overflow-hidden">
+                      <img
+                        src={settings.image_url}
+                        alt="Watermark"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {settings.image_url.split('/').pop()}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadImage.isPending}
+                          className="h-7 text-[11px] rounded-lg gap-1 font-medium border-border/60 hover:bg-accent"
+                        >
+                          {uploadImage.isPending ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Upload className="h-3 w-3" />
+                          )}
+                          Changer
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSettingChange('image_url', null)}
+                          className="h-7 text-[11px] rounded-lg font-medium text-muted-foreground hover:bg-accent"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-20 rounded-lg border-dashed"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadImage.isPending}
-                >
-                  {uploadImage.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="mr-2 h-4 w-4" />
-                  )}
-                  Uploader une image
-                </Button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageUpload}
-              />
-            </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-20 rounded-xl border-dashed border-border/60 hover:bg-accent gap-2 font-medium text-[13px]"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadImage.isPending}
+                  >
+                    {uploadImage.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    Uploader une image
+                  </Button>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </div>
 
-            {/* Text input */}
-            <div className="space-y-2">
-              <Label className="text-sm flex items-center gap-1.5">
-                <Type className="h-3.5 w-3.5 text-muted-foreground" />
-                Texte (alternatif)
-              </Label>
-              <Input
-                placeholder="ex: Ma Boutique"
-                value={settings.text || ''}
-                onChange={(e) => handleSettingChange('text', e.target.value || null)}
-              />
-              <p className={cn(styles.text.bodySmall, 'text-[11px]')}>
-                Utilisé si aucune image n&apos;est définie
-              </p>
-            </div>
+              {/* Text input */}
+              <div className="space-y-2">
+                <Label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                  <Type className="h-3.5 w-3.5 text-muted-foreground/60" />
+                  Texte (alternatif)
+                </Label>
+                <Input
+                  placeholder="ex: Ma Boutique"
+                  value={settings.text || ''}
+                  onChange={(e) => handleSettingChange('text', e.target.value || null)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Utilisé si aucune image n&apos;est définie
+                </p>
+              </div>
+            </SettingsCard>
           </motion.div>
 
           {/* Position grid card */}
-          <motion.div
-            variants={motionTokens.variants.staggerItem}
-            className={cn(styles.card.glass, 'p-6 space-y-4')}
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(styles.iconContainer.sm, styles.iconContainer.muted, 'bg-primary/10')}>
-                <Move className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <h3 className={styles.text.h4}>Position</h3>
-                <p className={styles.text.bodySmall}>
-                  {WATERMARK_POSITIONS.find(p => p.value === settings.position)?.label || 'Bas droite'}
-                </p>
-              </div>
-            </div>
+          <motion.div variants={motionTokens.variants.staggerItem}>
+            <SettingsCard className="space-y-4">
+              <SettingsHeader
+                icon={Move}
+                title="Position"
+                description={WATERMARK_POSITIONS.find(p => p.value === settings.position)?.label || 'Bas droite'}
+              />
 
-            {/* 3x3 position grid */}
-            <div className="grid grid-cols-3 gap-1.5 max-w-[200px] mx-auto">
-              {POSITION_GRID.map((pos) => (
-                <button
-                  key={pos.value}
-                  type="button"
-                  onClick={() => handleSettingChange('position', pos.value)}
-                  className={cn(
-                    'h-10 rounded-lg border text-xs font-medium transition-all',
-                    settings.position === pos.value
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted/30 text-muted-foreground border-border hover:bg-muted/50'
-                  )}
-                >
-                  {pos.short}
-                </button>
-              ))}
-            </div>
+              {/* 3x3 position grid */}
+              <div className="grid grid-cols-3 gap-1.5 max-w-[200px] mx-auto">
+                {POSITION_GRID.map((pos) => (
+                  <button
+                    key={pos.value}
+                    type="button"
+                    onClick={() => handleSettingChange('position', pos.value)}
+                    className={cn(
+                      'h-10 rounded-lg border text-xs font-medium transition-all',
+                      settings.position === pos.value
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'bg-muted/30 text-muted-foreground border-border/60 hover:bg-accent'
+                    )}
+                  >
+                    {pos.short}
+                  </button>
+                ))}
+              </div>
+            </SettingsCard>
           </motion.div>
 
           {/* Sliders card */}
-          <motion.div
-            variants={motionTokens.variants.staggerItem}
-            className={cn(styles.card.glass, 'p-6 space-y-5')}
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(styles.iconContainer.sm, styles.iconContainer.muted, 'bg-primary/10')}>
-                <SunDim className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <h3 className={styles.text.h4}>Apparence</h3>
-                <p className={styles.text.bodySmall}>Opacité, taille et marge</p>
-              </div>
-            </div>
-
-            {/* Opacity */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <SunDim className="h-3.5 w-3.5 text-muted-foreground" />
-                  Opacité
-                </Label>
-                <Badge variant="outline" className="text-xs">{settings.opacity}%</Badge>
-              </div>
-              <Slider
-                value={[settings.opacity]}
-                onValueChange={([value]) => handleSettingChange('opacity', value)}
-                min={5}
-                max={100}
-                step={5}
+          <motion.div variants={motionTokens.variants.staggerItem}>
+            <SettingsCard className="space-y-5">
+              <SettingsHeader
+                icon={SunDim}
+                title="Apparence"
+                description="Opacité, taille et marge"
               />
-            </div>
 
-            {/* Size */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  Taille
-                </Label>
-                <Badge variant="outline" className="text-xs">{settings.size}%</Badge>
+              {/* Opacity */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                    <SunDim className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    Opacité
+                  </Label>
+                  <span className="text-xs font-mono bg-muted/40 px-2 py-0.5 rounded-lg text-muted-foreground">
+                    {settings.opacity}%
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.opacity]}
+                  onValueChange={([value]) => handleSettingChange('opacity', value)}
+                  min={5}
+                  max={100}
+                  step={5}
+                />
               </div>
-              <Slider
-                value={[settings.size]}
-                onValueChange={([value]) => handleSettingChange('size', value)}
-                min={5}
-                max={50}
-                step={1}
-              />
-            </div>
 
-            {/* Padding */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm flex items-center gap-1.5">
-                  <Move className="h-3.5 w-3.5 text-muted-foreground" />
-                  Marge
-                </Label>
-                <Badge variant="outline" className="text-xs">{settings.padding}px</Badge>
+              {/* Size */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                    <Maximize2 className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    Taille
+                  </Label>
+                  <span className="text-xs font-mono bg-muted/40 px-2 py-0.5 rounded-lg text-muted-foreground">
+                    {settings.size}%
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.size]}
+                  onValueChange={([value]) => handleSettingChange('size', value)}
+                  min={5}
+                  max={50}
+                  step={1}
+                />
               </div>
-              <Slider
-                value={[settings.padding]}
-                onValueChange={([value]) => handleSettingChange('padding', value)}
-                min={0}
-                max={50}
-                step={1}
-              />
-            </div>
+
+              {/* Padding */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
+                    <Move className="h-3.5 w-3.5 text-muted-foreground/60" />
+                    Marge
+                  </Label>
+                  <span className="text-xs font-mono bg-muted/40 px-2 py-0.5 rounded-lg text-muted-foreground">
+                    {settings.padding}px
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.padding]}
+                  onValueChange={([value]) => handleSettingChange('padding', value)}
+                  min={0}
+                  max={50}
+                  step={1}
+                />
+              </div>
+            </SettingsCard>
           </motion.div>
         </>
       )}

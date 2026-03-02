@@ -72,6 +72,21 @@ export interface RemoveMemberParams {
   workspaceId: string
 }
 
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled'
+
+export interface WorkspaceInvitation {
+  id: string
+  workspace_id: string
+  email: string
+  role: WorkspaceRole
+  status: InvitationStatus
+  invite_token: string
+  invited_by: string
+  expires_at: string
+  created_at: string
+  updated_at: string
+}
+
 export interface PlanDefinition {
   id: WorkspacePlan
   name: string

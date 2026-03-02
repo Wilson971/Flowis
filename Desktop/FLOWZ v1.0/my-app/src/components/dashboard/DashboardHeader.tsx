@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { ButtonMagic } from "../ui/button-magic";
 import { Skeleton } from "../ui/skeleton";
 import { AlertCircle, Package, FileText } from "lucide-react";
 import { useSelectedStore } from "@/contexts/StoreContext";
@@ -21,12 +20,6 @@ type DashboardHeaderProps = {
   onGenerateClick?: () => void;
 };
 
-/**
- * DashboardHeader - Premium dashboard header
- *
- * Gradient text greeting, animated stat badges with counters,
- * store status indicator, and magic CTA button.
- */
 export const DashboardHeader = ({
   userName,
   userEmail,
@@ -51,7 +44,6 @@ export const DashboardHeader = ({
   const isConnected = selectedStore?.status === "active";
   const syncErrors = context?.shopStats?.syncErrors || 0;
 
-  // Time-based greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Bonjour";
@@ -61,125 +53,89 @@ export const DashboardHeader = ({
 
   return (
     <motion.div
-      className="relative overflow-hidden rounded-xl border border-border/50 bg-card/80 backdrop-blur-sm"
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: motionTokens.durations.normal,
-        ease: motionTokens.easings.smooth,
-      }}
+      className="relative overflow-hidden rounded-xl border border-border/40 bg-card"
+      variants={motionTokens.variants.slideUp}
+      initial="hidden"
+      animate="visible"
     >
-      {/* Subtle gradient accent */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 pointer-events-none" />
+      {/* Dark mode gradient overlay */}
+      <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
 
-      <div className="relative p-3 md:p-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="relative z-10 px-4 py-3 md:px-6 md:py-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
           {/* Left: User greeting + Store */}
           <div className="flex items-center gap-3">
-            <Avatar className="h-11 w-11 border-2 border-primary/20 ring-2 ring-primary/5">
-              <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative shrink-0">
+              <Avatar className="h-10 w-10 ring-1 ring-border/50">
+                <AvatarFallback className="bg-muted/60 text-foreground/70 font-semibold text-sm">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className={cn(
+                "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card",
+                isConnected ? "bg-emerald-500" : "bg-amber-500"
+              )} />
+            </div>
 
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-bold tracking-tight text-foreground">
+                <h1 className="text-lg font-semibold tracking-tight text-foreground leading-none">
                   {getGreeting()},{" "}
-                  <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  <span className="text-foreground">
                     {userName.split(" ")[0]}
                   </span>
                 </h1>
                 {storesLoading ? (
-                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-5 w-24 rounded-full" />
                 ) : selectedStore ? (
-                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-muted/60 border border-border/50">
-                    <PlatformLogo
-                      platform={selectedStore.platform as PlatformType}
-                      size={12}
-                    />
-                    <span className={cn(styles.text.labelSmall, "text-muted-foreground max-w-[100px] truncate")}>
+                  <div className="flex items-center gap-1.5 h-5 px-2 rounded-full bg-muted/60 ring-1 ring-border/40">
+                    <PlatformLogo platform={selectedStore.platform as PlatformType} size={11} />
+                    <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider max-w-[90px] truncate">
                       {selectedStore.name}
                     </span>
-                    <div
-                      className={cn(
-                        "w-1.5 h-1.5 rounded-full ml-0.5",
-                        isConnected ? "bg-primary" : "bg-signal-warning"
-                      )}
-                    />
                   </div>
                 ) : null}
               </div>
-              <p className="text-muted-foreground text-xs leading-tight">
-                Voici votre tableau de bord.
-              </p>
+              <p className="text-xs text-muted-foreground">Voici votre tableau de bord.</p>
             </div>
           </div>
 
-          {/* Right: Stats + CTA */}
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-            {/* Stat badges */}
-            <div className="flex items-center gap-2">
-              <motion.div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 border border-border/50"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Package className="h-3 w-3 text-muted-foreground" />
-                <AnimatedCounter
-                  value={context?.shopStats?.totalProducts ?? 0}
-                  delay={0.3}
-                  className="text-xs text-foreground"
-                />
-                <span className={styles.text.labelSmall}>
-                  prod.
-                </span>
-              </motion.div>
-
-              <motion.div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/60 border border-border/50"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                <FileText className="h-3 w-3 text-muted-foreground" />
-                <AnimatedCounter
-                  value={context?.shopStats?.totalBlogPosts ?? 0}
-                  delay={0.4}
-                  className="text-xs text-foreground"
-                />
-                <span className={styles.text.labelSmall}>
-                  art.
-                </span>
-              </motion.div>
-
-              {syncErrors > 0 && (
-                <motion.div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-destructive/10 border border-destructive/20 cursor-pointer hover:bg-destructive/15 transition-colors"
-                  onClick={() => router.push("/app/products?sync=pending")}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  <AlertCircle className="h-3 w-3 text-destructive" />
-                  <span className="text-xs font-bold tabular-nums text-destructive">
-                    {syncErrors}
-                  </span>
-                </motion.div>
-              )}
-            </div>
-
-            {/* CTA */}
-            <ButtonMagic
-              size="sm"
-              showSparkles
-              onClick={onGenerateClick}
-              className="h-8 px-3 text-xs font-semibold uppercase tracking-wide"
+          {/* Right: Stat pills */}
+          <motion.div
+            className="flex items-center gap-2 w-full md:w-auto justify-end"
+            variants={motionTokens.variants.staggerContainer}
+            initial="hidden"
+            animate="visible"
+          >
+            <motion.div
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-muted/40 ring-1 ring-border/40 transition-colors hover:bg-muted/60 cursor-default"
+              variants={motionTokens.variants.staggerItem}
             >
-              Générer du contenu
-            </ButtonMagic>
-          </div>
+              <Package className="h-3.5 w-3.5 text-foreground/70" />
+              <AnimatedCounter value={context?.shopStats?.totalProducts ?? 0} delay={0.3} className="text-sm font-semibold tabular-nums tracking-tight text-foreground" />
+              <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Prod.</span>
+            </motion.div>
+
+            <motion.div
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-muted/40 ring-1 ring-border/40 transition-colors hover:bg-muted/60 cursor-default"
+              variants={motionTokens.variants.staggerItem}
+            >
+              <FileText className="h-3.5 w-3.5 text-foreground/70" />
+              <AnimatedCounter value={context?.shopStats?.totalBlogPosts ?? 0} delay={0.4} className="text-sm font-semibold tabular-nums tracking-tight text-foreground" />
+              <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Art.</span>
+            </motion.div>
+
+            {syncErrors > 0 && (
+              <motion.div
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-500/10 ring-1 ring-red-500/20 cursor-pointer transition-colors hover:bg-red-500/15"
+                onClick={() => router.push("/app/products?sync=pending")}
+                variants={motionTokens.variants.staggerItem}
+              >
+                <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                <span className="text-sm font-semibold tabular-nums text-red-500">{syncErrors}</span>
+              </motion.div>
+            )}
+          </motion.div>
         </div>
       </div>
     </motion.div>

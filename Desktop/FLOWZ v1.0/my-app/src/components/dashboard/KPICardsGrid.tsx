@@ -1,66 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DashboardContext, DashboardKPIs } from "@/types/dashboard";
-import { GenerateSelectionModal } from "./GenerateSelectionModal";
-import { CatalogCoverageCard } from "./CatalogCoverageCard";
-import { ActivityTimeline, ActivityItem } from "./ActivityTimeline";
-import { SeoScoreHero } from "./SeoScoreHero";
-import { AIInsightsCard } from "./AIInsightsCard";
-import { ActionCenter } from "./ActionCenter";
-import { ContentPipeline } from "./ContentPipeline";
-import { GscTrafficOverviewCard } from "./GscTrafficOverviewCard";
-import { GscIndexationStatusCard } from "./GscIndexationStatusCard";
+import type { ActivityItem } from "@/hooks/analytics/useRecentActivity";
+import { SeoScoreHeroV2 } from "./SeoScoreHeroV2";
+import { GscTrafficOverviewCardV2 } from "./GscTrafficOverviewCardV2";
+import { GscIndexationStatusCardV2 } from "./GscIndexationStatusCardV2";
 import { GscFastOpportunitiesCard } from "./GscFastOpportunitiesCard";
+import { OverviewV2 } from "./OverviewV2";
 import { useSeoGlobalScore } from "@/hooks/products/useSeoGlobalScore";
 import { useCatalogCoverage } from "@/hooks/dashboard/useCatalogCoverage";
-import { useGscConnection } from "@/hooks/integrations/useGscConnection";
-import { useGscOpportunities } from "@/hooks/integrations/useGscOpportunities";
-import { useSelectedStore } from "@/contexts/StoreContext";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { motionTokens } from "@/lib/design-system";
+import { LayoutDashboard, BarChart3 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type KPICardsGridProps = {
   kpis?: DashboardKPIs;
   context?: DashboardContext;
   activities?: ActivityItem[];
   isLoading?: boolean;
+  /** Active tab derived from URL — "overview" | "seo" */
+  activeTab?: "overview" | "seo";
 };
 
-/**
- * KPICardsGrid - Redesigned Dashboard Layout
- *
- * New layout based on information hierarchy:
- * - Row 1 (Hero): SEO Score Hero (with breakdown) + Action Center (contextual)
- * - Row 2 (Performance): Traffic (span 2) + Indexation + Opportunities
- * - Row 3 (Content & Status): Coverage + Content Pipeline + Connection Health + Activity
- */
+/** Wrapper card uniforme — h-full pour remplir la cellule CSS grid */
+const CardShell = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <div
+    className={cn(
+      "h-full border border-border/40 bg-card rounded-xl relative group transition-colors overflow-auto",
+      className
+    )}
+  >
+    <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
+    {children}
+  </div>
+);
+
 export const KPICardsGrid = ({
   kpis,
   context,
   activities,
   isLoading = false,
+  activeTab = "overview",
 }: KPICardsGridProps) => {
   const router = useRouter();
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
 
   const storeId = context?.selectedShopId || null;
 
-  // Data hooks
   const { data: seoData } = useSeoGlobalScore(storeId);
-  const { data: coverageData, isLoading: coverageLoading } = useCatalogCoverage(storeId);
-  // GSC connection + opportunities for ActionCenter
-  const { selectedStore } = useSelectedStore();
-  const { connections, isConnected: gscConnected } = useGscConnection({ linkedOnly: true });
-  const storeMatchedSite = selectedStore
-    ? connections.find(c => c.store_id === selectedStore.id)
-    : null;
-  const effectiveSiteId = storeMatchedSite?.site_id || connections[0]?.site_id || null;
-  const { data: opportunities } = useGscOpportunities(
-    gscConnected ? effectiveSiteId : null,
-    "last_28_days"
-  );
+  const { data: coverageData } = useCatalogCoverage(storeId);
 
   const seoScore = seoData?.averageScore ?? 0;
   const seoScorePrevMonth = kpis?.seoScorePrevMonth ?? null;
@@ -68,135 +58,139 @@ export const KPICardsGrid = ({
     seoScorePrevMonth != null ? Math.round(seoScore - seoScorePrevMonth) : 0;
 
   const coveragePercent = coverageData?.coveragePercent ?? kpis?.catalogCoveragePercent ?? 0;
-  const isDisconnected = context?.connectionStatus === "disconnected";
-  const draftsCount = kpis?.blogStats?.draftCount ?? 0;
-  const opportunitiesCount = opportunities?.quick_wins?.length ?? 0;
-  const productsWithoutDesc = (coverageData?.total ?? 0) - (coverageData?.optimized ?? 0);
 
   return (
     <>
-      {/* Full-height bento grid */}
-      <motion.div
-        className="grid grid-cols-4 gap-2 h-full"
-        style={{ gridTemplateRows: "1.2fr 1fr 1fr" }}
-        variants={motionTokens.variants.staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {/* ═══════════ ROW 1: HERO SEO + ACTION CENTER ═══════════ */}
+      <div className="h-full flex flex-col">
 
-        {/* SEO Score Hero — span 2 cols */}
-        <motion.div variants={motionTokens.variants.staggerItem} className="col-span-2 min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <SeoScoreHero
-              score={seoScore}
-              breakdown={seoData?.breakdown}
-              detailedPillars={seoData?.detailedPillars}
-              analyzedProducts={seoData?.analyzedProductsCount || 0}
-              previousPeriodChange={previousPeriodChange}
-              period="vs mois dernier"
-              onDrillDown={() => router.push("/app/seo")}
-              onViewImprovements={() => router.push("/app/products?sort=seo_score")}
-              onFixCategory={(category) => router.push(`/app/products?seo_issue=${category}`)}
-            />
-          </div>
-        </motion.div>
+        {/* ── Nav Tab Bar — Vercel underline style ── */}
+        <nav
+          className="flex items-center gap-1 border-b border-border/40 shrink-0 mb-3"
+          aria-label="Dashboard navigation"
+        >
+          <Link
+            href="/app/overview"
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px",
+              "focus-visible:outline-none focus-visible:ring-0",
+              activeTab === "overview"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <LayoutDashboard className={cn("h-3.5 w-3.5", activeTab === "overview" ? "text-foreground/70" : "text-muted-foreground/60")} />
+            Vue d&apos;ensemble
+          </Link>
 
-        {/* AI Insights */}
-        <motion.div variants={motionTokens.variants.staggerItem} className="min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <AIInsightsCard kpis={kpis} seoScore={seoScore} coveragePercent={coveragePercent} />
-          </div>
-        </motion.div>
+          <Link
+            href="/app/overview/seo"
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors border-b-2 -mb-px",
+              "focus-visible:outline-none focus-visible:ring-0",
+              activeTab === "seo"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <BarChart3 className={cn("h-3.5 w-3.5", activeTab === "seo" ? "text-foreground/70" : "text-muted-foreground/60")} />
+            SEO &amp; Trafic
+          </Link>
+        </nav>
 
-        {/* Action Center (contextual, dynamic) */}
-        <motion.div variants={motionTokens.variants.staggerItem} className="min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <ActionCenter
-              storeId={storeId}
-              isDisconnected={isDisconnected}
-              draftsCount={draftsCount}
-              seoScore={seoScore}
-              opportunitiesCount={opportunitiesCount}
-              productsWithoutDescription={productsWithoutDesc}
-            />
-          </div>
-        </motion.div>
+        {/* ── Content ── */}
+        <div className="flex-1 min-h-0">
+          <AnimatePresence mode="wait">
 
-        {/* ═══════════ ROW 2: PERFORMANCE ═══════════ */}
+            {/* ══════════════════════════════════════════════════════════
+                VUE D'ENSEMBLE
+            ════════════════════════════════════════════════════════════ */}
+            {activeTab === "overview" && (
+              <motion.div
+                key="overview"
+                className="h-full"
+                variants={motionTokens.variants.fadeIn}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+              >
+                <OverviewV2
+                  kpis={kpis}
+                  context={context}
+                  activities={(activities || []) as ActivityItem[]}
+                  seoScore={seoScore}
+                  coveragePercent={coveragePercent}
+                  coverageTotal={coverageData?.total ?? kpis?.aiOptimizedProducts ?? 0}
+                  coverageOptimized={coverageData?.optimized ?? kpis?.aiOptimizedProducts ?? 0}
+                  generatedThisMonth={coverageData?.generatedThisMonth ?? 0}
+                  prevMonthOptimized={kpis?.aiOptimizedPrevMonth ?? null}
+                  goal={250}
+                />
+              </motion.div>
+            )}
 
-        <motion.div variants={motionTokens.variants.staggerItem} className="col-span-2 min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <GscTrafficOverviewCard />
-          </div>
-        </motion.div>
+            {/* ══════════════════════════════════════════════════════════
+                SEO & TRAFIC
 
-        <motion.div variants={motionTokens.variants.staggerItem} className="min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <GscIndexationStatusCard />
-          </div>
-        </motion.div>
+                ┌─────────────────────┬──────────────────────┐  row 1 — 1.4fr
+                │  SeoScoreHero (2)   │  Opportunités (2)    │
+                ├─────────────────────┴──────┬───────────────┤  row 2 — 1fr
+                │  GscTrafficOverview (3)    │ Indexation (1) │
+                └────────────────────────────┴───────────────┘
+            ════════════════════════════════════════════════════════════ */}
+            {activeTab === "seo" && (
+              <motion.div
+                key="seo"
+                className="grid grid-cols-4 gap-3 h-full min-h-0"
+                style={{ gridTemplateRows: "1.4fr 1fr" }}
+                variants={motionTokens.variants.staggerContainer}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+              >
+                {/* Row 1 — Radar score + Opportunities */}
+                <motion.div variants={motionTokens.variants.staggerItem} className="col-span-2 min-h-0">
+                  <CardShell>
+                    <SeoScoreHeroV2
+                      score={seoScore}
+                      breakdown={seoData?.breakdown}
+                      detailedPillars={seoData?.detailedPillars}
+                      analyzedProducts={seoData?.analyzedProductsCount || 0}
+                      previousPeriodChange={previousPeriodChange}
+                      period="vs mois dernier"
+                      onDrillDown={() => router.push("/app/seo")}
+                      onViewImprovements={() => router.push("/app/products?sort=seo_score")}
+                      onFixCategory={(category) =>
+                        router.push(`/app/products?seo_issue=${category}`)
+                      }
+                    />
+                  </CardShell>
+                </motion.div>
 
-        <motion.div variants={motionTokens.variants.staggerItem} className="min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <GscFastOpportunitiesCard />
-          </div>
-        </motion.div>
+                <motion.div variants={motionTokens.variants.staggerItem} className="col-span-2 min-h-0">
+                  <CardShell>
+                    <GscFastOpportunitiesCard />
+                  </CardShell>
+                </motion.div>
 
-        {/* ═══════════ ROW 3: CONTENT & STATUS ═══════════ */}
+                {/* Row 2 — Traffic + Indexation */}
+                <motion.div variants={motionTokens.variants.staggerItem} className="col-span-3 min-h-0">
+                  <CardShell>
+                    <GscTrafficOverviewCardV2 />
+                  </CardShell>
+                </motion.div>
 
-        <motion.div variants={motionTokens.variants.staggerItem} className="col-span-2 min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <CatalogCoverageCard
-              total={coverageData?.total ?? kpis?.aiOptimizedProducts ?? 0}
-              optimized={coverageData?.optimized ?? kpis?.aiOptimizedProducts ?? 0}
-              coveragePercent={coveragePercent}
-              generatedThisMonth={coverageData?.generatedThisMonth ?? 0}
-              prevMonthOptimized={kpis?.aiOptimizedPrevMonth ?? null}
-              goal={250}
-              isLoading={coverageLoading && isLoading}
-              onBatchOptimize={() => setShowGenerateModal(true)}
-            />
-          </div>
-        </motion.div>
+                <motion.div variants={motionTokens.variants.staggerItem} className="col-span-1 min-h-0">
+                  <CardShell>
+                    <GscIndexationStatusCardV2 />
+                  </CardShell>
+                </motion.div>
+              </motion.div>
+            )}
 
-        <motion.div variants={motionTokens.variants.staggerItem} className="min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <ContentPipeline
-              draftsCount={kpis?.blogStats?.draftCount || 0}
-              publishedCount={kpis?.blogStats?.publishedCount || 0}
-              lastCreated={
-                kpis?.blogStats?.lastCreatedAt
-                  ? new Date(kpis.blogStats.lastCreatedAt).toLocaleDateString()
-                  : undefined
-              }
-              onViewDrafts={() => router.push("/app/blog?status=draft")}
-              onCreateArticle={() => router.push("/app/blog/new")}
-            />
-          </div>
-        </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
 
-        <motion.div variants={motionTokens.variants.staggerItem} className="min-h-0">
-          <div className="h-full border border-border/40 bg-card/95 backdrop-blur-lg rounded-xl relative overflow-hidden group hover:bg-card/90 transition-all duration-500">
-            <div className="absolute inset-0 bg-gradient-to-br from-foreground/5 via-transparent to-transparent pointer-events-none" />
-            <ActivityTimeline activities={(activities || []) as ActivityItem[]} />
-          </div>
-        </motion.div>
-      </motion.div>
-
-      {/* Generate modal */}
-      <GenerateSelectionModal
-        open={showGenerateModal}
-        onOpenChange={setShowGenerateModal}
-      />
     </>
   );
 };

@@ -14,7 +14,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 // ============================================================================
 // CONSTANTS
@@ -92,13 +92,18 @@ function getBackoffDelay(attempt: number): number {
 
 /**
  * Standalone push executor with exponential backoff retry.
- * Used by both usePushToStore mutation and usePushProductBatch.
+ * Accepts an optional AbortSignal to stop retries on unmount/navigation.
  */
 async function executePushWithRetry(
     supabase: ReturnType<typeof createClient>,
     params: PushToStoreParams,
-    attempt = 0
+    attempt = 0,
+    signal?: AbortSignal
 ): Promise<PushResponse> {
+    if (signal?.aborted) {
+        throw new DOMException('Push annulé', 'AbortError');
+    }
+
     try {
         const { data, error } = await supabase.functions.invoke('push-to-store', {
             body: params,
@@ -114,10 +119,11 @@ async function executePushWithRetry(
 
         return data as PushResponse;
     } catch (err) {
+        if (signal?.aborted) throw err;
         if (attempt < MAX_RETRIES - 1) {
             const delay = getBackoffDelay(attempt);
             await sleep(delay);
-            return executePushWithRetry(supabase, params, attempt + 1);
+            return executePushWithRetry(supabase, params, attempt + 1, signal);
         }
         throw err;
     }
@@ -129,6 +135,11 @@ export function usePushToStore() {
 
     return useMutation({
         mutationFn: async (params: PushToStoreParams): Promise<PushResponse> => {
+            // Force session refresh to ensure valid JWT for edge function
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError || !session) {
+                throw new Error('Session expirée. Veuillez vous reconnecter.');
+            }
             return executePushWithRetry(supabase, params);
         },
         onSuccess: (data, variables) => {
@@ -264,10 +275,11 @@ export function usePushProductBatch() {
 
     return useMutation({
         mutationFn: async ({ product_ids, force = true }: { product_ids: string[]; force?: boolean }): Promise<PushResponse> => {
-            // Use getUser() to validate + auto-refresh the JWT before invoking the edge function
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) {
-                throw new Error('Utilisateur non authentifié');
+            // Force session refresh to ensure the access token is valid for the edge function call
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError || !session) {
+                // Session expired and cannot be refreshed — redirect to login
+                throw new Error('Session expirée. Veuillez vous reconnecter.');
             }
 
             const response = await executePushWithRetry(supabase, {
@@ -442,27 +454,37 @@ export function useRevertToOriginal() {
 
 export function useAutoSync(type: PushType) {
     const pushMutation = usePushToStore();
+    const abortRef = useRef<AbortController | null>(null);
 
     const triggerAutoSync = useCallback(async (id: string) => {
+        // Cancel any in-flight auto-sync before starting a new one
+        abortRef.current?.abort();
+        abortRef.current = new AbortController();
+        const { signal } = abortRef.current;
+
         try {
             // Randomized delay to prevent timing attacks
             const delay = getRandomDelay(AUTO_SYNC_MIN_DELAY_MS, AUTO_SYNC_MAX_DELAY_MS);
             await sleep(delay);
+            if (signal.aborted) return null;
 
-            const result = await pushMutation.mutateAsync({
-                type,
-                ids: [id],
-                force: true, // Auto-sync after user save: always push (user deliberately saved)
-            });
+            const supabase = createClient();
+            const result = await executePushWithRetry(
+                supabase,
+                { type, ids: [id], force: true },
+                0,
+                signal,
+            );
 
             return result;
         } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return null;
             // The mutation's onError already shows a toast — only log here.
             // Auto-sync failure is non-fatal: data is saved locally.
             console.error(`[useAutoSync] Auto-sync failed for ${type} ${id}:`, error);
             return null;
         }
-    }, [pushMutation, type]);
+    }, [type]);
 
     return {
         triggerAutoSync,

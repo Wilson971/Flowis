@@ -264,7 +264,7 @@ class SyncSubscriptionManager {
     private unsubscribe(key: string) {
         const info = this.channels.get(key);
         if (info && this.supabase) {
-
+            info.channel.unsubscribe();
             this.supabase.removeChannel(info.channel);
             this.channels.delete(key);
         }
@@ -292,7 +292,8 @@ class SyncSubscriptionManager {
 
 
 
-        this.channels.forEach((info, key) => {
+        this.channels.forEach((info) => {
+            info.channel.unsubscribe();
             if (this.supabase) {
                 this.supabase.removeChannel(info.channel);
             }

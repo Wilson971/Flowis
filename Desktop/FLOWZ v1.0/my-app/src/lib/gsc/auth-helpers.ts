@@ -55,7 +55,22 @@ export async function getGscTokensForSite(
         expiry_at: conn.token_expires_at,
     };
 
-    const { tokens: validTokens, refreshed } = await ensureValidTokens(tokens);
+    let validTokens: GscTokens;
+    let refreshed: boolean;
+
+    try {
+        ({ tokens: validTokens, refreshed } = await ensureValidTokens(tokens));
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // 401 from Google = refresh token revoked/expired → mark connection inactive
+        if (msg.includes('401') || msg.toLowerCase().includes('token refresh failed')) {
+            await supabase
+                .from('gsc_connections')
+                .update({ is_active: false })
+                .eq('id', conn.id);
+        }
+        throw new Error(`GSC_AUTH_ERROR:${msg}`);
+    }
 
     if (refreshed) {
         await supabase

@@ -81,6 +81,7 @@ export function useSyncCompletion(
             .subscribe();
 
         return () => {
+            channel.unsubscribe();
             supabase.removeChannel(channel);
         };
     }, [storeId, queryClient, onComplete, onFail, showToast, supabase]);
@@ -183,6 +184,7 @@ export function useSyncCompletionMonitor(
 
         return () => {
             if (channelRef) {
+                channelRef.unsubscribe();
                 supabase.removeChannel(channelRef);
             }
         };

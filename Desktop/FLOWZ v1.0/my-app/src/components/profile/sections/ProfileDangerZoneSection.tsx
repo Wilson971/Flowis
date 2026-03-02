@@ -15,13 +15,17 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import { styles, motionTokens } from '@/lib/design-system';
+import { motionTokens } from '@/lib/design-system';
 import { motion } from 'framer-motion';
 import { Loader2, AlertTriangle, Trash2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter } from 'next/navigation';
+import {
+  SettingsCard,
+  SettingsHeader,
+} from '@/components/settings/ui/SettingsCard';
 
 export function ProfileDangerZoneSection() {
   const [confirmText, setConfirmText] = useState('');
@@ -88,11 +92,6 @@ export function ProfileDangerZoneSection() {
       initial="hidden"
       animate="visible"
     >
-      <motion.div variants={motionTokens.variants.staggerItem} className="space-y-1">
-        <h2 className={cn(styles.text.h2, 'text-destructive')}>Zone de danger</h2>
-        <p className={styles.text.bodyMuted}>Ces actions sont irréversibles. Procédez avec extrême prudence.</p>
-      </motion.div>
-
       {/* Warning banner */}
       <motion.div
         variants={motionTokens.variants.staggerItem}
@@ -105,95 +104,85 @@ export function ProfileDangerZoneSection() {
       </motion.div>
 
       {/* Export data card — RGPD */}
-      <motion.div
-        variants={motionTokens.variants.staggerItem}
-        className={cn(styles.card.glass, 'p-6 space-y-4')}
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, 'bg-primary/10')}>
-            <Download className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className={styles.text.h4}>Exporter mes données</h3>
-            <p className={styles.text.bodySmall}>
-              Téléchargez une copie de vos données (profil, produits, articles) au format JSON.
-            </p>
-          </div>
-        </div>
-        <p className={styles.text.bodyMuted}>
-          Conformément au RGPD, vous avez le droit à la portabilité de vos données.
-          L&apos;export inclut votre profil, vos boutiques (sans les credentials), vos produits et articles.
-        </p>
-        <Button
-          variant="outline"
-          className="rounded-lg"
-          onClick={handleExportData}
-          disabled={isExporting}
-        >
-          {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-          {isExporting ? 'Export en cours...' : 'Télécharger mes données'}
-        </Button>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-4">
+          <SettingsHeader
+            icon={Download}
+            title="Exporter mes données"
+            description="Téléchargez une copie de vos données (profil, produits, articles) au format JSON."
+          />
+          <p className="text-xs text-muted-foreground">
+            Conformément au RGPD, vous avez le droit à la portabilité de vos données.
+            L&apos;export inclut votre profil, vos boutiques (sans les credentials), vos produits et articles.
+          </p>
+          <Button
+            variant="outline"
+            className="h-8 text-[11px] rounded-lg gap-1.5 font-medium"
+            onClick={handleExportData}
+            disabled={isExporting}
+          >
+            {isExporting
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <Download className="h-3.5 w-3.5" />
+            }
+            {isExporting ? 'Export en cours...' : 'Télécharger mes données'}
+          </Button>
+        </SettingsCard>
       </motion.div>
 
       {/* Delete account card */}
-      <motion.div
-        variants={motionTokens.variants.staggerItem}
-        className="bg-card/80 backdrop-blur-xl border border-destructive/30 rounded-xl p-6 space-y-4"
-      >
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, 'bg-destructive/10')}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </div>
-          <div>
-            <h3 className={cn(styles.text.h4, 'text-destructive')}>Supprimer mon compte</h3>
-            <p className={styles.text.bodySmall}>
-              Efface définitivement toutes vos données : produits, articles, boutiques, paramètres.
-            </p>
-          </div>
-        </div>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard variant="danger" className="space-y-4">
+          <SettingsHeader
+            icon={Trash2}
+            title="Supprimer mon compte"
+            description="Efface définitivement toutes vos données : produits, articles, boutiques, paramètres."
+            iconClassName="text-destructive"
+          />
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full sm:w-auto rounded-lg">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Supprimer mon compte
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Êtes-vous absolument certain ?</AlertDialogTitle>
-              <AlertDialogDescription className="space-y-3">
-                <span className="block">
-                  Cette action supprimera définitivement votre compte et toutes vos données.
-                  Vous ne pourrez pas récupérer vos produits, articles ou paramètres.
-                </span>
-                <span className="block font-medium text-foreground">
-                  Tapez{' '}
-                  <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">SUPPRIMER</code>
-                  {' '}pour confirmer :
-                </span>
-                <Input
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder="SUPPRIMER"
-                  className="font-mono"
-                  autoComplete="off"
-                />
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setConfirmText('')}>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteAccount}
-                disabled={!isConfirmed || isDeleting}
-                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              >
-                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Supprimer définitivement
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full sm:w-auto h-8 text-[11px] rounded-lg gap-1.5 font-medium">
+                <Trash2 className="h-3.5 w-3.5" />
+                Supprimer mon compte
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Êtes-vous absolument certain ?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3">
+                  <span className="block">
+                    Cette action supprimera définitivement votre compte et toutes vos données.
+                    Vous ne pourrez pas récupérer vos produits, articles ou paramètres.
+                  </span>
+                  <span className="block font-medium text-foreground">
+                    Tapez{' '}
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">SUPPRIMER</code>
+                    {' '}pour confirmer :
+                  </span>
+                  <Input
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="SUPPRIMER"
+                    className="font-mono"
+                    autoComplete="off"
+                  />
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setConfirmText('')}>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAccount}
+                  disabled={!isConfirmed || isDeleting}
+                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                >
+                  {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Supprimer définitivement
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </SettingsCard>
       </motion.div>
     </motion.div>
   );

@@ -19,8 +19,9 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import { styles, motionTokens } from '@/lib/design-system';
+import { motionTokens } from '@/lib/design-system';
 import { motion } from 'framer-motion';
+import { SettingsCard, SettingsHeader } from '@/components/settings/ui/SettingsCard';
 import {
   Check,
   Eye,
@@ -209,251 +210,265 @@ export function ProfileSecuritySection() {
       initial="hidden"
       animate="visible"
     >
-      <motion.div variants={motionTokens.variants.staggerItem} className="space-y-1">
-        <h2 className={styles.text.h2}>Sécurité</h2>
-        <p className={styles.text.bodyMuted}>Gérez votre mot de passe et la sécurité de votre compte.</p>
-      </motion.div>
-
       {/* Password card */}
-      <motion.div variants={motionTokens.variants.staggerItem} className={cn(styles.card.glass, 'p-6 space-y-5')}>
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, 'bg-primary/10')}>
-            <Lock className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className={styles.text.h4}>Changer le mot de passe</h3>
-            <p className={styles.text.bodySmall}>Au moins 8 caractères, une majuscule et un chiffre.</p>
-          </div>
-        </div>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-5">
+          <SettingsHeader
+            icon={Lock}
+            title="Changer le mot de passe"
+            description="Au moins 8 caractères, une majuscule et un chiffre."
+          />
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {[
-              { name: 'currentPassword' as const, label: 'Mot de passe actuel', show: showCurrent, toggle: () => setShowCurrent(!showCurrent) },
-              { name: 'newPassword' as const, label: 'Nouveau mot de passe', show: showNew, toggle: () => setShowNew(!showNew) },
-              { name: 'confirmPassword' as const, label: 'Confirmer le nouveau mot de passe', show: showConfirm, toggle: () => setShowConfirm(!showConfirm) },
-            ].map(({ name, label, show, toggle }) => (
-              <FormField
-                key={name}
-                name={name}
-                control={form.control}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{label}</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={show ? 'text' : 'password'}
-                          placeholder="••••••••"
-                          className="pr-10"
-                          {...field}
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={toggle}
-                          tabIndex={-1}
-                        >
-                          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ))}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {[
+                { name: 'currentPassword' as const, label: 'Mot de passe actuel', show: showCurrent, toggle: () => setShowCurrent(!showCurrent) },
+                { name: 'newPassword' as const, label: 'Nouveau mot de passe', show: showNew, toggle: () => setShowNew(!showNew) },
+                { name: 'confirmPassword' as const, label: 'Confirmer le nouveau mot de passe', show: showConfirm, toggle: () => setShowConfirm(!showConfirm) },
+              ].map(({ name, label, show, toggle }) => (
+                <FormField
+                  key={name}
+                  name={name}
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{label}</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={show ? 'text' : 'password'}
+                            placeholder="••••••••"
+                            className="pr-10"
+                            {...field}
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={toggle}
+                            tabIndex={-1}
+                          >
+                            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ))}
 
-            <div className="flex justify-end pt-1">
-              <Button type="submit" disabled={form.formState.isSubmitting} className="rounded-lg">
-                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Changer le mot de passe
-              </Button>
-            </div>
-          </form>
-        </Form>
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="submit"
+                  disabled={form.formState.isSubmitting}
+                  className="h-8 text-[11px] rounded-lg gap-1.5 font-medium"
+                >
+                  {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Changer le mot de passe
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </SettingsCard>
       </motion.div>
 
       {/* 2FA card */}
-      <motion.div variants={motionTokens.variants.staggerItem} className={cn(styles.card.glass, 'p-6 space-y-4')}>
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, mfaEnrolled ? 'bg-emerald-500/10' : 'bg-primary/10')}>
-            <Shield className={cn('h-4 w-4', mfaEnrolled ? 'text-emerald-600' : 'text-primary')} />
-          </div>
-          <div className="flex-1">
-            <h3 className={styles.text.h4}>Authentification à deux facteurs</h3>
-            <p className={styles.text.bodySmall}>Protégez votre compte avec une app TOTP (Google Authenticator, Authy…)</p>
-          </div>
-          {mfaLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          ) : mfaEnrolled ? (
-            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs shrink-0">Activée</Badge>
-          ) : (
-            <Badge variant="secondary" className="text-xs shrink-0">Désactivée</Badge>
-          )}
-        </div>
-
-        {!mfaLoading && !mfaEnrolled && !enrollData && (
-          <Button
-            variant="outline"
-            className="rounded-lg"
-            onClick={handleEnroll2FA}
-            disabled={mfaActionLoading}
-          >
-            {mfaActionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
-            Activer la 2FA
-          </Button>
-        )}
-
-        {enrollData && (
-          <div className="space-y-4 pt-2 border-t border-border/40">
-            <p className={styles.text.bodySmall}>
-              Scannez le QR code avec votre application TOTP, puis saisissez le code à 6 chiffres généré.
-            </p>
-            <div className="flex justify-center">
-              {/* QR code is a data URI SVG returned by Supabase */}
-              <img
-                src={enrollData.qr_code}
-                alt="QR Code 2FA"
-                className="w-44 h-44 rounded-xl border border-border/50 p-2 bg-white"
-              />
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-4">
+          {/* Header — custom to accommodate badge in the header row */}
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-xl ring-1 ring-border/50 shrink-0',
+              mfaEnrolled ? 'bg-muted/60' : 'bg-muted/60'
+            )}>
+              <Shield className={cn('h-[18px] w-[18px]', mfaEnrolled ? 'text-emerald-600' : 'text-foreground/70')} />
             </div>
-
-            {/* Manual secret */}
-            <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clé manuelle</p>
-              <div className="flex items-center gap-2">
-                <code className={cn('font-mono text-xs flex-1 truncate', !showSecret && 'blur-sm select-none')}>
-                  {enrollData.secret}
-                </code>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground shrink-0"
-                  onClick={() => setShowSecret(!showSecret)}
-                >
-                  {showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground shrink-0"
-                  onClick={() => { navigator.clipboard.writeText(enrollData.secret); toast.success('Clé copiée'); }}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                </button>
-              </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
+                Authentification à deux facteurs
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Protégez votre compte avec une app TOTP (Google Authenticator, Authy…)
+              </p>
             </div>
-
-            <div className="flex gap-2">
-              <Input
-                value={totpCode}
-                onChange={e => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000 000"
-                className="font-mono tracking-widest text-center text-lg rounded-lg"
-                maxLength={6}
-                onKeyDown={e => { if (e.key === 'Enter' && totpCode.length === 6) handleVerify2FA(); }}
-              />
-              <Button
-                className="rounded-lg shrink-0"
-                onClick={handleVerify2FA}
-                disabled={totpCode.length !== 6 || mfaActionLoading}
+            {mfaLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+            ) : mfaEnrolled ? (
+              <Badge className="h-5 rounded-full px-2 text-[10px] font-medium bg-emerald-500/10 text-emerald-600 border-0 shrink-0">
+                Activée
+              </Badge>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="h-5 rounded-full px-2 text-[10px] font-medium text-muted-foreground bg-muted/60 border-0 shrink-0"
               >
-                {mfaActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Vérifier
-              </Button>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground rounded-lg"
-              onClick={() => { setEnrollData(null); setChallengeId(null); setTotpCode(''); }}
-            >
-              Annuler
-            </Button>
+                Désactivée
+              </Badge>
+            )}
           </div>
-        )}
 
-        {!mfaLoading && mfaEnrolled && (
-          <div className="flex items-center justify-between pt-2 border-t border-border/40">
-            <p className={cn(styles.text.bodySmall, 'text-emerald-600')}>2FA activée — votre compte est protégé</p>
+          {!mfaLoading && !mfaEnrolled && !enrollData && (
             <Button
               variant="outline"
-              size="sm"
-              className="rounded-lg text-destructive hover:bg-destructive/5 border-destructive/20"
-              onClick={() => setShowDisable2FADialog(true)}
+              className="h-7 text-[11px] rounded-lg gap-1.5 font-medium border-border/60 hover:bg-accent"
+              onClick={handleEnroll2FA}
+              disabled={mfaActionLoading}
             >
-              Désactiver
+              {mfaActionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
+              Activer la 2FA
             </Button>
-          </div>
-        )}
+          )}
+
+          {enrollData && (
+            <div className="space-y-4 pt-2 border-t border-border/40">
+              <p className="text-xs text-muted-foreground">
+                Scannez le QR code avec votre application TOTP, puis saisissez le code à 6 chiffres généré.
+              </p>
+              <div className="flex justify-center">
+                {/* QR code is a data URI SVG returned by Supabase */}
+                <img
+                  src={enrollData.qr_code}
+                  alt="QR Code 2FA"
+                  className="w-44 h-44 rounded-xl border border-border/50 p-2 bg-white"
+                />
+              </div>
+
+              {/* Manual secret */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clé manuelle</p>
+                <div className="flex items-center gap-2">
+                  <code className={cn('font-mono text-xs flex-1 truncate', !showSecret && 'blur-sm select-none')}>
+                    {enrollData.secret}
+                  </code>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground shrink-0"
+                    onClick={() => setShowSecret(!showSecret)}
+                  >
+                    {showSecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground shrink-0"
+                    onClick={() => { navigator.clipboard.writeText(enrollData.secret); toast.success('Clé copiée'); }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  value={totpCode}
+                  onChange={e => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000 000"
+                  className="font-mono tracking-widest text-center text-lg rounded-lg"
+                  maxLength={6}
+                  onKeyDown={e => { if (e.key === 'Enter' && totpCode.length === 6) handleVerify2FA(); }}
+                />
+                <Button
+                  className="h-8 text-[11px] rounded-lg gap-1.5 font-medium shrink-0"
+                  onClick={handleVerify2FA}
+                  disabled={totpCode.length !== 6 || mfaActionLoading}
+                >
+                  {mfaActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Vérifier
+                </Button>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground rounded-lg"
+                onClick={() => { setEnrollData(null); setChallengeId(null); setTotpCode(''); }}
+              >
+                Annuler
+              </Button>
+            </div>
+          )}
+
+          {!mfaLoading && mfaEnrolled && (
+            <div className="flex items-center justify-between pt-2 border-t border-border/40">
+              <p className="text-xs text-emerald-600">2FA activée — votre compte est protégé</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[11px] rounded-lg gap-1 font-medium border-border/60 text-destructive hover:bg-destructive/5 border-destructive/20"
+                onClick={() => setShowDisable2FADialog(true)}
+              >
+                Désactiver
+              </Button>
+            </div>
+          )}
+        </SettingsCard>
       </motion.div>
 
       {/* Sessions card */}
-      <motion.div variants={motionTokens.variants.staggerItem} className={cn(styles.card.glass, 'p-6 space-y-4')}>
-        <div className="flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, 'bg-primary/10')}>
-            <Smartphone className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className={styles.text.h4}>Sessions actives</h3>
-            <p className={styles.text.bodySmall}>Gérez les connexions actives sur vos appareils.</p>
-          </div>
-        </div>
+      <motion.div variants={motionTokens.variants.staggerItem}>
+        <SettingsCard className="space-y-4">
+          <SettingsHeader
+            icon={Smartphone}
+            title="Sessions actives"
+            description="Gérez les connexions actives sur vos appareils."
+          />
 
-        <div className="rounded-lg border border-border/50 p-3 flex items-center gap-3">
-          <div className={cn(styles.iconContainer.sm, 'bg-emerald-500/10 shrink-0')}>
-            <Smartphone className="h-3.5 w-3.5 text-emerald-600" />
+          <div className="rounded-lg border border-border/50 p-3 flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60 ring-1 ring-border/40 shrink-0">
+              <Smartphone className="h-3.5 w-3.5 text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-foreground">Session actuelle</p>
+              {lastSignIn && (
+                <p className="text-xs text-muted-foreground truncate">Dernière connexion : {lastSignIn}</p>
+              )}
+            </div>
+            <Badge className="h-5 rounded-full px-2 text-[10px] font-medium bg-emerald-500/10 text-emerald-600 border-0 shrink-0">
+              Actif
+            </Badge>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className={cn(styles.text.label, 'text-sm')}>Session actuelle</p>
-            {lastSignIn && (
-              <p className={cn(styles.text.bodySmall, 'text-xs truncate')}>Dernière connexion : {lastSignIn}</p>
-            )}
-          </div>
-          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs shrink-0">Actif</Badge>
-        </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            className="rounded-lg flex-1"
-            disabled={sessionLoading}
-            onClick={handleSignOutOthers}
-          >
-            {sessionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
-            Déconnecter les autres appareils
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                className="rounded-lg text-destructive border-destructive/20 hover:bg-destructive/5"
-                disabled={sessionLoading}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Déconnecter partout
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Déconnecter partout ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Vous serez déconnecté de tous vos appareils, y compris cet appareil.
-                  Vous devrez vous reconnecter.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleSignOutAll}
-                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="h-7 text-[11px] rounded-lg gap-1 font-medium border-border/60 hover:bg-accent flex-1"
+              disabled={sessionLoading}
+              onClick={handleSignOutOthers}
+            >
+              {sessionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
+              Déconnecter les autres appareils
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-7 text-[11px] rounded-lg gap-1 font-medium border-border/60 text-destructive border-destructive/20 hover:bg-destructive/5"
+                  disabled={sessionLoading}
                 >
+                  <LogOut className="mr-2 h-4 w-4" />
                   Déconnecter partout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Déconnecter partout ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Vous serez déconnecté de tous vos appareils, y compris cet appareil.
+                    Vous devrez vous reconnecter.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleSignOutAll}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  >
+                    Déconnecter partout
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </SettingsCard>
       </motion.div>
 
       {/* Disable 2FA Dialog */}

@@ -1,18 +1,13 @@
 "use client";
 
 import { Suspense } from 'react';
-import { motion } from 'framer-motion';
-import { Package } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// Components that use useSearchParams need to be in a separate component
-import { ProductsListContent } from './ProductsListContent';
+import { ProductsListContentV2 } from './ProductsListContentV2';
 
 function ProductsLoading() {
     return (
-        <div className="space-y-6">
-            {/* Header skeleton */}
+        <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <div className="space-y-2">
                     <Skeleton className="h-8 w-48" />
@@ -20,20 +15,14 @@ function ProductsLoading() {
                 </div>
                 <Skeleton className="h-10 w-32" />
             </div>
-
-            {/* Stats skeleton */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => (
-                    <Card key={i}>
-                        <CardContent className="p-6">
-                            <Skeleton className="h-4 w-24 mb-2" />
-                            <Skeleton className="h-8 w-16" />
-                        </CardContent>
-                    </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="rounded-xl border border-border/40 bg-card px-4 py-3 flex items-center justify-between">
+                        <div className="h-3 w-16 rounded bg-muted animate-pulse" />
+                        <div className="h-4 w-8 rounded bg-muted animate-pulse" />
+                    </div>
                 ))}
             </div>
-
-            {/* Table skeleton */}
             <Card>
                 <CardContent className="p-6">
                     <div className="space-y-4">
@@ -56,7 +45,7 @@ function ProductsLoading() {
 export default function ProductsListPage() {
     return (
         <Suspense fallback={<ProductsLoading />}>
-            <ProductsListContent />
+            <ProductsListContentV2 />
         </Suspense>
     );
 }

@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { motionTokens } from "@/lib/design-system";
 import { FileX2 } from "lucide-react";
 
@@ -74,6 +74,7 @@ export function DataTable<TData, TValue>({
     isRowGenerating,
     onTableReady,
 }: DataTableProps<TData, TValue>) {
+    const prefersReducedMotion = useReducedMotion();
     const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
 
     // Use external state if provided, otherwise fallback to internal state
@@ -164,12 +165,12 @@ export function DataTable<TData, TValue>({
                 </div>
             )}
 
-            {/* Table wrapper - borders handled by parent or Tailwind classes */}
-            <div className="">
+            {/* Table wrapper — overflow-x pour scroll mobile, sans overflow-y pour sticky header */}
+            <div className="overflow-x-auto rounded-[inherit]">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
+                            <TableRow key={headerGroup.id} className="border-b border-border/60">
                                 {headerGroup.headers.map((header) => {
                                     return (
                                         <TableHead key={header.id}>
@@ -187,19 +188,21 @@ export function DataTable<TData, TValue>({
                     </TableHeader>
                     <TableBody>
                         {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => {
+                            table.getRowModel().rows.map((row, rowIndex) => {
                                 const isGenerating = isRowGenerating?.(row.original) ?? false;
+                                const isEvenRow = rowIndex % 2 !== 0;
 
                                 return (
                                     <MotionTableRow
                                         key={row.id}
                                         data-state={row.getIsSelected() && "selected"}
                                         className={cn(
-                                            "relative group/row border-b border-border/50",
+                                            "relative group/row border-b border-border/40",
+                                            isEvenRow && "bg-muted/[0.03]",
                                             getRowClassName?.(row.original)
                                         )}
                                         initial={false}
-                                        whileHover={{
+                                        whileHover={prefersReducedMotion ? undefined : {
                                             backgroundColor: "var(--sidebar-accent)",
                                             x: 4,
                                             boxShadow: "inset 4px 0 0 0 var(--primary)",

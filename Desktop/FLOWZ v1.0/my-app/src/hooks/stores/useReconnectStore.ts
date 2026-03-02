@@ -25,34 +25,56 @@ export function useReconnectStore() {
                 return data;
             } catch {
                 // Fallback: Update credentials directly
+                // Get store with its connection_id
                 const { data: store } = await supabase
                     .from('stores')
-                    .select('connection_id')
+                    .select('id, connection_id, tenant_id')
                     .eq('id', storeId)
                     .single();
 
-                if (!store?.connection_id) {
-                    throw new Error('No connection found for this store');
+                if (!store) throw new Error('Store not found');
+
+                if (store.connection_id) {
+                    // Update existing connection
+                    const { error: connError } = await supabase
+                        .from('platform_connections')
+                        .update({
+                            credentials_encrypted: credentials,
+                            connection_health: 'unknown',
+                        })
+                        .eq('id', store.connection_id);
+
+                    if (connError) throw connError;
+                } else {
+                    // No connection exists yet — create one and link it
+                    const { data: newConn, error: connError } = await supabase
+                        .from('platform_connections')
+                        .insert({
+                            tenant_id: store.tenant_id,
+                            platform: 'woocommerce',
+                            credentials_encrypted: credentials,
+                            connection_health: 'unknown',
+                        })
+                        .select('id')
+                        .single();
+
+                    if (connError) throw connError;
+
+                    // Link connection to store
+                    const { error: linkError } = await supabase
+                        .from('stores')
+                        .update({ connection_id: newConn.id })
+                        .eq('id', storeId);
+
+                    if (linkError) throw linkError;
                 }
-
-                // Update connection credentials
-                const { error: connError } = await supabase
-                    .from('platform_connections')
-                    .update({
-                        credentials_encrypted: credentials,
-                        connection_health: 'unknown',
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', store.connection_id);
-
-                if (connError) throw connError;
 
                 // Reactivate store
                 const { error: storeError } = await supabase
                     .from('stores')
                     .update({
                         active: true,
-                        status: 'active',
+                        connection_status: 'connected',
                         updated_at: new Date().toISOString(),
                     })
                     .eq('id', storeId);
@@ -63,14 +85,14 @@ export function useReconnectStore() {
             }
         },
         onSuccess: () => {
-            toast.success('Boutique reconnectée', {
-                description: 'Les synchronisations sont de nouveau actives.',
+            toast.success('Identifiants mis à jour', {
+                description: 'Les clés API WooCommerce ont été enregistrées.',
             });
             queryClient.invalidateQueries({ queryKey: ['stores'] });
         },
         onError: (error: Error) => {
-            toast.error('Erreur de reconnexion', {
-                description: error.message || 'Impossible de reconnecter la boutique',
+            toast.error('Erreur de mise à jour', {
+                description: error.message || 'Impossible de mettre à jour les identifiants',
             });
         },
     });

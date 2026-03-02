@@ -38,6 +38,7 @@ export interface ProductListFilters {
   price_max?: string;
   seo_score?: string;
   sales?: string;
+  missing_content?: string;
   page?: number;
   pageSize?: number;
 }
@@ -164,6 +165,27 @@ function applyServerFilters(query: any, filters: ProductListFilters) {
         break;
       case '50+':
         query = query.gte('metadata->total_sales', 50);
+        break;
+    }
+  }
+
+  // Missing content filter
+  if (filters.missing_content && filters.missing_content !== 'all') {
+    switch (filters.missing_content) {
+      case 'no_short_description':
+        query = query.or('short_description.is.null,short_description.eq.');
+        break;
+      case 'no_description':
+        query = query.or('description.is.null,description.eq.');
+        break;
+      case 'no_seo_title':
+        query = query.or('seo_title.is.null,seo_title.eq.');
+        break;
+      case 'no_seo_description':
+        query = query.or('seo_description.is.null,seo_description.eq.');
+        break;
+      case 'no_sku':
+        query = query.or('sku.is.null,sku.eq.');
         break;
     }
   }
@@ -325,7 +347,7 @@ export function useProductStats(storeId?: string) {
 }
 
 /**
- * Start batch generation for products (simple mutation via edge function).
+ * Start batch generation for products via Next.js API route.
  *
  * Used by useDraftActions for single-field regeneration.
  * For SSE-based batch generation with progress tracking, use useBatchGeneration from './useBatchGeneration'.
@@ -335,16 +357,53 @@ export function useBatchGenerationMutation() {
 
   return useMutation({
     mutationFn: async (request: BatchGenerationRequest) => {
-      const supabase = createClient();
-      const { data, error } = await supabase.functions.invoke('batch-generation', {
-        body: request,
+      const response = await fetch('/api/batch-generation/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
       });
 
-      if (error) throw error;
-      return data as { batch_job_id: string };
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      // Consume the SSE stream to completion (fire-and-forget for single-field regen)
+      if (response.body) {
+        const reader = response.body.getReader();
+        try {
+          let batchJobId = '';
+          const decoder = new TextDecoder();
+          let buffer = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const blocks = buffer.split('\n\n');
+            buffer = blocks.pop() || '';
+            for (const block of blocks) {
+              const dataLine = block.split('\n').find((l) => l.startsWith('data: '));
+              if (!dataLine) continue;
+              try {
+                const event = JSON.parse(dataLine.slice(6));
+                if (event.type === 'connected' && event.batch_job_id) {
+                  batchJobId = event.batch_job_id;
+                }
+              } catch { /* skip malformed */ }
+            }
+          }
+          return { batch_job_id: batchJobId };
+        } finally {
+          reader.releaseLock();
+        }
+      }
+
+      return { batch_job_id: '' };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['product-content'] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
     },
   });
 }

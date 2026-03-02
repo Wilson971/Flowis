@@ -1,11 +1,14 @@
 /**
  * useStoreKPIs - Hook pour récupérer les KPIs d'une boutique
+ *
+ * Combine requêtes directes (catégories, sync jobs) + RPC get_store_metrics
+ * pour les métriques AI/SEO/blog (Scope 4).
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
-import type { StoreKPIs } from '@/types/store';
+import type { StoreKPIs, StoreMetrics } from '@/types/store';
 
 /**
  * Hook to get KPIs for a specific store
@@ -18,21 +21,7 @@ export function useStoreKPIs(storeId: string | null) {
         queryFn: async (): Promise<StoreKPIs | null> => {
             if (!storeId) return null;
 
-            // Parallel queries for efficiency
-            const [totalResult, optimizedResult, categoriesResult, syncJobsResult, storeResult] = await Promise.all([
-                // Total products count (head: true avoids fetching rows)
-                supabase
-                    .from('products')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('store_id', storeId),
-
-                // AI-optimized products count (working_content IS NOT NULL)
-                supabase
-                    .from('products')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('store_id', storeId)
-                    .not('working_content', 'is', null),
-
+            const [categoriesResult, syncJobsResult, storeResult, metricsResult] = await Promise.all([
                 // Total categories
                 supabase
                     .from('categories')
@@ -47,20 +36,23 @@ export function useStoreKPIs(storeId: string | null) {
                     .order('created_at', { ascending: false })
                     .limit(10),
 
-                // Store for last sync
+                // Store for last sync timestamp
                 supabase
                     .from('stores')
                     .select('last_synced_at')
                     .eq('id', storeId)
                     .single(),
+
+                // Scope 4: aggregated metrics via RPC
+                supabase
+                    .rpc('get_store_metrics', { p_store_id: storeId })
+                    .single(),
             ]);
 
-            const totalProducts = totalResult.count || 0;
-            const optimizedProducts = optimizedResult.count || 0;
+            const metrics = (metricsResult.data ?? null) as StoreMetrics | null;
 
-            // Pending sync: products with AI content that haven't been pushed to store yet
-            // (optimized but not yet synced — approximated as 0 since we'd need sync_status)
-            const pendingProducts = 0;
+            const totalProducts = metrics?.total_products ?? 0;
+            const optimizedProducts = metrics?.products_with_ai ?? 0;
 
             const totalCategories = categoriesResult.count || 0;
 
@@ -70,7 +62,6 @@ export function useStoreKPIs(storeId: string | null) {
                 ? Math.round((successfulJobs / syncJobs.length) * 100)
                 : 0;
 
-            // Calculate average sync duration
             let avgSyncDuration = 0;
             const completedJobs = syncJobs.filter(j => j.started_at && j.completed_at);
             if (completedJobs.length > 0) {
@@ -85,15 +76,20 @@ export function useStoreKPIs(storeId: string | null) {
             return {
                 totalProducts,
                 optimizedProducts,
-                pendingProducts,
+                pendingProducts: 0,
                 totalCategories,
                 lastSyncAt: storeResult.data?.last_synced_at || null,
                 syncSuccessRate,
                 avgSyncDuration,
+                // Scope 4 extended
+                totalBlogPosts: metrics?.total_blog_posts ?? 0,
+                avgSeoScore: metrics?.avg_seo_score ?? 0,
+                coveragePercent: metrics?.coverage_percent ?? 0,
+                productsWithoutDesc: metrics?.products_without_desc ?? 0,
             };
         },
         enabled: !!storeId,
-        staleTime: STALE_TIMES.STATIC,
+        staleTime: 60_000,
     });
 }
 

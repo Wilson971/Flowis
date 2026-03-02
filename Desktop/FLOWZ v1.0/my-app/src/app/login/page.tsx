@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useState, useRef, useCallback, Suspense } from "react"
+import { useState, useRef, useCallback, useEffect, Suspense } from "react"
 import { motion } from "framer-motion"
 import {
   Mail,
@@ -46,6 +46,31 @@ function LoginContent() {
   const loginContainerRef = useRef<HTMLDivElement>(null)
 
   const redirectPath = searchParams.get("redirect") || "/app/overview"
+
+  // Handle invite/magic link hash fragments (#access_token=...)
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash || !hash.includes('access_token')) return
+
+    const params = new URLSearchParams(hash.substring(1))
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    const type = params.get('type')
+
+    if (accessToken && refreshToken) {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (!error) {
+            if (type === 'invite') {
+              // New invited user — needs to set password
+              router.replace('/auth/set-password')
+            } else {
+              router.replace(redirectPath)
+            }
+          }
+        })
+    }
+  }, [supabase, router, redirectPath])
 
   const handleEmailChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

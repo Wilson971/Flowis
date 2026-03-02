@@ -1,437 +1,393 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { styles, motionTokens } from "@/lib/design-system";
+import { motionTokens } from "@/lib/design-system";
 import { useGscConnection } from "@/hooks/integrations/useGscConnection";
 import {
-    useGscScoredOpportunities,
-    type OpportunityCategory,
+  useGscScoredOpportunities,
+  type OpportunityCategory,
 } from "@/hooks/integrations/useGscOpportunities";
 import { useSelectedStore } from "@/contexts/StoreContext";
 import { useRouter } from "next/navigation";
 import {
-    Zap,
-    MousePointerClick,
-    EyeOff,
-    ChevronRight,
-    ArrowUpRight,
-    ArrowDownRight,
-    Minus,
-    Sparkles,
-    Lightbulb,
-    Link2,
-    Target,
+  Zap,
+  MousePointerClick,
+  EyeOff,
+  ChevronRight,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  Sparkles,
+  Target,
+  Link2,
+  Lightbulb,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GscOpportunitiesSheet } from "./GscOpportunitiesSheet";
 import type { ScoredOpportunity } from "@/lib/gsc/scoring";
 
-// ============================================
-// Constants
-// ============================================
+/* ─── Constants ───────────────────────────────────────────── */
 
-const VISIBLE_COUNT = 3;
+const VISIBLE_COUNT = 7;
 
-const CATEGORY_TABS: { value: OpportunityCategory; label: string; icon: React.ReactNode }[] = [
-    { value: "quick_wins", label: "Quick Wins", icon: <Zap className="w-3 h-3" /> },
-    { value: "low_ctr", label: "Low CTR", icon: <MousePointerClick className="w-3 h-3" /> },
-    { value: "no_clicks", label: "No Clicks", icon: <EyeOff className="w-3 h-3" /> },
+const CATEGORY_TABS: {
+  value: OpportunityCategory;
+  label: string;
+  icon: typeof Zap;
+}[] = [
+  { value: "quick_wins", label: "Quick Wins", icon: Zap },
+  { value: "low_ctr", label: "Low CTR", icon: MousePointerClick },
+  { value: "no_clicks", label: "No Clicks", icon: EyeOff },
 ];
 
-// ============================================
-// Score arc — tiny radial progress
-// ============================================
+/* ─── Score badge ─────────────────────────────────────────── */
 
-function ScoreArc({ score, color }: { score: number; color: ScoredOpportunity['scoreColor'] }) {
-    const radius = 12;
-    const stroke = 2.5;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (score / 100) * circumference;
-
-    const strokeColor =
-        color === 'success' ? 'hsl(var(--success))'
-            : color === 'warning' ? 'hsl(var(--warning))'
-                : 'hsl(var(--destructive))';
-
-    return (
-        <div className="relative w-8 h-8 shrink-0">
-            <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90">
-                <circle
-                    cx="16" cy="16" r={radius}
-                    fill="none"
-                    stroke="hsl(var(--muted))"
-                    strokeWidth={stroke}
-                />
-                <circle
-                    cx="16" cy="16" r={radius}
-                    fill="none"
-                    stroke={strokeColor}
-                    strokeWidth={stroke}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    className="transition-all duration-700 ease-out"
-                />
-            </svg>
-            <span className={cn(
-                "absolute inset-0 flex items-center justify-center text-[9px] font-black tabular-nums",
-                color === 'success' && "text-success",
-                color === 'warning' && "text-warning",
-                color === 'error' && "text-destructive",
-            )}>
-                {score}
-            </span>
-        </div>
-    );
+function ScoreBadge({ score, color }: { score: number; color: ScoredOpportunity["scoreColor"] }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center w-8 h-5 rounded-full text-[10px] font-semibold tabular-nums border-0 shrink-0",
+        color === "success" && "bg-emerald-500/10 text-emerald-600",
+        color === "warning" && "bg-amber-500/10 text-amber-600",
+        color === "error" && "bg-red-500/10 text-red-500"
+      )}
+    >
+      {score}
+    </span>
+  );
 }
 
-// ============================================
-// Trend chip
-// ============================================
+/* ─── Trend chip — Vercel style ───────────────────────────── */
 
-function TrendChip({ trend, delta }: { trend: ScoredOpportunity['trend']; delta: number | null }) {
-    if (trend === 'new') {
-        return (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold tracking-wider uppercase text-info bg-info/10 px-1.5 py-0.5 rounded-full border border-info/20">
-                <Sparkles className="w-2.5 h-2.5" />
-                New
-            </span>
-        );
-    }
-
-    if (trend === 'up') {
-        return (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-success">
-                <ArrowUpRight className="w-3 h-3" />
-                {delta != null && Math.abs(delta) >= 1 ? Math.abs(Math.round(delta)) : ''}
-            </span>
-        );
-    }
-
-    if (trend === 'down') {
-        return (
-            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-destructive">
-                <ArrowDownRight className="w-3 h-3" />
-                {delta != null && Math.abs(delta) >= 1 ? Math.abs(Math.round(delta)) : ''}
-            </span>
-        );
-    }
-
+function TrendChip({ trend, delta }: { trend: ScoredOpportunity["trend"]; delta: number | null }) {
+  if (trend === "new") {
     return (
-        <span className="inline-flex items-center text-muted-foreground/40">
-            <Minus className="w-2.5 h-2.5" />
-        </span>
+      <span className="inline-flex items-center gap-0.5 h-5 rounded-full px-1.5 text-[10px] font-medium bg-primary/10 text-primary border-0">
+        <Sparkles className="w-2.5 h-2.5" />
+        New
+      </span>
     );
+  }
+
+  if (trend === "up") {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600">
+        <ArrowUpRight className="w-3 h-3" />
+        {delta != null && Math.abs(delta) >= 1 ? Math.abs(Math.round(delta)) : ""}
+      </span>
+    );
+  }
+
+  if (trend === "down") {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-500">
+        <ArrowDownRight className="w-3 h-3" />
+        {delta != null && Math.abs(delta) >= 1 ? Math.abs(Math.round(delta)) : ""}
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center text-muted-foreground/40">
+      <Minus className="w-2.5 h-2.5" />
+    </span>
+  );
 }
 
-// ============================================
-// Opportunity row — premium
-// ============================================
+/* ─── Opportunity row — Vercel table row ──────────────────── */
 
-function OpportunityItem({
-    opp,
-    isNew,
-    index,
-    onClick,
+function OpportunityRow({
+  opp,
+  isNew,
+  onClick,
 }: {
-    opp: ScoredOpportunity;
-    isNew: boolean;
-    index: number;
-    onClick: () => void;
+  opp: ScoredOpportunity;
+  isNew: boolean;
+  onClick: () => void;
 }) {
-    return (
-        <motion.button
-            onClick={onClick}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-                duration: motionTokens.durations.normal,
-                delay: 0.15 + index * motionTokens.staggerDelays.normal,
-                ease: motionTokens.easings.smooth,
-            }}
-            className={cn(
-                "group/item w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl",
-                "border border-border/40 border-l-2",
-                opp.scoreColor === 'success' && "border-l-success/60",
-                opp.scoreColor === 'warning' && "border-l-warning/60",
-                opp.scoreColor === 'error' && "border-l-destructive/60",
-                "bg-muted/20 hover:bg-muted/50",
-                "hover:-translate-y-0.5 hover:shadow-sm",
-                "transition-all duration-200 ease-out text-left"
-            )}
-        >
-            {/* Score arc */}
-            <ScoreArc score={opp.score} color={opp.scoreColor} />
+  return (
+    <motion.button
+      variants={motionTokens.variants.staggerItem}
+      onClick={onClick}
+      className={cn(
+        "group/row w-full flex items-center gap-3 px-3 py-2.5",
+        "border-b border-border/20 last:border-0",
+        "transition-colors hover:bg-muted/30",
+        "text-left cursor-pointer"
+      )}
+    >
+      {/* Score */}
+      <ScoreBadge score={opp.score} color={opp.scoreColor} />
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                    <span className="text-[13px] font-semibold text-foreground truncate leading-tight group-hover/item:text-primary transition-colors">
-                        {opp.query}
-                    </span>
-                    {(isNew || opp.trend === 'new') && (
-                        <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-info animate-pulse ring-2 ring-info/20" />
-                    )}
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] font-bold tracking-widest uppercase text-muted-foreground/70 tabular-nums">
-                        #{Math.round(opp.position)}
-                    </span>
-                    <TrendChip trend={opp.trend} delta={opp.trendDelta} />
-                    <span className="text-[9px] text-muted-foreground/50 tabular-nums">
-                        {opp.impressions.toLocaleString()} impr
-                    </span>
-                </div>
-            </div>
+      {/* Query + meta */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[13px] font-medium text-foreground truncate">
+            {opp.query}
+          </span>
+          {(isNew || opp.trend === "new") && (
+            <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider tabular-nums">
+            #{Math.round(opp.position)}
+          </span>
+          <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+            {opp.impressions.toLocaleString()} impr
+          </span>
+        </div>
+      </div>
 
-            {/* Chevron */}
-            <div className="shrink-0 w-5 h-5 rounded-lg flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-all duration-200">
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground group-hover/item:text-primary" />
-            </div>
-        </motion.button>
-    );
+      {/* Trend */}
+      <div className="shrink-0">
+        <TrendChip trend={opp.trend} delta={opp.trendDelta} />
+      </div>
+
+      {/* Chevron on hover */}
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 opacity-0 group-hover/row:opacity-100 transition-all" />
+    </motion.button>
+  );
 }
 
-// ============================================
-// Loading
-// ============================================
+/* ─── Loading skeleton ────────────────────────────────────── */
 
 function CardSkeleton() {
-    return (
-        <div className="flex flex-col h-full p-4 gap-3">
-            <div className="flex items-center gap-3">
-                <Skeleton className="h-8 w-8 rounded-xl" />
-                <div className="space-y-1.5">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-2.5 w-14" />
-                </div>
-            </div>
-            <Skeleton className="h-7 w-full rounded-lg" />
-            <div className="flex-1 space-y-2">
-                <Skeleton className="h-12 w-full rounded-xl" />
-                <Skeleton className="h-12 w-full rounded-xl" />
-                <Skeleton className="h-12 w-full rounded-xl" />
-            </div>
+  return (
+    <div className="flex flex-col h-full p-4 gap-3">
+      <div className="flex items-center gap-2.5">
+        <Skeleton className="h-10 w-10 rounded-xl" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-2.5 w-10" />
+          <Skeleton className="h-4 w-24" />
         </div>
-    );
+      </div>
+      <div className="flex gap-4 mt-1">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="h-3 w-14" />
+        <Skeleton className="h-3 w-14" />
+      </div>
+      <div className="flex-1 space-y-0">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 py-2.5 border-b border-border/10">
+            <Skeleton className="h-5 w-8 rounded-full" />
+            <div className="flex-1 space-y-1">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-2.5 w-20" />
+            </div>
+            <Skeleton className="h-3.5 w-8" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
-// ============================================
-// Empty state
-// ============================================
+/* ─── Empty state — Vercel Pro ────────────────────────────── */
 
 function EmptyState({ isConnected }: { isConnected: boolean }) {
-    const router = useRouter();
+  const router = useRouter();
 
-    return (
-        <div className="relative flex flex-col items-center justify-center p-6 h-full text-center space-y-4 overflow-hidden">
-            {/* Ambient blob */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-primary/5 rounded-full blur-3xl" />
-            </div>
-
-            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
-                {isConnected ? (
-                    <Lightbulb className="h-5 w-5 text-primary" />
-                ) : (
-                    <Link2 className="h-5 w-5 text-primary" />
-                )}
-            </div>
-            <div>
-                <h3 className="text-sm font-semibold">
-                    {isConnected ? "Opportunités" : "Google Search Console"}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1.5 max-w-[180px] leading-relaxed">
-                    {isConnected
-                        ? "Aucune opportunité détectée pour le moment."
-                        : "Connectez GSC pour découvrir vos opportunités SEO."
-                    }
-                </p>
-            </div>
-            {!isConnected && (
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8 rounded-lg gap-1.5"
-                    onClick={() => router.push("/app/settings")}
-                >
-                    <Link2 className="w-3 h-3" />
-                    Connecter GSC
-                </Button>
-            )}
-        </div>
-    );
+  return (
+    <div className="flex flex-col items-center justify-center p-6 h-full text-center space-y-3">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50">
+        {isConnected ? (
+          <Lightbulb className="h-5 w-5 text-muted-foreground/50" />
+        ) : (
+          <Link2 className="h-5 w-5 text-muted-foreground/50" />
+        )}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-foreground">
+          {isConnected ? "Opportunités" : "Google Search Console"}
+        </p>
+        <p className="text-xs text-muted-foreground/60 mt-1 max-w-[200px]">
+          {isConnected
+            ? "Aucune opportunité détectée pour le moment."
+            : "Connectez GSC pour découvrir vos opportunités SEO."}
+        </p>
+      </div>
+      {!isConnected && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-[11px] rounded-lg gap-1.5 font-medium mt-1"
+          onClick={() => router.push("/app/settings")}
+        >
+          <Link2 className="w-3.5 h-3.5" />
+          Connecter GSC
+        </Button>
+      )}
+    </div>
+  );
 }
 
-// ============================================
-// Main component
-// ============================================
+/* ─── Main component ──────────────────────────────────────── */
 
 export function GscFastOpportunitiesCard() {
-    const [activeCategory, setActiveCategory] = useState<OpportunityCategory>("quick_wins");
-    const [sheetOpen, setSheetOpen] = useState(false);
-    const [sheetCategory, setSheetCategory] = useState<OpportunityCategory>("quick_wins");
+  const [activeCategory, setActiveCategory] = useState<OpportunityCategory>("quick_wins");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetCategory, setSheetCategory] = useState<OpportunityCategory>("quick_wins");
 
-    const { connections, isConnected, isLoading: connLoading } = useGscConnection({ linkedOnly: true });
-    const { selectedStore } = useSelectedStore();
+  const { connections, isConnected, isLoading: connLoading } = useGscConnection({ linkedOnly: true });
+  const { selectedStore } = useSelectedStore();
 
-    const storeMatchedSite = selectedStore
-        ? connections.find((c) => c.store_id === selectedStore.id)
-        : null;
-    const effectiveSiteId = storeMatchedSite?.site_id || connections[0]?.site_id || null;
+  const storeMatchedSite = selectedStore
+    ? connections.find((c) => c.store_id === selectedStore.id)
+    : null;
+  const effectiveSiteId = storeMatchedSite?.site_id || connections[0]?.site_id || null;
 
-    const { data: scored, isLoading: oppLoading } = useGscScoredOpportunities(
-        isConnected ? effectiveSiteId : null
-    );
+  const { data: scored, isLoading: oppLoading } = useGscScoredOpportunities(
+    isConnected ? effectiveSiteId : null
+  );
 
-    const isLoading = connLoading || oppLoading;
+  const isLoading = connLoading || oppLoading;
 
-    const currentItems = useMemo(() => {
-        if (!scored) return [];
-        return scored[activeCategory] || [];
-    }, [scored, activeCategory]);
+  const currentItems = useMemo(() => {
+    if (!scored) return [];
+    return scored[activeCategory] || [];
+  }, [scored, activeCategory]);
 
-    const visibleItems = currentItems.slice(0, VISIBLE_COUNT);
-    const remainingCount = Math.max(0, currentItems.length - VISIBLE_COUNT);
+  const visibleItems = currentItems.slice(0, VISIBLE_COUNT);
+  const remainingCount = Math.max(0, currentItems.length - VISIBLE_COUNT);
 
-    const openSheet = (cat: OpportunityCategory) => {
-        setSheetCategory(cat);
-        setSheetOpen(true);
-    };
+  const openSheet = (cat: OpportunityCategory) => {
+    setSheetCategory(cat);
+    setSheetOpen(true);
+  };
 
-    if (isLoading) return <CardSkeleton />;
+  if (isLoading) return <CardSkeleton />;
 
-    if (!isConnected || !scored || scored.totalCount === 0) {
-        return <EmptyState isConnected={isConnected} />;
-    }
+  if (!isConnected || !scored || scored.totalCount === 0) {
+    return <EmptyState isConnected={isConnected} />;
+  }
 
-    const counts: Record<OpportunityCategory, number> = {
-        quick_wins: scored.quick_wins.length,
-        low_ctr: scored.low_ctr.length,
-        no_clicks: scored.no_clicks.length,
-    };
+  const counts: Record<OpportunityCategory, number> = {
+    quick_wins: scored.quick_wins.length,
+    low_ctr: scored.low_ctr.length,
+    no_clicks: scored.no_clicks.length,
+  };
 
-    const totalOpps = scored.totalCount;
+  return (
+    <>
+      <div className="flex flex-col h-full">
 
-    return (
-        <>
-            <div className="relative flex flex-col h-full overflow-hidden">
-                {/* Ambient glow */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute -top-8 -right-8 w-32 h-32 bg-warning/8 rounded-full blur-3xl" />
-                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/6 rounded-full blur-3xl" />
-                </div>
-
-                {/* ── Header ── */}
-                <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2">
-                    <div className="flex items-center gap-2.5">
-                        <div className="relative shrink-0">
-                            <div className="w-8 h-8 rounded-xl bg-muted border border-border flex items-center justify-center text-muted-foreground">
-                                <Target className="w-4 h-4" />
-                            </div>
-                            {totalOpps > 0 && (
-                                <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                                    <span className="absolute inline-flex h-full w-full rounded-full bg-warning/60 animate-ping opacity-40" />
-                                    <span className="relative inline-flex items-center justify-center rounded-full h-3.5 w-3.5 bg-warning text-[7px] font-black text-warning-foreground ring-2 ring-card">
-                                        {totalOpps > 9 ? '9+' : totalOpps}
-                                    </span>
-                                </span>
-                            )}
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold leading-none text-foreground">Opportunités</h3>
-                            <p className="text-[9px] text-muted-foreground/60 mt-0.5 font-medium tracking-widest uppercase">
-                                SEO Quick Wins
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Hairline separator */}
-                <div className="mx-4 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
-
-                {/* ── Pill toggle ── */}
-                <div className="relative z-10 px-4 pt-2 pb-1">
-                    <Tabs
-                        value={activeCategory}
-                        onValueChange={(v) => setActiveCategory(v as OpportunityCategory)}
-                    >
-                        <TabsList className="h-7 w-full p-0.5 bg-muted/40 rounded-lg border border-border/30">
-                            {CATEGORY_TABS.map((tab) => (
-                                <TabsTrigger
-                                    key={tab.value}
-                                    value={tab.value}
-                                    className={cn(
-                                        "flex-1 h-6 text-[10px] font-semibold rounded-md gap-1 px-1",
-                                        "data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground",
-                                        "transition-all duration-200"
-                                    )}
-                                >
-                                    {tab.icon}
-                                    <span className="hidden sm:inline">{tab.label}</span>
-                                    {counts[tab.value] > 0 && (
-                                        <span className="text-[8px] tabular-nums text-muted-foreground/60 font-bold ml-0.5">
-                                            {counts[tab.value]}
-                                        </span>
-                                    )}
-                                </TabsTrigger>
-                            ))}
-                        </TabsList>
-                    </Tabs>
-                </div>
-
-                {/* ── Items ── */}
-                <div className="relative z-10 flex-1 flex flex-col gap-1.5 px-4 py-2 min-h-0">
-                    {visibleItems.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center">
-                            <p className="text-xs text-muted-foreground/60 text-center">
-                                Aucune opportunité dans cette catégorie.
-                            </p>
-                        </div>
-                    ) : (
-                        visibleItems.map((opp, idx) => (
-                            <OpportunityItem
-                                key={opp.query}
-                                opp={opp}
-                                isNew={scored.newKeywords.has(opp.query.toLowerCase())}
-                                index={idx}
-                                onClick={() => openSheet(activeCategory)}
-                            />
-                        ))
-                    )}
-                </div>
-
-                {/* ── Footer CTA — pinned bottom ── */}
-                {remainingCount > 0 && (
-                    <div className="relative z-10 px-4 pb-3 pt-1 mt-auto shrink-0 border-t border-border/20">
-                        <button
-                            onClick={() => openSheet(activeCategory)}
-                            className={cn(
-                                "w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg",
-                                "text-[11px] font-medium text-muted-foreground",
-                                "hover:text-primary hover:bg-muted/50",
-                                "transition-all duration-200"
-                            )}
-                        >
-                            Voir les {remainingCount} autres
-                            <ChevronRight className="h-3 w-3" />
-                        </button>
-                    </div>
-                )}
+        {/* ── Header — Vercel Pro ── */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 shrink-0">
+              <Target className="h-[18px] w-[18px] text-foreground/70" />
             </div>
+            <div>
+              <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider leading-none mb-1">
+                SEO
+              </p>
+              <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
+                Opportunités
+              </h3>
+            </div>
+          </div>
 
-            {/* Sheet */}
-            <GscOpportunitiesSheet
-                open={sheetOpen}
-                onOpenChange={setSheetOpen}
-                opportunities={scored[sheetCategory] || []}
-                category={sheetCategory}
-                newKeywords={scored.newKeywords}
-            />
-        </>
-    );
+          {/* Total count badge */}
+          <span className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-amber-500/10 text-amber-600 inline-flex items-center tabular-nums">
+            {scored.totalCount}
+          </span>
+        </div>
+
+        {/* ── Underline tabs ── */}
+        <div className="flex items-center gap-1 px-4 border-b border-border/30">
+          {CATEGORY_TABS.map((tab) => {
+            const isActive = activeCategory === tab.value;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveCategory(tab.value)}
+                className={cn(
+                  "relative flex items-center gap-1 px-2.5 py-2 text-[11px] font-medium transition-colors border-b-2 -mb-px",
+                  isActive
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Icon className={cn(
+                  "h-3 w-3",
+                  isActive ? "text-foreground/70" : "text-muted-foreground/60"
+                )} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                {counts[tab.value] > 0 && (
+                  <span className={cn(
+                    "text-[10px] tabular-nums ml-0.5",
+                    isActive ? "text-muted-foreground" : "text-muted-foreground/50"
+                  )}>
+                    {counts[tab.value]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Rows ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeCategory}
+              variants={motionTokens.variants.staggerContainer}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+            >
+              {visibleItems.length === 0 ? (
+                <div className="flex items-center justify-center py-10">
+                  <p className="text-xs text-muted-foreground/60">
+                    Aucune opportunité dans cette catégorie.
+                  </p>
+                </div>
+              ) : (
+                visibleItems.map((opp) => (
+                  <OpportunityRow
+                    key={opp.query}
+                    opp={opp}
+                    isNew={scored.newKeywords.has(opp.query.toLowerCase())}
+                    onClick={() => openSheet(activeCategory)}
+                  />
+                ))
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* ── Footer ── */}
+        {remainingCount > 0 && (
+          <div className="px-4 pb-3 pt-1 shrink-0 border-t border-border/20">
+            <button
+              onClick={() => openSheet(activeCategory)}
+              className={cn(
+                "w-full flex items-center justify-center gap-1 py-1.5 rounded-lg",
+                "text-[11px] font-medium text-muted-foreground",
+                "hover:text-foreground hover:bg-muted/30",
+                "transition-colors"
+              )}
+            >
+              Voir les {remainingCount} autres
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Sheet */}
+      <GscOpportunitiesSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        opportunities={scored[sheetCategory] || []}
+        category={sheetCategory}
+        newKeywords={scored.newKeywords}
+      />
+    </>
+  );
 }

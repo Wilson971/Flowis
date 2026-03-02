@@ -147,9 +147,9 @@ export const ProductSeoTab = () => {
             className="space-y-4"
         >
             {/* SECTION 1: Score Overview with Gauges */}
-            <Card className={theme.container}>
+            <Card className={theme.container} style={theme.containerStyle}>
                 <div className={theme.glassReflection} />
-                <div className={theme.gradientAccent} />
+                <div className={theme.gradientAccent} style={theme.gradientAccentStyle} />
 
                 <CardHeader className="pb-4 border-b border-border/10 mb-2 px-5 bg-muted/20 relative z-10">
                     <div className="flex items-center gap-3">
@@ -200,7 +200,7 @@ export const ProductSeoTab = () => {
             />
 
             {/* SECTION 4: Non-text criteria */}
-            <Card className={theme.container}>
+            <Card className={theme.container} style={theme.containerStyle}>
                 <div className={theme.glassReflection} />
                 <CardContent className="p-5 relative z-10 space-y-4">
                     <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">

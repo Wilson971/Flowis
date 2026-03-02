@@ -1,373 +1,424 @@
 /**
- * StoreCard - Carte de boutique avec statut, stats et actions
+ * StoreCard — Bento Dashboard Redesign
+ *
+ * Dual-mode card: compact (overview) or expanded (mini-dashboard).
+ * Reuses: StoreSyncStatus, StoreQuotaBar, StoreHealthPopover, StoreCompactView, StoreExpandedView.
  */
 
-'use client';
+'use client'
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  MoreHorizontal, Settings, Trash2, Clock, Globe, Unplug, Link2, Pencil,
+  Check, X, Copy, Download, PauseCircle, PlayCircle,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { motionTokens } from '@/lib/design-system/tokens'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
-    MoreHorizontal,
-    RefreshCw,
-    CheckCircle2,
-    Edit,
-    Trash2,
-    Eye,
-    Copy,
-    ExternalLink,
-    Sparkles,
-    AlertCircle,
-    Check,
-    X,
-    ImageIcon,
-    Settings,
-    Clock,
-    Package,
-    FolderTree,
-    Globe,
-    Zap,
-    Unplug,
-    Link2,
-    TestTube,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import type { Store, ConnectionHealth } from '@/types/store';
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { StoreHealthPopover } from './StoreHealthPopover'
+import { StoreCompactView } from './StoreCompactView'
+import { StoreExpandedView } from './StoreExpandedView'
+import { useConnectionHealth } from '@/hooks/stores/useStoreHeartbeat'
+import { useStoreRealtime, useLatestSyncJob } from '@/hooks/stores/useStoreRealtime'
+import { useStoreSyncSettings } from '@/hooks/stores/useStoreSyncSettings'
+import { useUpdateStore, usePauseStore, useResumeStore, useDuplicateStore } from '@/hooks/stores/useStores'
+import { useStoreKPIs } from '@/hooks/stores/useStoreKPIs'
+import type { Store, ConnectionHealth, SyncEntity } from '@/types/store'
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type StoreStatus = 'connected' | 'error' | 'syncing' | 'disconnected';
-
 interface StoreCardProps {
-    store: Store;
-    stats?: {
-        products?: number;
-        categories?: number;
-        articles?: number;
-    };
-    isLoadingStats?: boolean;
-    isSyncing?: boolean;
-    connectionHealth?: ConnectionHealth;
-    onSync?: (storeId: string) => void;
-    onTest?: (storeId: string) => void;
-    onEdit?: (storeId: string) => void;
-    onDisconnect?: (store: Store) => void;
-    onReconnect?: (storeId: string) => void;
-    onDelete?: (store: Store) => void;
-    onCancelDeletion?: (storeId: string) => void;
-    onToggleActive?: (storeId: string, active: boolean) => void;
+  store: Store
+  viewMode?: 'compact' | 'expanded'
+  onSync?: (storeId: string, entities: SyncEntity[]) => void
+  onEdit?: (storeId: string) => void
+  onDisconnect?: (store: Store) => void
+  onReconnect?: (storeId: string) => void
+  onDelete?: (store: Store) => void
+  onCancelDeletion?: (storeId: string) => void
+  onToggleActive?: (storeId: string, active: boolean) => void
 }
-
-// ============================================================================
-// CONFIG
-// ============================================================================
-
-const statusConfig = {
-    connected: {
-        label: 'Connecté',
-        color: 'text-success',
-        bg: 'bg-success/10',
-        dot: 'var(--success)',
-    },
-    error: {
-        label: 'Erreur',
-        color: 'text-destructive',
-        bg: 'bg-destructive/10',
-        dot: 'var(--destructive)',
-    },
-    syncing: {
-        label: 'Synchronisation...',
-        color: 'text-info',
-        bg: 'bg-info/10',
-        dot: 'var(--info)',
-    },
-    disconnected: {
-        label: 'Déconnecté',
-        color: 'text-muted-foreground',
-        bg: 'bg-muted/10',
-        dot: 'var(--muted-foreground)',
-    },
-};
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-function StatItem({
-    icon: Icon,
-    label,
-    value,
-    isLoading,
-}: {
-    icon: React.ElementType;
-    label: string;
-    value: number | undefined;
-    isLoading: boolean;
-}) {
-    return (
-        <div className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-muted/50 border border-border group/stat hover:bg-muted transition-colors">
-            {isLoading ? (
-                <div className="flex flex-col items-center gap-2 w-full">
-                    <Skeleton className="h-4 w-12" />
-                    <Skeleton className="h-3 w-16" />
-                </div>
-            ) : (
-                <>
-                    <div className="flex items-center gap-1.5 mb-1.5 text-muted-foreground group-hover/stat:text-primary transition-colors">
-                        <Icon className="w-3.5 h-3.5" />
-                        <span className="text-[10px] uppercase tracking-wider font-bold">{label}</span>
-                    </div>
-                    <span className="text-xl font-bold tabular-nums text-foreground">
-                        {value?.toLocaleString() ?? 0}
-                    </span>
-                </>
-            )}
-        </div>
-    );
+function countryFlag(code: string): string {
+  const codePoints = Array.from(code.toUpperCase()).map(
+    ch => 0x1F1E6 - 65 + ch.charCodeAt(0)
+  )
+  return String.fromCodePoint(...codePoints)
 }
 
-function getPlatformIcon(platform: string) {
-    // Simple text fallback, can be replaced with actual icons
-    const platformNames: Record<string, string> = {
-        woocommerce: 'WC',
-        shopify: 'SH',
-    };
-    return platformNames[platform] || platform.substring(0, 2).toUpperCase();
+function StoreAvatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  const colors = [
+    'bg-primary/20 text-primary',
+    'bg-success/20 text-success',
+    'bg-info/20 text-info',
+    'bg-warning/20 text-warning',
+    'bg-destructive/20 text-destructive',
+  ]
+  const colorClass = colors[name.charCodeAt(0) % colors.length]
+  const letter = name.charAt(0).toUpperCase()
+
+  if (logoUrl) {
+    return (
+      <img
+        src={logoUrl}
+        alt={`Logo ${name}`}
+        className="w-11 h-11 rounded-xl object-cover border border-border"
+      />
+    )
+  }
+
+  return (
+    <div className={cn(
+      'w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold border border-border',
+      colorClass
+    )}>
+      {letter}
+    </div>
+  )
+}
+
+function PlatformBadge({ platform }: { platform: string }) {
+  const labels: Record<string, string> = { woocommerce: 'WooCommerce', shopify: 'Shopify' }
+  const variants: Record<string, 'default' | 'info' | 'outline'> = { woocommerce: 'default', shopify: 'info' }
+  return (
+    <Badge variant={variants[platform] ?? 'outline'} size="sm">
+      {labels[platform] ?? platform}
+    </Badge>
+  )
 }
 
 // ============================================================================
-// COMPONENT
+// INLINE NAME EDIT
+// ============================================================================
+
+function InlineNameEdit({ storeId, name }: { storeId: string; name: string }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(name)
+  const [savedValue, setSavedValue] = useState(name)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const { mutate: updateStore, isPending } = useUpdateStore()
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  const handleSave = useCallback(() => {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === savedValue) {
+      setValue(savedValue)
+      setEditing(false)
+      return
+    }
+    updateStore(
+      { id: storeId, name: trimmed },
+      {
+        onSuccess: () => { setSavedValue(trimmed); setEditing(false) },
+        onError: () => { setValue(savedValue); setEditing(false) },
+      }
+    )
+  }, [value, savedValue, storeId, updateStore])
+
+  const handleCancel = useCallback(() => {
+    setValue(savedValue)
+    setEditing(false)
+  }, [savedValue])
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={e => setValue(e.target.value.slice(0, 64))}
+          onBlur={handleSave}
+          onKeyDown={e => {
+            if (e.key === 'Enter') handleSave()
+            if (e.key === 'Escape') handleCancel()
+          }}
+          className="text-base font-bold uppercase tracking-tight bg-transparent border-b border-primary outline-none w-full max-w-[200px]"
+          maxLength={64}
+          disabled={isPending}
+        />
+        <button onMouseDown={e => { e.preventDefault(); handleSave() }} className="text-success hover:text-success/80 transition-colors">
+          <Check className="w-3.5 h-3.5" />
+        </button>
+        <button onMouseDown={e => { e.preventDefault(); handleCancel() }} className="text-muted-foreground hover:text-destructive transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="flex items-center gap-1.5 group/name cursor-pointer"
+      onDoubleClick={() => setEditing(true)}
+      title="Double-clic pour renommer"
+    >
+      <h2 className="text-base font-bold uppercase tracking-tight text-foreground leading-tight">
+        {savedValue}
+      </h2>
+      <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover/name:opacity-100 transition-opacity" />
+    </div>
+  )
+}
+
+// ============================================================================
+// MAIN COMPONENT
 // ============================================================================
 
 export function StoreCard({
-    store,
-    stats = {},
-    isLoadingStats = false,
-    isSyncing = false,
-    connectionHealth = 'unknown',
-    onSync,
-    onTest,
-    onEdit,
-    onDisconnect,
-    onReconnect,
-    onDelete,
-    onCancelDeletion,
-    onToggleActive,
+  store,
+  viewMode = 'compact',
+  onSync,
+  onEdit,
+  onDisconnect,
+  onReconnect,
+  onDelete,
+  onCancelDeletion,
+  onToggleActive,
 }: StoreCardProps) {
-    // Determine status
-    const isDisconnected = store.status === 'disconnected' || !store.active;
-    const isDeletionScheduled = store.status === 'pending_deletion';
+  // Advanced actions
+  const { mutate: pauseStore, isPending: isPausing } = usePauseStore()
+  const { mutate: resumeStore, isPending: isResuming } = useResumeStore()
+  const { mutate: duplicateStore, isPending: isDuplicating } = useDuplicateStore()
+  const isPaused = !!store.paused_at
 
-    const status: StoreStatus = isSyncing
-        ? 'syncing'
-        : isDisconnected
-            ? 'disconnected'
-            : store.connection_id
-                ? 'connected'
-                : 'error';
+  const handleExportJSON = () => {
+    const exportData = {
+      id: store.id, name: store.name, platform: store.platform,
+      currency: store.currency, primary_language: store.primary_language,
+      country_code: store.country_code, active: store.active,
+      shop_url: store.platform_connections?.shop_url ?? '',
+    }
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `boutique-${store.name.toLowerCase().replace(/\s+/g, '-')}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
-    const config = statusConfig[status];
+  // Data hooks
+  const { data: healthData } = useConnectionHealth(store.id)
+  const health: ConnectionHealth = healthData?.health ?? 'unknown'
+  const isUnhealthy = health === 'unhealthy'
+  const { progress, isActive: isSyncActive } = useStoreRealtime(store.id)
+  const { data: latestJob } = useLatestSyncJob(store.id)
+  const { data: syncConfig } = useStoreSyncSettings(store.id)
+  const { data: kpis, isLoading: kpisLoading } = useStoreKPIs(store.id)
 
-    // Get shop URL
-    const shopUrl =
-        store.platform_connections?.shop_url ||
-        (store.platform_connections?.credentials_encrypted as Record<string, string>)?.shop_url ||
-        '';
-    const displayUrl = shopUrl ? shopUrl.replace(/^https?:\/\//, '').replace(/\/$/, '') : '';
+  const isDisconnected = store.status === 'disconnected' || !store.active
+  const isDeletionScheduled = store.status === 'pending_deletion'
 
-    // Format last sync
-    const lastSyncAt = store.platform_connections?.last_sync_at || store.last_synced_at;
-    const lastSyncFormatted = lastSyncAt
-        ? formatDistanceToNow(new Date(lastSyncAt), { addSuffix: true, locale: fr })
-        : 'Jamais';
+  const shopUrl = store.platform_connections?.shop_url ||
+    (store.platform_connections?.credentials_encrypted as Record<string, string>)?.shop_url || ''
+  const displayUrl = shopUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
 
-    const indicatorColor = isSyncing ? 'var(--info)' : status === 'connected' ? 'var(--success)' : 'var(--destructive)';
+  const handleSync = useCallback((entities: SyncEntity[]) => {
+    onSync?.(store.id, entities)
+  }, [store.id, onSync])
 
-    return (
-        <Card
-            className={cn(
-                'group relative w-full rounded-2xl border bg-card shadow-sm hover:shadow-lg transition-all duration-500 card-metal-accent overflow-hidden',
-                !store.active && 'opacity-60 grayscale-[0.5]'
+  const syncDisabled = !store.active || isDisconnected || isDeletionScheduled
+
+  return (
+    <motion.div
+      layout
+      variants={motionTokens.variants.staggerItem}
+      whileHover={viewMode === 'compact' ? motionTokens.variants.hoverLift : undefined}
+    >
+      <Card className={cn(
+        'group relative w-full rounded-2xl border bg-card/80 backdrop-blur-xl shadow-sm hover:shadow-lg transition-shadow overflow-hidden',
+        isUnhealthy && 'border-destructive/60 shadow-destructive/10',
+        isPaused && 'border-warning/60',
+        !store.active && 'opacity-60 grayscale-[0.5]'
+      )}>
+        <CardContent className="p-6 flex flex-col gap-4">
+
+          {/* ── Identity Header ──────────────────────────────── */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="relative shrink-0">
+                <StoreAvatar name={store.name} logoUrl={store.logo_url} />
+                {isUnhealthy && (
+                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive border-2 border-card" />
+                )}
+              </div>
+
+              <div className="flex flex-col gap-1 min-w-0">
+                <InlineNameEdit storeId={store.id} name={store.name} />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <PlatformBadge platform={store.platform} />
+                  <StoreHealthPopover
+                    storeId={store.id}
+                    health={health}
+                    lastCheckedAt={healthData?.lastHeartbeat ?? null}
+                    errorMessage={healthData?.error ?? null}
+                  />
+                  {isPaused && (
+                    <Badge variant="outline" size="sm" className="border-warning/60 text-warning">En pause</Badge>
+                  )}
+                  {isDeletionScheduled && (
+                    <Badge variant="destructive" size="sm">Suppression planifiée</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {store.country_code && <span title={store.country_code}>{countryFlag(store.country_code)}</span>}
+                  {displayUrl && (
+                    <>
+                      <Globe className="w-3 h-3 shrink-0" />
+                      <a
+                        href={shopUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate max-w-[160px] hover:text-foreground hover:underline transition-colors"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {displayUrl}
+                      </a>
+                    </>
+                  )}
+                  {viewMode === 'expanded' && store.currency && (
+                    <Badge variant="outline" size="sm" className="font-mono ml-1">{store.currency}</Badge>
+                  )}
+                  {viewMode === 'expanded' && store.primary_language && (
+                    <Badge variant="outline" size="sm" className="ml-0.5">{store.primary_language.toUpperCase()}</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Options menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Options Boutique</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {onEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(store.id)}>
+                    <Settings className="h-4 w-4 mr-2 opacity-70" />Paramètres
+                  </DropdownMenuItem>
+                )}
+                {!isDeletionScheduled && (
+                  isPaused ? (
+                    <DropdownMenuItem onClick={() => resumeStore(store.id)} disabled={isResuming}>
+                      <PlayCircle className="h-4 w-4 mr-2 opacity-70 text-success" />{isResuming ? 'En cours…' : 'Reprendre'}
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => pauseStore(store.id)} disabled={isPausing}>
+                      <PauseCircle className="h-4 w-4 mr-2 opacity-70 text-warning" />{isPausing ? 'En cours…' : 'Mettre en pause'}
+                    </DropdownMenuItem>
+                  )
+                )}
+                <DropdownMenuItem onClick={() => duplicateStore(store.id)} disabled={isDuplicating}>
+                  <Copy className="h-4 w-4 mr-2 opacity-70" />{isDuplicating ? 'Duplication…' : 'Dupliquer'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportJSON}>
+                  <Download className="h-4 w-4 mr-2 opacity-70" />Exporter JSON
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {isDisconnected && onReconnect ? (
+                  <DropdownMenuItem onClick={() => onReconnect(store.id)}>
+                    <Link2 className="h-4 w-4 mr-2 opacity-70" />Reconnecter
+                  </DropdownMenuItem>
+                ) : onDisconnect && (
+                  <DropdownMenuItem onClick={() => onDisconnect(store)}>
+                    <Unplug className="h-4 w-4 mr-2 opacity-70" />Déconnecter
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {isDeletionScheduled && onCancelDeletion ? (
+                  <DropdownMenuItem onClick={() => onCancelDeletion(store.id)} className="text-success font-medium">
+                    <Clock className="h-4 w-4 mr-2" />Annuler la suppression
+                  </DropdownMenuItem>
+                ) : onDelete && (
+                  <DropdownMenuItem onClick={() => onDelete(store)} className="text-destructive font-bold">
+                    <Trash2 className="h-4 w-4 mr-2" />Supprimer la boutique
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* ── Card Body: Compact or Expanded ──────────────── */}
+          <AnimatePresence mode="wait" initial={false}>
+            {viewMode === 'compact' ? (
+              <motion.div
+                key="compact"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={motionTokens.transitions.fast}
+              >
+                <StoreCompactView
+                  storeId={store.id}
+                  kpis={kpis}
+                  kpisLoading={kpisLoading}
+                  latestJob={latestJob ?? null}
+                  progress={progress}
+                  isSyncActive={isSyncActive}
+                  autoSyncEnabled={syncConfig?.auto_sync_enabled ?? false}
+                  nextSyncAt={null}
+                  onSync={handleSync}
+                  syncDisabled={syncDisabled}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="expanded"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={motionTokens.transitions.fast}
+              >
+                <StoreExpandedView
+                  storeId={store.id}
+                  kpis={kpis}
+                  kpisLoading={kpisLoading}
+                  latestJob={latestJob ?? null}
+                  progress={progress}
+                  isSyncActive={isSyncActive}
+                  autoSyncEnabled={syncConfig?.auto_sync_enabled ?? false}
+                  onSync={handleSync}
+                  syncDisabled={syncDisabled}
+                />
+              </motion.div>
             )}
-        >
-            <CardContent className="p-6 flex flex-col gap-6">
-                {/* Header Row */}
-                <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                        {/* Platform Logo Circle */}
-                        <div className="relative">
-                            <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center border border-border shadow-inner text-sm font-bold text-muted-foreground group-hover:text-foreground transition-colors">
-                                {getPlatformIcon(store.platform)}
-                            </div>
-                            {/* Status Indicator Dot */}
-                            <div
-                                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-card transition-all duration-300 group-hover:scale-110"
-                                style={{ backgroundColor: indicatorColor, boxShadow: `0 0 12px ${indicatorColor}66` }}
-                            >
-                                {isSyncing && (
-                                    <div className="absolute inset-0 rounded-full border border-white/30 animate-ping" />
-                                )}
-                            </div>
-                        </div>
+          </AnimatePresence>
 
-                        {/* Title and URL */}
-                        <div className="flex flex-col">
-                            <h2 className="text-lg font-bold uppercase tracking-tight text-foreground leading-tight">
-                                {store.name}
-                            </h2>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <span className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors truncate max-w-[200px]">
-                                    <Globe className="w-3 h-3" />
-                                    {displayUrl || 'no-url.com'}
-                                </span>
-                                {status === 'connected' && !isDeletionScheduled && (
-                                    <Badge
-                                        variant="outline"
-                                        className="h-5 px-1.5 py-0 text-[10px] font-bold gap-1 bg-success/10 text-success border-success/20"
-                                    >
-                                        <div className="w-1 h-1 rounded-full bg-current" />
-                                        OK
-                                    </Badge>
-                                )}
-                                {isDeletionScheduled && (
-                                    <Badge variant="destructive" className="h-5 px-1.5 py-0 text-[10px] font-bold">
-                                        Suppression planifiée
-                                    </Badge>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+          {/* ── Footer: Toggle Active ───────────────────────── */}
+          <div className="flex items-center justify-between pt-1 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={store.active}
+                onCheckedChange={checked => onToggleActive?.(store.id, checked)}
+                disabled={isDeletionScheduled}
+              />
+              <span className="text-xs font-medium text-muted-foreground">Boutique Active</span>
+            </div>
+          </div>
 
-                    {/* Options Menu */}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            >
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-56">
-                            <DropdownMenuLabel>Options Boutique</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-
-                            {onEdit && (
-                                <DropdownMenuItem onClick={() => onEdit(store.id)}>
-                                    <Settings className="h-4 w-4 mr-2 opacity-70" />
-                                    Paramètres
-                                </DropdownMenuItem>
-                            )}
-
-                            {onTest && (
-                                <DropdownMenuItem onClick={() => onTest(store.id)}>
-                                    <TestTube className="h-4 w-4 mr-2 opacity-70" />
-                                    Tester la connexion
-                                </DropdownMenuItem>
-                            )}
-
-                            <DropdownMenuSeparator />
-
-                            {isDisconnected && onReconnect ? (
-                                <DropdownMenuItem onClick={() => onReconnect(store.id)}>
-                                    <Link2 className="h-4 w-4 mr-2 opacity-70" />
-                                    Reconnecter
-                                </DropdownMenuItem>
-                            ) : (
-                                onDisconnect && (
-                                    <DropdownMenuItem onClick={() => onDisconnect(store)}>
-                                        <Unplug className="h-4 w-4 mr-2 opacity-70" />
-                                        Déconnecter
-                                    </DropdownMenuItem>
-                                )
-                            )}
-
-                            <DropdownMenuSeparator />
-
-                            {isDeletionScheduled && onCancelDeletion ? (
-                                <DropdownMenuItem
-                                    onClick={() => onCancelDeletion(store.id)}
-                                    className="text-success font-medium"
-                                >
-                                    <Clock className="h-4 w-4 mr-2" />
-                                    Annuler la suppression
-                                </DropdownMenuItem>
-                            ) : (
-                                onDelete && (
-                                    <DropdownMenuItem
-                                        onClick={() => onDelete(store)}
-                                        className="text-destructive font-bold"
-                                    >
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Supprimer la boutique
-                                    </DropdownMenuItem>
-                                )
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-
-                {/* Stats Row */}
-                <div className="flex gap-3">
-                    <StatItem icon={Package} label="Produits" value={stats.products} isLoading={isLoadingStats} />
-                    <StatItem icon={FolderTree} label="Catégories" value={stats.categories} isLoading={isLoadingStats} />
-                </div>
-
-                {/* Sync Status Row */}
-                <div className="flex items-center justify-between py-2 border-y border-border/50">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-xs font-medium">Dernière sync</span>
-                    </div>
-                    <span className="text-xs font-medium text-foreground">{lastSyncFormatted}</span>
-                </div>
-
-                {/* Footer Controls */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Switch
-                            checked={store.active}
-                            onCheckedChange={(checked) => onToggleActive?.(store.id, checked)}
-                            disabled={isDeletionScheduled}
-                        />
-                        <span className="text-xs font-bold text-muted-foreground">Boutique Active</span>
-                    </div>
-
-                    <Button
-                        size="sm"
-                        className={cn(
-                            'h-9 px-4 font-bold transition-all gap-2 rounded-xl',
-                            isSyncing
-                                ? 'bg-info hover:bg-info/90 text-info-foreground'
-                                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                        )}
-                        disabled={!store.active || isDisconnected || isDeletionScheduled}
-                        onClick={() => onSync?.(store.id)}
-                    >
-                        {isSyncing ? (
-                            <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Zap className="h-4 w-4" />
-                        )}
-                        {isSyncing ? 'En cours...' : 'Synchroniser'}
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
 }

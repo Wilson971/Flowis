@@ -4,7 +4,7 @@
  * Subscribes to sync_queue changes and provides live status updates.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -43,6 +43,7 @@ export interface SyncQueueJob {
 
 /**
  * Get sync queue statistics for a store (or all stores).
+ * Uses separate count queries per status to avoid iterating data rows.
  */
 export function useSyncQueueStats(storeId?: string) {
   const supabase = createClient();
@@ -50,54 +51,35 @@ export function useSyncQueueStats(storeId?: string) {
   return useQuery({
     queryKey: ['sync-queue-stats', storeId],
     queryFn: async (): Promise<SyncQueueStats> => {
-      let query = supabase
-        .from('sync_queue')
-        .select('status', { count: 'exact' });
+      const statuses = ['pending', 'processing', 'completed', 'failed', 'dead_letter'] as const;
 
-      if (storeId) {
-        query = query.eq('store_id', storeId);
-      }
+      const counts = await Promise.all(
+        statuses.map(async (status) => {
+          let query = supabase
+            .from('sync_queue')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', status);
 
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      // Count by status
-      const stats: SyncQueueStats = {
-        pending: 0,
-        processing: 0,
-        completed: 0,
-        failed: 0,
-        deadLetter: 0,
-        total: 0,
-      };
-
-      if (data) {
-        for (const item of data as { status: string }[]) {
-          stats.total++;
-          switch (item.status) {
-            case 'pending':
-              stats.pending++;
-              break;
-            case 'processing':
-              stats.processing++;
-              break;
-            case 'completed':
-              stats.completed++;
-              break;
-            case 'failed':
-              stats.failed++;
-              break;
-            case 'dead_letter':
-              stats.deadLetter++;
-              break;
+          if (storeId) {
+            query = query.eq('store_id', storeId);
           }
-        }
-      }
 
-      return stats;
+          const { count, error } = await query;
+          if (error) return 0;
+          return count ?? 0;
+        })
+      );
+
+      const [pending, processing, completed, failed, deadLetter] = counts;
+
+      return {
+        pending,
+        processing,
+        completed,
+        failed,
+        deadLetter,
+        total: pending + processing + completed + failed + deadLetter,
+      };
     },
     refetchInterval: (query) => {
       if (typeof document !== 'undefined' && document.hidden) return false;
@@ -118,19 +100,17 @@ export function useSyncQueueStats(storeId?: string) {
 export function useSyncQueueRealtime(storeId?: string) {
   const queryClient = useQueryClient();
   const supabase = createClient();
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleChange = useCallback(() => {
-    // Invalidate queries on any change
     queryClient.invalidateQueries({ queryKey: ['sync-queue-stats', storeId] });
     queryClient.invalidateQueries({ queryKey: ['sync-queue-jobs', storeId] });
     queryClient.invalidateQueries({ queryKey: ['products'] });
   }, [queryClient, storeId]);
 
   useEffect(() => {
-    // Subscribe to sync_queue changes
     const newChannel = supabase
-      .channel('sync-queue-changes')
+      .channel(`sync-queue-changes:${storeId ?? 'all'}`)
       .on(
         'postgres_changes',
         {
@@ -141,18 +121,22 @@ export function useSyncQueueRealtime(storeId?: string) {
         },
         handleChange
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('[useSyncQueueRealtime] Channel subscription error');
+        }
+      });
 
-    setChannel(newChannel);
+    channelRef.current = newChannel;
 
     return () => {
-      if (newChannel) {
-        supabase.removeChannel(newChannel);
-      }
+      newChannel.unsubscribe();
+      supabase.removeChannel(newChannel);
+      channelRef.current = null;
     };
   }, [supabase, storeId, handleChange]);
 
-  return { channel };
+  return { channel: channelRef.current };
 }
 
 // ============================================================================
