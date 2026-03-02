@@ -3,10 +3,8 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { FormProvider, useWatch } from "react-hook-form";
-import { AnimatePresence, motion } from "framer-motion";
-import { AlertCircle, AlertTriangle, Package } from "lucide-react";
+import { AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
-import { motionTokens } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,7 +29,6 @@ import {
 } from "../context/ProductEditContext";
 import { ProductEditorLayoutV2 } from "./edit/ProductEditorLayoutV2";
 import { ProductEditorHeaderV2 } from "./edit/ProductEditorHeaderV2";
-import { ProductEditorTabsV2, type ProductTab } from "./edit/ProductEditorTabsV2";
 import { ProductEditorSidebarV2 } from "./edit/ProductEditorSidebarV2";
 import { GeneralTabV2 } from "./edit/tabs/GeneralTabV2";
 import { MediaTabV2 } from "./edit/tabs/MediaTabV2";
@@ -46,9 +43,6 @@ interface ProductEditorContainerV2Props {
 }
 
 export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2Props) => {
-    // Tab state
-    const [activeTab, setActiveTab] = useState<ProductTab>("general");
-
     // 0. Store Context
     const { selectedStore } = useSelectedStore();
 
@@ -287,14 +281,6 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
         contentBuffer, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
     ]);
 
-    // Tab definitions
-    const tabs = useMemo(() => [
-        { id: "general" as ProductTab, label: "G\u00e9n\u00e9ral" },
-        { id: "media" as ProductTab, label: "M\u00e9dias" },
-        { id: "variations" as ProductTab, label: "Variations", count: product?.metadata?.variations_count ?? 0, hidden: watchedProductType !== "variable" },
-        { id: "seo" as ProductTab, label: "SEO" },
-    ], [watchedProductType, product?.metadata?.variations_count]);
-
     // ========================================================================
     // RENDER
     // ========================================================================
@@ -410,14 +396,6 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
 
                     {/* Form */}
                     <form onSubmit={methods.handleSubmit(handleManualSave)} className="w-full">
-                        {/* Tabs */}
-                        <ProductEditorTabsV2
-                            activeTab={activeTab}
-                            onTabChange={setActiveTab}
-                            tabs={tabs}
-                        />
-
-                        {/* Layout with sidebar */}
                         <ProductEditorLayoutV2
                             sidebar={
                                 <ProductEditorSidebarV2
@@ -434,29 +412,18 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
                                 />
                             }
                         >
-                            {/* Tab Content with AnimatePresence */}
-                            <AnimatePresence mode="wait">
-                                <motion.div
-                                    key={activeTab}
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -8 }}
-                                    transition={motionTokens.transitions.fast}
-                                >
-                                    {activeTab === "general" && <GeneralTabV2 />}
-                                    {activeTab === "media" && <MediaTabV2 />}
-                                    {activeTab === "variations" && watchedProductType === "variable" && (
-                                        <VariationsTabV2
-                                            productId={productId}
-                                            storeId={selectedStore?.id}
-                                            platformProductId={product?.platform_product_id}
-                                            metadataVariants={product?.metadata?.variants as unknown[] | undefined}
-                                            onRegisterSave={(saveFn) => { variationSaveRef.current = saveFn; }}
-                                        />
-                                    )}
-                                    {activeTab === "seo" && <SeoTabV2 />}
-                                </motion.div>
-                            </AnimatePresence>
+                            <GeneralTabV2 />
+                            <MediaTabV2 />
+                            {watchedProductType === "variable" && (
+                                <VariationsTabV2
+                                    productId={productId}
+                                    storeId={selectedStore?.id}
+                                    platformProductId={product?.platform_product_id}
+                                    metadataVariants={product?.metadata?.variants as unknown[] | undefined}
+                                    onRegisterSave={(saveFn) => { variationSaveRef.current = saveFn; }}
+                                />
+                            )}
+                            <SeoTabV2 />
                         </ProductEditorLayoutV2>
                     </form>
 
