@@ -72,7 +72,7 @@ export default function StoreGeneralSection() {
     if (selectedStore) {
       form.reset({
         name: selectedStore.name || '',
-        description: (selectedStore as any).description || '',
+        description: (selectedStore as Record<string, unknown>).description as string || '',
       })
       credForm.reset({
         shop_url: selectedStore.platform_connections?.shop_url || '',
@@ -131,7 +131,7 @@ export default function StoreGeneralSection() {
   }
 
   const isDirty = form.formState.isDirty
-  const health = (selectedStore as any)?.platform_connections?.connection_health
+  const health = (selectedStore?.platform_connections as Record<string, unknown> | undefined)?.connection_health as string | undefined
 
   if (storeLoading) {
     return (

@@ -9,6 +9,7 @@
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 
@@ -61,7 +62,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       return (data || []) as Store[];
     },
-    staleTime: 300000, // 5 minutes
+    staleTime: STALE_TIMES.STATIC,
     enabled: !!user && !authLoading, // Only query when user is authenticated
   });
 

@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
             const blogRows = blogPosts
                 .filter(b => b.slug)
                 .map(b => {
-                    const url = (b.metadata as any)?.permalink || `${siteBaseUrl}/blog/${b.slug}`;
+                    const url = (b.metadata as Record<string, unknown> | null)?.permalink as string || `${siteBaseUrl}/blog/${b.slug}`;
                     return {
                         site_id: site.id,
                         tenant_id: user.id,

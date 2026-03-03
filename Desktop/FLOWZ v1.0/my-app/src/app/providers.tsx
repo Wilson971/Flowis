@@ -1,6 +1,7 @@
 "use client";
 
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { AuthProvider } from '@/lib/auth/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { StoreProvider } from '@/contexts/StoreContext';
@@ -15,7 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const [queryClient] = useState(() => new QueryClient({
         defaultOptions: {
             queries: {
-                staleTime: 60 * 1000,
+                staleTime: STALE_TIMES.DETAIL,
                 refetchOnWindowFocus: false,
                 retry: (failureCount, error) => {
                     // Don't retry on 4xx errors

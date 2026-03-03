@@ -154,7 +154,7 @@ export function useCreateProductVersion() {
                     product_id: params.product_id,
                     tenant_id: user.id,
                     version_number: nextVersionNumber,
-                    form_data: params.form_data as any,
+                    form_data: params.form_data as unknown as Record<string, unknown>,
                     title: params.form_data.title || '',
                     field_count: countNonEmptyFields(params.form_data),
                     trigger_type: params.trigger_type,

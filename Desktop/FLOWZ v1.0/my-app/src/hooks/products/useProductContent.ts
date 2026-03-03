@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import type { ContentData, ProductContentBuffer } from '@/types/productContent';
+import type { ContentData, ProductContentBuffer, GenerationManifest } from '@/types/productContent';
 import { computeDirtyFields } from './computeDirtyFields';
 
 // ============================================================================
@@ -77,6 +77,7 @@ interface ProductContentData extends ProductContentBuffer {
     id: string;
     content_version: number;
     platform: string;
+    generation_manifest?: GenerationManifest | null;
 }
 
 /**
@@ -97,6 +98,7 @@ export function useProductContent(productId: string | null) {
                     store_snapshot_content,
                     working_content,
                     draft_generated_content,
+                    generation_manifest,
                     dirty_fields_content,
                     store_content_updated_at,
                     working_content_updated_at,
@@ -113,6 +115,7 @@ export function useProductContent(productId: string | null) {
                 store_snapshot_content: data.store_snapshot_content as ContentData,
                 working_content: data.working_content as ContentData,
                 draft_generated_content: data.draft_generated_content as ContentData | null,
+                generation_manifest: data.generation_manifest as GenerationManifest | null,
                 dirty_fields_content: (Array.isArray(data.dirty_fields_content)
                     ? data.dirty_fields_content.filter((i: unknown) => typeof i === 'string')
                     : []) as string[],

@@ -70,7 +70,7 @@ function buildProductUrl(
     const platform = product.platform;
 
     if (platform === 'shopify') {
-        const handle = (product as any).handle || metadata.handle;
+        const handle = product.handle || metadata.handle;
         const shopUrl = selectedStore?.platform_connections?.shop_url || '';
         if (handle && shopUrl) {
             const cleanUrl = shopUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -119,7 +119,7 @@ export const ProductEditorHeader = ({
             <div className="flex items-center justify-between gap-3">
                 {/* Left: Back + Title block */}
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0">
+                    <Button variant="outline" size="icon" asChild className="h-8 w-8 rounded-lg border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:border-border active:scale-95 transition-all duration-150 shadow-none shrink-0">
                         <Link href="/app/products">
                             <ArrowLeft className="h-4 w-4" />
                         </Link>

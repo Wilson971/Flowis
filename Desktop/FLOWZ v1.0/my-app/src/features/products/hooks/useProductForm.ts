@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useForm, UseFormReturn } from "react-hook-form";
+import { useForm, UseFormReturn, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useRef } from "react";
 import { Product } from "@/types/product";
@@ -43,7 +43,7 @@ function mapToFormImages(
     images: unknown[] | undefined | null,
     fallbackUrl: string | null | undefined
 ): { id: string | number; src: string; name: string; alt: string; order: number; isPrimary: boolean }[] {
-    const source = images as any[] | null;
+    const source = images as ({ id?: string | number; src?: string; url?: string; name?: string; alt?: string }[] | null);
     if (source?.length) {
         return source.map((img, idx) => ({
             id: img.id ?? `img-${idx}`,
@@ -75,7 +75,7 @@ function calculateInitialFormValues(
         global_unique_id: wc.global_unique_id ?? "",
         short_description: wc.short_description ?? (product.metadata as Record<string, any>)?.short_description ?? "",
         description: wc.description ?? (product.metadata as Record<string, any>)?.description ?? "",
-        permalink: wc.permalink ?? (product.metadata as any)?.permalink ?? null,
+        permalink: wc.permalink ?? product.metadata?.permalink ?? null,
 
         // Pricing
         regular_price: wc.regular_price ?? product.regular_price ?? product.price ?? "",
@@ -173,7 +173,7 @@ export const useProductForm = (options?: UseProductFormOptions): UseFormReturn<P
     }, [product?.id, product?.last_synced_at]);
 
     const methods = useForm<ProductFormValues>({
-        resolver: zodResolver(ProductFormSchema) as any,
+        resolver: zodResolver(ProductFormSchema) as unknown as Resolver<ProductFormValues>,
         defaultValues: DEFAULT_FORM_VALUES,
         // IMPORTANT: "onTouched" prevents zodResolver from running async validation
         // on reset(). With "onChange", Zod v4's .optional().default() fields get

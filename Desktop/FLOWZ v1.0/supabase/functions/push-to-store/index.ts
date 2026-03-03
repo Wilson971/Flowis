@@ -70,6 +70,14 @@ interface PushRequest {
     force?: boolean;
 }
 
+/** Result of a variation push */
+interface VariationPushResult {
+    created: number;
+    updated: number;
+    deleted: number;
+    error?: string;
+}
+
 /** Result of a single push operation */
 interface PushResult {
     id: string;
@@ -78,6 +86,7 @@ interface PushResult {
     error?: string;
     skipped?: boolean;
     skipReason?: string;
+    variations?: VariationPushResult;
 }
 
 /** WooCommerce API credentials */
@@ -698,7 +707,7 @@ async function pushDirtyVariations(
     productDbId: string,
     platformProductId: string,
     storeId: string
-): Promise<void> {
+): Promise<VariationPushResult> {
     // Fetch all dirty variations for this product
     const { data: dirtyVariations, error: fetchError } = await supabase
         .from('product_variations')
@@ -709,12 +718,12 @@ async function pushDirtyVariations(
 
     if (fetchError) {
         console.error('[push-variations] Fetch error:', fetchError);
-        return;
+        return { created: 0, updated: 0, deleted: 0, error: `Fetch error: ${fetchError.message}` };
     }
 
     if (!dirtyVariations || dirtyVariations.length === 0) {
         console.log('[push-variations] No dirty variations to push');
-        return;
+        return { created: 0, updated: 0, deleted: 0 };
     }
 
     console.log(`[push-variations] Pushing ${dirtyVariations.length} dirty variations`);
@@ -770,7 +779,7 @@ async function pushDirtyVariations(
     if (toUpdate.length > 0) batchBody.update = toUpdate;
     if (toDeleteIds.length > 0) batchBody.delete = toDeleteIds;
 
-    if (Object.keys(batchBody).length === 0) return;
+    if (Object.keys(batchBody).length === 0) return { created: 0, updated: 0, deleted: 0 };
 
     const baseUrl = credentials.shopUrl.replace(/\/+$/, '');
     const batchUrl = `${baseUrl}/wp-json/wc/v3/products/${platformProductId}/variations/batch`;
@@ -796,7 +805,7 @@ async function pushDirtyVariations(
     if (!response.ok) {
         const errorText = await response.text();
         console.error(`[push-variations] WC batch error ${response.status}:`, errorText);
-        return;
+        return { created: toCreate.length, updated: toUpdate.length, deleted: toDeleteIds.length, error: `WooCommerce API error ${response.status}` };
     }
 
     const batchResult = await response.json() as {
@@ -841,40 +850,54 @@ async function pushDirtyVariations(
     }
 
     console.log(`[push-variations] Done: ${toCreate.length} created, ${toUpdate.length} updated, ${toDeleteIds.length} deleted`);
+    return { created: toCreate.length, updated: toUpdate.length, deleted: toDeleteIds.length };
 }
 
 /**
- * Build a WooCommerce variation payload from a DB row
+ * Build a WooCommerce v3 variation payload from a DB row.
+ *
+ * Follows the official WC REST API v3 spec for product variations:
+ * POST/PUT /wp-json/wc/v3/products/{id}/variations
+ *
+ * @see https://woocommerce.github.io/woocommerce-rest-api-docs/#product-variation-properties
  */
 function buildVariationPayload(v: Record<string, unknown>): Record<string, unknown> {
     const payload: Record<string, unknown> = {};
 
-    if (v.sku) payload.sku = String(v.sku);
+    // ── Core pricing ────────────────────────────────────────────────
     if (v.regular_price != null) payload.regular_price = String(v.regular_price);
     if (v.sale_price != null) payload.sale_price = String(v.sale_price);
-    if (v.manage_stock != null) payload.manage_stock = Boolean(v.manage_stock);
-    if (v.stock_quantity != null) payload.stock_quantity = Number(v.stock_quantity);
-    if (v.stock_status) payload.stock_status = String(v.stock_status);
-    if (v.weight) payload.weight = String(v.weight);
-    if (v.status) payload.status = String(v.status);
-    if (v.description) payload.description = String(v.description);
-
-    // Phase 1: Extended editable fields
-    if (v.global_unique_id) payload.global_unique_id = String(v.global_unique_id);
-    if (v.backorders) payload.backorders = String(v.backorders);
-    if (v.tax_status) payload.tax_status = String(v.tax_status);
-    if (v.tax_class != null) payload.tax_class = String(v.tax_class);
     if (v.date_on_sale_from) payload.date_on_sale_from = String(v.date_on_sale_from);
     if (v.date_on_sale_to) payload.date_on_sale_to = String(v.date_on_sale_to);
 
-    // Phase 2: Sync-only fields (round-trip preservation)
-    if (v.shipping_class) payload.shipping_class = String(v.shipping_class);
+    // ── Identification ──────────────────────────────────────────────
+    if (v.sku != null) payload.sku = String(v.sku);
+    if (v.global_unique_id) payload.global_unique_id = String(v.global_unique_id);
+    if (v.description != null) payload.description = String(v.description || '');
+    if (v.status) payload.status = String(v.status);
+
+    // ── Stock management ────────────────────────────────────────────
+    // WC v3 accepts boolean OR "parent" string for manage_stock
+    if (v.manage_stock != null) {
+        payload.manage_stock = v.manage_stock === 'parent' ? 'parent' : Boolean(v.manage_stock);
+    }
+    if (v.stock_quantity != null) payload.stock_quantity = Number(v.stock_quantity);
+    if (v.stock_status) payload.stock_status = String(v.stock_status);
+    if (v.backorders) payload.backorders = String(v.backorders);
+
+    // ── Tax ─────────────────────────────────────────────────────────
+    if (v.tax_status) payload.tax_status = String(v.tax_status);
+    if (v.tax_class != null) payload.tax_class = String(v.tax_class);
+
+    // ── Product type flags ──────────────────────────────────────────
+    if (v.virtual != null) payload.virtual = Boolean(v.virtual);
+    if (v.downloadable != null) payload.downloadable = Boolean(v.downloadable);
+    if (Array.isArray(v.downloads) && v.downloads.length > 0) payload.downloads = v.downloads;
     if (v.download_limit != null && v.download_limit !== -1) payload.download_limit = Number(v.download_limit);
     if (v.download_expiry != null && v.download_expiry !== -1) payload.download_expiry = Number(v.download_expiry);
-    if (Array.isArray(v.downloads) && v.downloads.length > 0) payload.downloads = v.downloads;
-    if (v.menu_order != null) payload.menu_order = Number(v.menu_order);
 
-    // Dimensions
+    // ── Physical / Shipping ─────────────────────────────────────────
+    if (v.weight) payload.weight = String(v.weight);
     if (v.dimensions && typeof v.dimensions === 'object') {
         const dims = v.dimensions as Record<string, string>;
         if (dims.length || dims.width || dims.height) {
@@ -885,25 +908,43 @@ function buildVariationPayload(v: Record<string, unknown>): Record<string, unkno
             };
         }
     }
+    if (v.shipping_class) payload.shipping_class = String(v.shipping_class);
 
-    // Attributes
+    // ── Ordering ────────────────────────────────────────────────────
+    if (v.menu_order != null) payload.menu_order = Number(v.menu_order);
+
+    // ── Attributes (WC v3 accepts both id+option and name+option) ──
     if (Array.isArray(v.attributes)) {
-        payload.attributes = (v.attributes as Array<{ name: string; option: string }>).map(a => ({
+        payload.attributes = (v.attributes as Array<{ id?: number; name?: string; option: string }>).map(a => ({
+            ...(a.id ? { id: Number(a.id) } : {}),
             name: String(a.name || ''),
             option: String(a.option || ''),
         }));
     }
 
-    // Image
+    // ── Image (WC v3: {id} for existing, {src} for new upload) ─────
     if (v.image && typeof v.image === 'object') {
         const img = v.image as Record<string, unknown>;
-        if (img.src) {
+        if (img.id) {
+            // Existing WC media library image — send only the id
+            payload.image = { id: Number(img.id) };
+        } else if (img.src) {
+            // External URL — WC will sideload it
             payload.image = {
-                ...(img.id ? { id: Number(img.id) } : {}),
                 src: String(img.src),
+                name: String(img.name || ''),
                 alt: String(img.alt || ''),
             };
         }
+    }
+
+    // ── Meta data (WC v3: array of {key, value} objects) ─────────
+    if (Array.isArray(v.meta_data) && v.meta_data.length > 0) {
+        payload.meta_data = (v.meta_data as Array<{ key: string; value: unknown }>).map(m => ({
+            ...(m as Record<string, unknown>).id ? { id: Number((m as Record<string, unknown>).id) } : {},
+            key: String(m.key),
+            value: m.value,
+        }));
     }
 
     return payload;
@@ -1346,9 +1387,10 @@ async function handleProductPush(
 
         if (Object.keys(payload).length === 0) {
             // No product-level changes, but still push dirty variations if variable product
+            let variationResult: VariationPushResult | undefined;
             if (isVariable) {
                 try {
-                    await pushDirtyVariations(
+                    variationResult = await pushDirtyVariations(
                         supabase,
                         credentials,
                         product.id,
@@ -1357,14 +1399,17 @@ async function handleProductPush(
                     );
                 } catch (variationError) {
                     console.error('[push] Variation push error (no-payload path):', variationError);
+                    variationResult = { created: 0, updated: 0, deleted: 0, error: String(variationError) };
                 }
             }
+            const hasVariationChanges = variationResult && (variationResult.created > 0 || variationResult.updated > 0 || variationResult.deleted > 0);
             results.push({
                 id: product.id,
                 platformId: product.platform_product_id,
-                success: true,
-                skipped: true,
-                skipReason: 'No changes to push',
+                success: !variationResult?.error,
+                skipped: !hasVariationChanges,
+                skipReason: hasVariationChanges ? undefined : 'No changes to push',
+                variations: variationResult,
             });
             continue;
         }
@@ -1411,9 +1456,10 @@ async function handleProductPush(
         // PUSH DIRTY VARIATIONS TO WOOCOMMERCE (Batch API)
         // Always attempt variation push regardless of product push result.
         // ================================================================
+        let variationResult: VariationPushResult | undefined;
         if (isVariable) {
             try {
-                await pushDirtyVariations(
+                variationResult = await pushDirtyVariations(
                     supabase,
                     credentials,
                     product.id,
@@ -1422,7 +1468,7 @@ async function handleProductPush(
                 );
             } catch (variationError) {
                 console.error('[push] Variation push error (non-blocking):', variationError);
-                // Variation push failure should not block the main product push result
+                variationResult = { created: 0, updated: 0, deleted: 0, error: String(variationError) };
             }
         }
 
@@ -1431,6 +1477,7 @@ async function handleProductPush(
             platformId: product.platform_product_id,
             success: pushResult.success,
             error: pushResult.error,
+            variations: variationResult,
         });
     }
 

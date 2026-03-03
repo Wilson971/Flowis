@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { STALE_TIMES } from "@/lib/query-config";
 import { toast } from "sonner";
 import {
   WifiOff,
@@ -127,7 +128,7 @@ export function useActionCenter({
       return data ?? [];
     },
     enabled: !!storeId,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.DETAIL,
   });
 
   // ── New data source 2: Unsynchronized articles ──
@@ -142,7 +143,7 @@ export function useActionCenter({
       if (error) return 0;
       return count ?? 0;
     },
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.DETAIL,
   });
 
   // ── New data source 3: SEO trend declining ──
@@ -163,7 +164,7 @@ export function useActionCenter({
       return decline > 3 ? { current, weekAgo, decline: Math.round(decline) } : null;
     },
     enabled: !!storeId,
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.DETAIL,
   });
 
   // ── New data source 4: Studio job failures ──
@@ -179,7 +180,7 @@ export function useActionCenter({
       if (error) return [];
       return data ?? [];
     },
-    staleTime: 60_000,
+    staleTime: STALE_TIMES.DETAIL,
   });
 
   // ── Mutations ──

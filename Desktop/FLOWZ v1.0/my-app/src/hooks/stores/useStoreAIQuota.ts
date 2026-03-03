@@ -73,6 +73,6 @@ export function useStoreAIQuota(storeId: string | null) {
             }
         },
         enabled: !!storeId,
-        staleTime: 5 * 60_000, // 5 min
+        staleTime: STALE_TIMES.STATIC,
     })
 }

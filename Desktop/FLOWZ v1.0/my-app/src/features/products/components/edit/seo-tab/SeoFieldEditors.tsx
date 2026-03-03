@@ -15,6 +15,7 @@ export const SeoFieldEditorsSection = ({
     fieldScores,
     isDirtyField,
     hasDraft,
+    isValidated,
     openSuggestionModal,
     handleAISuggest,
     domain,
@@ -23,6 +24,7 @@ export const SeoFieldEditorsSection = ({
     fieldScores: Record<string, number>;
     isDirtyField: (field: string) => boolean | undefined;
     hasDraft: (field: string) => boolean;
+    isValidated: (field: string) => boolean;
     openSuggestionModal: (field: string) => void;
     handleAISuggest: (fieldName: string) => void;
     domain: string;
@@ -42,11 +44,11 @@ export const SeoFieldEditorsSection = ({
                 </h3>
 
                 {/* Meta Title */}
-                <div className="space-y-2">
+                <div id="field-meta-title" className="space-y-2">
                     <div className="flex justify-between items-end">
                         <Label className="flex items-center gap-1.5">
                             Meta Titre
-                            <FieldStatusBadge hasDraft={hasDraft("seo.title")} isDirty={isDirtyField("meta_title") || isDirtyField("seo.title")} />
+                            <FieldStatusBadge hasDraft={hasDraft("seo.title")} isDirty={isDirtyField("meta_title") || isDirtyField("seo.title")} isValidated={isValidated("seo.title")} />
                         </Label>
                         {renderFieldActions("seo.title")}
                     </div>
@@ -70,11 +72,11 @@ export const SeoFieldEditorsSection = ({
                 </div>
 
                 {/* Meta Description */}
-                <div className="space-y-2">
+                <div id="field-meta-description" className="space-y-2">
                     <div className="flex justify-between items-end">
                         <Label className="flex items-center gap-1.5">
                             Meta Description
-                            <FieldStatusBadge hasDraft={hasDraft("seo.description")} isDirty={isDirtyField("meta_description") || isDirtyField("seo.description")} />
+                            <FieldStatusBadge hasDraft={hasDraft("seo.description")} isDirty={isDirtyField("meta_description") || isDirtyField("seo.description")} isValidated={isValidated("seo.description")} />
                         </Label>
                         {renderFieldActions("seo.description")}
                     </div>

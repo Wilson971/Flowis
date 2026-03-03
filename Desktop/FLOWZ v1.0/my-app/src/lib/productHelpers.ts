@@ -5,7 +5,7 @@
  * - Détection des propositions fictives (déjà appliquées dans working_content)
  */
 
-import { ContentData, ContentStatus, SeoData } from "../types/productContent";
+import { ContentData, ContentStatus, GenerationManifest, SeoData } from "../types/productContent";
 
 /**
  * Normalise une valeur pour la comparaison (gère null, undefined, chaînes vides)
@@ -249,18 +249,74 @@ export function formatDirtyFieldsList(fields: string[]): string {
  * Obtient la liste formatée des champs générés depuis draft_generated_content
  * Utilisé pour afficher dans les tooltips des boutons Accepter/Rejeter
  */
-export function getGeneratedFieldsTooltip(draftContent: ContentData | null | undefined, workingContent: ContentData | null | undefined): string {
-  if (!draftContent) return '';
+export function getGeneratedFieldsTooltip(
+    draftContent: ContentData | null | undefined,
+    workingContent: ContentData | null | undefined,
+    manifest?: GenerationManifest | null
+): string {
+    const improved = getRemainingProposals(draftContent, workingContent);
 
-  const fields = getRemainingProposals(draftContent, workingContent);
-  if (fields.length === 0) return '';
+    // Get validated fields from manifest (if not expired)
+    const validated: string[] = [];
+    if (manifest?.fields && manifest.generated_at) {
+        const generatedAt = new Date(manifest.generated_at).getTime();
+        const isExpired = Date.now() - generatedAt > 24 * 60 * 60 * 1000;
+        if (!isExpired) {
+            for (const [key, value] of Object.entries(manifest.fields)) {
+                if (value.status === 'validated') {
+                    const displayKey = key === 'seo_title' ? 'seo.title'
+                        : key === 'meta_description' ? 'seo.description'
+                        : key === 'alt_text' ? 'images'
+                        : key;
+                    validated.push(displayKey);
+                }
+            }
+        }
+    }
 
-  if (fields.length === 1) {
-    return `Champ généré : ${getFieldLabel(fields[0])}`;
-  }
+    if (improved.length === 0 && validated.length === 0) return '';
 
-  const formattedFields = fields.map(field => getFieldLabel(field)).join(', ');
-  return `Champs générés : ${formattedFields}`;
+    const parts: string[] = [];
+    for (const field of improved) {
+        parts.push(`✨ ${getFieldLabel(field)} (amélioré)`);
+    }
+    for (const field of validated) {
+        parts.push(`✓ ${getFieldLabel(field)} (validé)`);
+    }
+
+    return `Champs analysés :\n${parts.join('\n')}`;
+}
+
+/**
+ * Maps editor field names to manifest field keys.
+ */
+const EDITOR_TO_MANIFEST_KEY: Record<string, string> = {
+    'title': 'title',
+    'short_description': 'short_description',
+    'description': 'description',
+    'sku': 'sku',
+    'seo.title': 'seo_title',
+    'seo.description': 'meta_description',
+    'meta_title': 'seo_title',
+    'meta_description': 'meta_description',
+    'images': 'alt_text',
+};
+
+/**
+ * Checks if a field was validated by AI and the manifest hasn't expired (24h).
+ */
+export function isFieldValidatedByAI(
+    manifest: GenerationManifest | null | undefined,
+    field: string
+): boolean {
+    if (!manifest?.fields || !manifest.generated_at) return false;
+
+    // 24h expiry
+    const generatedAt = new Date(manifest.generated_at).getTime();
+    if (Date.now() - generatedAt > 24 * 60 * 60 * 1000) return false;
+
+    const manifestKey = EDITOR_TO_MANIFEST_KEY[field] || field;
+    return manifest.fields[manifestKey]?.status === 'validated';
 }
 
 /**

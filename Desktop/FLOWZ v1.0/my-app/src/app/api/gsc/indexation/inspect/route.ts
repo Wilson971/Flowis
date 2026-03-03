@@ -127,7 +127,8 @@ export async function POST(request: NextRequest) {
                     .eq('site_id', body.siteId)
                     .eq('tenant_id', user.id)
                     .eq('is_active', true)
-                    .order('gsc_indexation_status.inspected_at', { ascending: true } as any)
+                    // @ts-expect-error -- Supabase JS types don't support relation-prefixed order columns
+                    .order('gsc_indexation_status.inspected_at', { ascending: true })
                     .limit(remainingSlots);
 
                 if (oldest) {

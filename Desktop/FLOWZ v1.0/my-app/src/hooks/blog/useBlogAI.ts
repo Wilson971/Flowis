@@ -13,6 +13,7 @@ import {
   GenerateArticleRequest,
   GenerateMetaRequest,
   RewriteTextRequest,
+  BlockType,
 } from '@/types/blog-ai';
 import {
   generateTitleSuggestionsWithSEOAction,
@@ -298,7 +299,7 @@ export function useGenerateBlockContent() {
       return await generateBlockSuggestionAction(
         articleTitle || title,
         articleTopic || '',
-        blockType as any,
+        blockType as BlockType,
         context || null,
         previousBlockContext || null
       );

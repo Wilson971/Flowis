@@ -200,7 +200,7 @@ export function useArticleEditProvider(
         const suggestion = contentBuffer.draft_generated_content[field];
 
         // Apply to form
-        form.setValue(field as keyof ArticleForm, suggestion as any, {
+        form.setValue(field as keyof ArticleForm, suggestion as ArticleForm[keyof ArticleForm], {
           shouldDirty: true,
         });
 

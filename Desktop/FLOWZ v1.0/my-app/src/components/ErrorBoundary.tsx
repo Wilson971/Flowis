@@ -45,10 +45,13 @@ export class ErrorBoundary extends Component<Props, State> {
     this.props.onError?.(error, errorInfo);
 
     // Report to error tracking service (e.g., Sentry)
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
-        extra: { componentStack: errorInfo.componentStack },
-      });
+    if (typeof window !== 'undefined') {
+      const sentry = (window as unknown as { Sentry?: { captureException: (error: Error, context?: Record<string, unknown>) => void } }).Sentry;
+      if (sentry) {
+        sentry.captureException(error, {
+          extra: { componentStack: errorInfo.componentStack },
+        });
+      }
     }
   }
 

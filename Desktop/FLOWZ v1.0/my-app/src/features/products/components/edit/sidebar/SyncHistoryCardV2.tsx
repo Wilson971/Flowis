@@ -144,7 +144,7 @@ export const SyncHistoryCardV2 = ({ productId }: SyncHistoryCardV2Props) => {
                                 <div className="space-y-0">
                                     {displayedHistory.map((entry, i) => {
                                         const eventType = getEventType(entry.action);
-                                        const fieldsChanged = (entry.metadata as any)?.fields_changed;
+                                        const fieldsChanged = (entry.metadata as Record<string, unknown> | null)?.fields_changed;
 
                                         return (
                                             <div key={entry.id} className="flex gap-4">
@@ -239,7 +239,7 @@ export const SyncHistoryCardV2 = ({ productId }: SyncHistoryCardV2Props) => {
                         <div className="space-y-0">
                             {history.map((entry, i) => {
                                 const eventType = getEventType(entry.action);
-                                const fieldsChanged = (entry.metadata as any)?.fields_changed;
+                                const fieldsChanged = (entry.metadata as Record<string, unknown> | null)?.fields_changed;
 
                                 return (
                                     <div key={entry.id} className="flex gap-4">

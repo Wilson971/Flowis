@@ -151,8 +151,8 @@ export function useArticleEditorForm(
 
   // Form
   const form = useForm<ArticleForm>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- zodResolver type mismatch between zod v4 and react-hook-form resolver types
-    resolver: zodResolver(articleFormSchema) as any,
+    // @ts-expect-error -- zodResolver returns Resolver<FieldValues> which doesn't match Resolver<ArticleForm> (zod v4 / react-hook-form mismatch)
+    resolver: zodResolver(articleFormSchema),
     defaultValues: getDefaultValues(),
     mode: 'onChange',
   });

@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { RETRY_CONFIG, calculateBackoff, classifyError } from "@/lib/ai/retry";
+import { detectPromptInjection, sanitizeUserInput } from "@/lib/ai/prompt-safety";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -102,6 +103,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { field, current_value, product_title, product_description, focus_keyword, store_name, gsc_keywords } = body;
+
+    // Prompt injection detection on user-provided text fields
+    const userFields = [product_title, product_description, focus_keyword, current_value].filter(Boolean);
+    for (const text of userFields) {
+        if (detectPromptInjection(text)) {
+            return NextResponse.json({ error: "Contenu invalide détecté" }, { status: 400 });
+        }
+    }
+
     const instructions = FIELD_INSTRUCTIONS[field];
 
     if (!instructions) {

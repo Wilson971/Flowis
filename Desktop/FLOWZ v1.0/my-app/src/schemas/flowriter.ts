@@ -6,23 +6,7 @@
  */
 
 import { z } from 'zod';
-
-// ============================================================================
-// SECURITY PATTERNS (Prompt Injection Prevention)
-// ============================================================================
-
-const SUSPICIOUS_PATTERNS = [
-  /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/i,
-  /disregard\s+(all\s+)?(previous|above|prior)/i,
-  /you\s+are\s+now\s+(a|an)\s+/i,
-  /pretend\s+(to\s+be|you\'?re)\s+/i,
-  /new\s+instructions?:/i,
-  /system\s*prompt:/i,
-  /\[INST\]/i,
-  /\[\/INST\]/i,
-  /<<SYS>>/i,
-  /<\|im_start\|>/i,
-];
+import { SUSPICIOUS_PATTERNS } from '@/lib/ai/prompt-safety';
 
 /**
  * Zod refinement to check for suspicious injection patterns

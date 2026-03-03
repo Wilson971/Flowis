@@ -87,16 +87,18 @@ export function useArticleAutoSave(options: UseArticleAutoSaveOptions): UseArtic
           excerpt,
           trigger_type: 'auto_save',
         });
-      } catch {
+      } catch (error) {
         // Version tracking is optional — don't fail the auto-save
+        console.warn('Article version creation failed (non-blocking):', error);
       }
 
       setLastSavedAt(new Date());
       setAutoSaveStatus('saved');
-    } catch {
+    } catch (error) {
       setAutoSaveStatus('error');
       // Restore pending changes on error
       pendingChangesRef.current = changes;
+      console.warn('Auto-save error:', error);
     }
   }, [updateMutation, createVersionMutation, article]);
 

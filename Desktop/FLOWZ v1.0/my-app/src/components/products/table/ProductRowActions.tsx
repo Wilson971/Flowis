@@ -51,7 +51,8 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
 
   const generatedFieldsTooltip = getGeneratedFieldsTooltip(
     product.draft_generated_content,
-    product.working_content
+    product.working_content,
+    product.generation_manifest
   );
 
   const getStoreProductUrl = () => {
@@ -60,7 +61,7 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
     const platform = product.platform;
 
     if (platform === 'shopify') {
-      const handle = (product as any).handle || metadata.handle;
+      const handle = product.handle || metadata.handle;
       if (!handle) return null;
       const shopUrl = selectedStore.platform_connections?.shop_url || '';
       const cleanUrl = shopUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -89,7 +90,7 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2.5 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors duration-150 text-xs font-medium shadow-none"
+                    className="h-7 px-2.5 text-[11px] font-medium rounded-lg border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 hover:border-emerald-500/50 active:scale-[0.97] transition-all duration-150 shadow-none"
                     onClick={(e) => { e.stopPropagation(); acceptDraft({ productId: product.id }); }}
                     disabled={isAccepting || isRejecting}
                   >
@@ -97,7 +98,17 @@ export const ProductRowActions = ({ product, wooCommerceStatusConfig }: { produc
                   </Button>
                 </TooltipTrigger>
                 {generatedFieldsTooltip && (
-                  <TooltipContent><p className="text-xs">{generatedFieldsTooltip}</p></TooltipContent>
+                  <TooltipContent className="px-3 py-2.5 max-w-64">
+                    <p className="text-[11px] font-medium text-neutral-400 mb-1.5">Champs analysés</p>
+                    <div className="flex flex-col gap-1">
+                      {generatedFieldsTooltip.split('\n').filter(l => l.startsWith('✨') || l.startsWith('✓')).map((line, i) => (
+                        <div key={i} className="flex items-center gap-1.5 text-[11px] text-neutral-200">
+                          <span className="shrink-0">{line.startsWith('✨') ? '✨' : '✓'}</span>
+                          <span>{line.replace(/^(✨|✓)\s*/, '')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
                 )}
               </Tooltip>
               <Tooltip>

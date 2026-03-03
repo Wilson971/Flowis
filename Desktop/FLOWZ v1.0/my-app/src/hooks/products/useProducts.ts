@@ -23,7 +23,7 @@ import type {
  * List columns for product list views (excludes heavy JSONB fields).
  * Full metadata/working_content/draft_generated_content are loaded per-product via useProduct().
  */
-const LIST_COLUMNS = 'id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content, last_synced_at, stock, stock_status, manage_stock, store_id, imported_at, updated_at, status, platform, tenant_id, price, regular_price, sale_price, product_type, metadata, draft_generated_content';
+const LIST_COLUMNS = 'id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content, last_synced_at, stock, stock_status, manage_stock, store_id, imported_at, updated_at, status, platform, tenant_id, price, regular_price, sale_price, product_type, metadata, draft_generated_content, generation_manifest';
 
 /** Server-side filter parameters for product list queries */
 export interface ProductListFilters {
@@ -269,7 +269,7 @@ export function useProduct(productId: string) {
           id, title, platform_product_id, image_url, ai_enhanced, dirty_fields_content,
           last_synced_at, stock, stock_status, manage_stock, store_id, imported_at,
           updated_at, status, platform, tenant_id, price, regular_price, sale_price,
-          product_type, sku, metadata, working_content, draft_generated_content, seo_score,
+          product_type, sku, metadata, working_content, draft_generated_content, generation_manifest, seo_score,
           studio_jobs:studio_jobs(id, action, status, output_urls, error_message, created_at, batch_id)
             .order(created_at, { ascending: false })
             .limit(10),

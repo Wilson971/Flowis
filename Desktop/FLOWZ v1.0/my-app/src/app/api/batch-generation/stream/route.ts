@@ -484,6 +484,15 @@ export async function POST(request: NextRequest) {
 
                         // Generate each enabled field
                         const draft: Record<string, any> = {};
+                        const manifest: {
+                            batch_job_id: string;
+                            generated_at: string;
+                            fields: Record<string, { status: 'improved' | 'validated' }>;
+                        } = {
+                            batch_job_id: batchJob.id,
+                            generated_at: new Date().toISOString(),
+                            fields: {},
+                        };
 
                         for (const fieldType of enabledTypes) {
                             if (isClosed) break;
@@ -595,6 +604,63 @@ export async function POST(request: NextRequest) {
                             });
                         }
 
+                        // ── Build manifest + filter identical fields from draft ──
+                        // Only keep draft fields that actually differ from current content.
+                        // Manifest tracks the AI decision (improved vs validated) for every field.
+                        const working = (product.working_content || {}) as WorkingJsonb;
+                        const normalizeStr = (v: unknown): string =>
+                            (typeof v === 'string' ? v.trim() : '') || '';
+
+                        // Simple text fields
+                        for (const key of ['title', 'short_description', 'description', 'sku'] as const) {
+                            if (key in draft) {
+                                if (normalizeStr(draft[key]) === normalizeStr(working[key])) {
+                                    manifest.fields[key] = { status: 'validated' };
+                                    delete draft[key];
+                                } else {
+                                    manifest.fields[key] = { status: 'improved' };
+                                }
+                            }
+                        }
+                        // SEO fields
+                        if (draft.seo) {
+                            const wSeo = working.seo || {};
+                            if (draft.seo.title) {
+                                if (normalizeStr(draft.seo.title) === normalizeStr(wSeo.title)) {
+                                    manifest.fields['seo_title'] = { status: 'validated' };
+                                    delete draft.seo.title;
+                                } else {
+                                    manifest.fields['seo_title'] = { status: 'improved' };
+                                }
+                            }
+                            if (draft.seo.description) {
+                                if (normalizeStr(draft.seo.description) === normalizeStr(wSeo.description)) {
+                                    manifest.fields['meta_description'] = { status: 'validated' };
+                                    delete draft.seo.description;
+                                } else {
+                                    manifest.fields['meta_description'] = { status: 'improved' };
+                                }
+                            }
+                            if (!draft.seo.title && !draft.seo.description) {
+                                delete draft.seo;
+                            }
+                        }
+                        // Images (alt text) — filter out images with identical alt
+                        if (draft.images && Array.isArray(draft.images)) {
+                            const wImages = working.images || [];
+                            const originalLength = draft.images.length;
+                            draft.images = draft.images.filter((draftImg, idx) => {
+                                const wImg = wImages[idx] || wImages.find((wi) => wi.id === draftImg.id);
+                                return normalizeStr(draftImg.alt) !== normalizeStr(wImg?.alt);
+                            });
+                            if (originalLength > 0) {
+                                manifest.fields['alt_text'] = {
+                                    status: draft.images.length > 0 ? 'improved' : 'validated',
+                                };
+                            }
+                            if (draft.images.length === 0) delete draft.images;
+                        }
+
                         // Write draft to product
                         const existingDraft = product.draft_generated_content || {};
                         const mergedDraft = { ...existingDraft, ...draft };
@@ -605,6 +671,31 @@ export async function POST(request: NextRequest) {
                         if (draft.images) {
                             mergedDraft.images = draft.images;
                         }
+
+                        // Clean up stale fields from existing draft that now match working
+                        for (const key of ['title', 'short_description', 'description', 'sku'] as const) {
+                            if (mergedDraft[key] && normalizeStr(mergedDraft[key]) === normalizeStr(working[key])) {
+                                delete mergedDraft[key];
+                            }
+                        }
+                        if (mergedDraft.seo) {
+                            const wSeo = working.seo || {};
+                            if (mergedDraft.seo.title && normalizeStr(mergedDraft.seo.title) === normalizeStr(wSeo.title)) {
+                                delete mergedDraft.seo.title;
+                            }
+                            if (mergedDraft.seo.description && normalizeStr(mergedDraft.seo.description) === normalizeStr(wSeo.description)) {
+                                delete mergedDraft.seo.description;
+                            }
+                            if (!mergedDraft.seo.title && !mergedDraft.seo.description) {
+                                delete mergedDraft.seo;
+                            }
+                        }
+
+                        // If merged draft is empty, set to null to clear stale data
+                        const hasAnyDraftField = Object.keys(mergedDraft).some(
+                            (k) => k !== 'seo' && k !== 'images' ? !!mergedDraft[k] : false
+                        ) || mergedDraft.seo || (mergedDraft.images && mergedDraft.images.length > 0);
+                        const finalDraft = hasAnyDraftField ? mergedDraft : null;
 
                         // Compute SEO score from merged draft + existing content
                         const seoMeta = (product.metadata || {}) as MetadataJsonb;
@@ -622,7 +713,11 @@ export async function POST(request: NextRequest) {
 
                         await supabase
                             .from('products')
-                            .update({ draft_generated_content: mergedDraft, seo_score: seoScore })
+                            .update({
+                                draft_generated_content: finalDraft,
+                                generation_manifest: manifest,
+                                seo_score: seoScore,
+                            })
                             .eq('id', productId)
                             .eq('tenant_id', user.id);
 

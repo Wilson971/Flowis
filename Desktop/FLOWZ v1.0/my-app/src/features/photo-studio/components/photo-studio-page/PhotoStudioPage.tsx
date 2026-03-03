@@ -13,7 +13,7 @@
  * - Consistent empty / no-store states
  */
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Camera,
@@ -42,8 +42,8 @@ import { StudioToolbar } from "@/features/photo-studio/components/StudioToolbar"
 // Batch panel (portal-based bottom panel, matches Products pattern)
 import { StudioBatchPortal } from "@/features/photo-studio/components/StudioBatchPortal";
 
-// Progress overlay
-import { StudioProgressOverlay } from "@/features/photo-studio/components/StudioProgressOverlay";
+// Floating batch widget
+import { useBatchFloating } from "@/components/batch";
 
 // Save hook
 import { useSaveGeneratedImage } from "@/features/photo-studio/hooks/useSaveGeneratedImage";
@@ -109,6 +109,16 @@ function PhotoStudioSkeleton() {
 export function PhotoStudioPage() {
   const data = usePhotoStudioData();
   const saveGeneratedImage = useSaveGeneratedImage();
+  const { addBatch, removeBatch } = useBatchFloating();
+
+  // Register batch IDs in the floating widget store
+  useEffect(() => {
+    if (data.batchJobId) addBatch(data.batchJobId, "studio");
+  }, [data.batchJobId, addBatch]);
+
+  useEffect(() => {
+    if (data.brandingBatchJobId) addBatch(data.brandingBatchJobId, "studio");
+  }, [data.brandingBatchJobId, addBatch]);
 
   // -----------------------------------------------------------------------
   // Studio save handler
@@ -306,16 +316,7 @@ export function PhotoStudioPage() {
         }}
       />
 
-      {/* ----------------------------------------------------------------- */}
-      {/* Progress overlay (floating bottom-right) */}
-      {/* ----------------------------------------------------------------- */}
-      <StudioProgressOverlay
-        batchIds={[data.batchJobId, data.brandingBatchJobId].filter(Boolean) as string[]}
-        onCloseBatch={(id) => {
-          if (id === data.batchJobId) data.setBatchJobId(null);
-          if (id === data.brandingBatchJobId) data.setBrandingBatchJobId(null);
-        }}
-      />
+      {/* Progress is now handled by the global BatchFloatingWidget */}
 
       {/* ----------------------------------------------------------------- */}
       {/* Scene Studio Dialog */}

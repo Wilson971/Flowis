@@ -151,8 +151,23 @@ export interface ProductContentBuffer {
     working_content: ContentData;
     draft_generated_content?: ContentData | null;
     dirty_fields_content: string[];
+    generation_manifest?: GenerationManifest | null;
     store_content_updated_at: string;
     working_content_updated_at: string;
+}
+
+/**
+ * Tracks AI generation decisions per field.
+ * Written by batch-generation API, read by editor UI.
+ */
+export interface GenerationManifestField {
+    status: 'improved' | 'validated';
+}
+
+export interface GenerationManifest {
+    batch_job_id: string;
+    generated_at: string; // ISO 8601
+    fields: Record<string, GenerationManifestField>;
 }
 
 /**

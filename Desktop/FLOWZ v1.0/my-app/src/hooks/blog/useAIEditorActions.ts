@@ -103,7 +103,7 @@ function mapActionToRewriteAction(
     generate_excerpt: 'shorten',
   };
 
-  return mapping[action] as any;
+  return mapping[action] as ReturnType<typeof mapActionToRewriteAction>;
 }
 
 /**
@@ -175,7 +175,7 @@ export function useAIEditorActions(): UseAIEditorActionsReturn {
       context: string;
       language?: string;
     }) => {
-      return await rewriteTextAction(text, action as any, context, language);
+      return await rewriteTextAction(text, action, context, language);
     },
     onError: (error: Error) => {
       toast.error('Erreur IA', {

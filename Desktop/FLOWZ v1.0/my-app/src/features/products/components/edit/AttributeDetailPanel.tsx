@@ -84,6 +84,8 @@ export function AttributeDetailPanel({
 }: AttributeDetailPanelProps) {
     const { register, watch, setValue } = useFormContext<ProductFormValues>();
     const [termInput, setTermInput] = useState("");
+    const [editingTerm, setEditingTerm] = useState<string | null>(null);
+    const [editingValue, setEditingValue] = useState("");
 
     // Deduplicate options — WooCommerce variation imports can produce duplicates
     const rawOptions = watch(`attributes.${index}.options`) || [];
@@ -123,6 +125,26 @@ export function AttributeDetailPanel({
             options.filter((o: string) => o !== term),
             { shouldDirty: true }
         );
+    };
+
+    const handleRenameTerm = (oldTerm: string, newTerm: string) => {
+        const trimmed = newTerm.trim();
+        if (!trimmed || trimmed === oldTerm) {
+            setEditingTerm(null);
+            return;
+        }
+        // Don't allow duplicates
+        if (options.includes(trimmed)) {
+            setEditingTerm(null);
+            return;
+        }
+        // Update the option in the attribute options list
+        setValue(
+            `attributes.${index}.options`,
+            options.map((o: string) => (o === oldTerm ? trimmed : o)),
+            { shouldDirty: true }
+        );
+        setEditingTerm(null);
     };
 
     return (
@@ -333,15 +355,41 @@ export function AttributeDetailPanel({
                                         attributeName?.toLowerCase().includes("color");
                                     const colorPreview = isColorAttr ? getColorPreview(term) : null;
 
+                                    if (editingTerm === term) {
+                                        return (
+                                            <Input
+                                                key={`edit-${idx}-${term}`}
+                                                autoFocus
+                                                defaultValue={term}
+                                                className="h-7 text-xs w-auto min-w-[80px] max-w-[200px] px-2"
+                                                onBlur={(e) => handleRenameTerm(term, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        handleRenameTerm(term, e.currentTarget.value);
+                                                    }
+                                                    if (e.key === "Escape") {
+                                                        setEditingTerm(null);
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    }
+
                                     return (
                                         <Badge
                                             key={`${idx}-${term}`}
                                             variant="secondary"
                                             className={cn(
-                                                "gap-1.5 pr-1 text-xs font-medium h-7 px-2.5",
+                                                "gap-1.5 pr-1 text-xs font-medium h-7 px-2.5 cursor-pointer",
                                                 "bg-background text-foreground border border-border/50",
                                                 "hover:border-primary/50 hover:shadow-sm transition-all"
                                             )}
+                                            onDoubleClick={() => {
+                                                setEditingTerm(term);
+                                                setEditingValue(term);
+                                            }}
+                                            title="Double-cliquer pour modifier"
                                         >
                                             {colorPreview && (
                                                 <div

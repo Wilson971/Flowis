@@ -17,12 +17,14 @@ export type Product = {
   imported_at: string;
   metadata?: any;
   draft_generated_content?: any;
+  generation_manifest?: any;
   dirty_fields_content?: string[];
   last_synced_at?: string;
   sync_source?: "push" | "webhook" | "manual";
   sync_conflict_count?: number;
   editorial_lock?: Record<string, boolean>;
   ai_enhanced?: boolean;
+  handle?: string;
   working_content?: any;
   seo_score?: number | null;
   studio_jobs?: {

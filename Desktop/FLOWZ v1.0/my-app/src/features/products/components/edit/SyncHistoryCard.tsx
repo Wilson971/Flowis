@@ -73,7 +73,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 function SyncHistoryItem({ entry }: { entry: SyncHistoryEntry }) {
-    const fieldsChanged = (entry.metadata as any)?.fields_changed;
+    const fieldsChanged = (entry.metadata as Record<string, unknown> | null)?.fields_changed;
 
     return (
         <div className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0">

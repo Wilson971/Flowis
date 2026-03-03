@@ -61,6 +61,8 @@ interface ProductVariationsTabProps {
     metadataVariants?: unknown[];
     /** Callback to register the variation save function with the parent container */
     onRegisterSave?: (saveFn: () => Promise<void>) => void;
+    /** Callback to register a dirty check so parent can block publish when variations are unsaved */
+    onRegisterDirtyCheck?: (dirtyFn: () => boolean) => void;
 }
 
 // ============================================================================
@@ -73,6 +75,7 @@ export function ProductVariationsTab({
     platformProductId,
     metadataVariants,
     onRegisterSave,
+    onRegisterDirtyCheck,
 }: ProductVariationsTabProps) {
     const { watch } = useFormContext<ProductFormValues>();
     const { remove } = useFieldArray({ name: "attributes" });
@@ -116,6 +119,12 @@ export function ProductVariationsTab({
         }
     }, [onRegisterSave]);
 
+    useEffect(() => {
+        if (onRegisterDirtyCheck) {
+            onRegisterDirtyCheck(() => managerRef.current.hasUnsavedChanges);
+        }
+    }, [onRegisterDirtyCheck]);
+
     // Auto-select first attribute when attributes change
     useEffect(() => {
         if (attributes.length > 0 && selectedAttributeIndex === null) {
@@ -136,6 +145,17 @@ export function ProductVariationsTab({
         () => attributes.filter((a) => a.variation === true).length,
         [attributes]
     );
+
+    // Build a map of attribute name → available options for inline editing
+    const parentAttributeOptions = useMemo(() => {
+        const map = new Map<string, string[]>();
+        for (const attr of attributes) {
+            if (attr.variation && attr.options?.length > 0) {
+                map.set(attr.name, attr.options);
+            }
+        }
+        return map;
+    }, [attributes]);
 
     const priceRange = useMemo(() => {
         const prices = manager.variations
@@ -431,6 +451,7 @@ export function ProductVariationsTab({
                                                     isLoading={manager.isLoading}
                                                     changeCounter={manager.changeCounter}
                                                     uploadingVariationId={uploadingVariationId}
+                                                    parentAttributeOptions={parentAttributeOptions}
                                                 />
                                             </div>
                                         </div>
@@ -539,6 +560,7 @@ export function ProductVariationsTab({
                     !!detailVariationId &&
                     uploadingVariationId === detailVariationId
                 }
+                parentAttributeOptions={parentAttributeOptions}
             />
         </motion.div>
     );

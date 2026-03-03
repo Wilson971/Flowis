@@ -20,7 +20,7 @@ import { ProductsPageHeaderV2 } from '@/components/products/ui/ProductsPageHeade
 import { ProductsStatsCardsV2 } from '@/components/products/ui/ProductsStatsCardsV2';
 import { ProductsToolbarV2 } from '@/components/products/ui/ProductsToolbarV2';
 import { BatchGenerationSheet } from '@/components/products/ui/BatchGenerationSheet';
-import { BatchProgressPanel } from '@/components/products/BatchProgressPanel';
+import { useBatchFloating } from '@/components/batch';
 import { useBatchGeneration } from '@/hooks/products/useBatchGeneration';
 import { useAcceptDraft, useRejectDraft } from '@/hooks/products/useProductContent';
 import { ModularGenerationSettings } from '@/types/imageGeneration';
@@ -57,6 +57,7 @@ export function ProductsListContentV2() {
     const [localSearch, setLocalSearch] = useState(search);
     const debouncedSearch = useDebounce(localSearch, 300);
     const isUserTypingRef = useRef(false);
+    const hasAnimatedRef = useRef(false);
 
     const statusFilter       = params.status           || 'all';
     const typeFilter         = params.type             || 'all';
@@ -96,6 +97,13 @@ export function ProductsListContentV2() {
         startGeneration, cancel: cancelGeneration,
         activeBatchId, isGenerating, lastEvent, progress: batchProgress,
     } = useBatchGeneration();
+
+    const { addBatch } = useBatchFloating();
+
+    // Register active batch in floating widget
+    useEffect(() => {
+        if (activeBatchId) addBatch(activeBatchId, "products");
+    }, [activeBatchId, addBatch]);
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isBatchPanelOpen, setIsBatchPanelOpen] = useState(false);
@@ -236,10 +244,7 @@ export function ProductsListContentV2() {
         }
     }, [isGenerating, lastEvent]);
 
-    // Scroll to top when page changes
-    useEffect(() => {
-        document.getElementById('main-content')?.scrollTo({ top: 0 });
-    }, [page]);
+    const tableAnchorRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         isUserTypingRef.current = false;
@@ -361,8 +366,9 @@ export function ProductsListContentV2() {
     return (
         <motion.div
             variants={motionTokens.variants.staggerContainer}
-            initial="hidden"
+            initial={hasAnimatedRef.current ? false : "hidden"}
             animate="visible"
+            onAnimationComplete={() => { hasAnimatedRef.current = true; }}
             className="space-y-4"
         >
             {/* Header with nav tabs */}
@@ -480,13 +486,7 @@ export function ProductsListContentV2() {
                 </div>
             </motion.div>
 
-            {/* Batch Progress Panel */}
-            {activeBatchId && !isGenerating && (
-                <BatchProgressPanel
-                    jobId={activeBatchId}
-                    onComplete={() => { }}
-                />
-            )}
+            {/* Batch progress is now handled by the global BatchFloatingWidget */}
 
             {/* Table or empty state */}
             {products.length === 0 ? (
@@ -508,6 +508,7 @@ export function ProductsListContentV2() {
                 </motion.div>
             ) : (
                 <motion.div variants={motionTokens.variants.staggerItem} className="space-y-4">
+                    <div ref={tableAnchorRef} />
                     <ProductsTableModernV2
                         products={products}
                         selectedProducts={selectedProducts}
@@ -517,8 +518,8 @@ export function ProductsListContentV2() {
                         onColumnVisibilityChange={setColumnVisibility}
                     />
 
-                    {/* Pagination — sticky bottom */}
-                    <div className="sticky bottom-0 z-20 rounded-xl border border-border/40 bg-card/95 backdrop-blur-sm relative overflow-hidden">
+                    {/* Pagination */}
+                    <div className="rounded-xl border border-border/40 bg-card/95 backdrop-blur-sm relative overflow-hidden">
                         <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
                         <div className="relative z-10">
                             <ProductsPaginationV2

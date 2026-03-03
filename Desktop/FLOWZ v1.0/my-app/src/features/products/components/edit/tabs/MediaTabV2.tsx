@@ -16,6 +16,7 @@ import {
     UploadingItem
 } from "@/components/products/ProductImageGallery";
 import { useProductEditContext } from "../../../context/ProductEditContext";
+import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { SceneStudioDialog, type StudioProduct } from "@/features/photo-studio/components/SceneStudioDialog";
 import { ImageAltSuggestionModal, type ImageAltItem } from "@/components/products/ui/ImageAltSuggestionModal";
 
@@ -31,7 +32,8 @@ import { ImageAltSuggestionModal, type ImageAltItem } from "@/components/product
  */
 export const MediaTabV2 = () => {
     const { control, setValue, getValues } = useFormContext<ProductFormValues>();
-    const { productId, product, remainingProposals, draftActions, contentBuffer } = useProductEditContext();
+    const { productId, product, remainingProposals, draftActions, contentBuffer, generationManifest } = useProductEditContext();
+    const isValidated = (field: string) => isFieldValidatedByAI(generationManifest, field);
 
     const watchedImages = useWatch({ control, name: "images" }) || [];
     const [uploadingItems, setUploadingItems] = useState<UploadingItem[]>([]);
@@ -295,7 +297,7 @@ export const MediaTabV2 = () => {
             className="space-y-4"
         >
             {/* Vercel Pro Card Shell */}
-            <div className={cn(
+            <div id="field-images" className={cn(
                 "rounded-xl border border-border/40 bg-card relative group overflow-hidden"
             )}>
                 <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />

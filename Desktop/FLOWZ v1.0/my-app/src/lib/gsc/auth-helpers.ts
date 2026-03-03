@@ -44,7 +44,13 @@ export async function getGscTokensForSite(
         throw new Error('Site GSC desactive');
     }
 
-    const conn = (site as any).gsc_connections;
+    const conn = (site as Record<string, unknown>).gsc_connections as {
+        id: string;
+        is_active: boolean;
+        access_token_encrypted: string;
+        refresh_token_encrypted: string;
+        token_expires_at: string;
+    } | undefined;
     if (!conn?.is_active) {
         throw new Error('Connexion GSC desactivee');
     }

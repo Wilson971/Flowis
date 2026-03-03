@@ -74,10 +74,7 @@ export const PresetGrid = ({
             preset={{
               id: preset.id,
               name: preset.name,
-              thumbnail:
-                (preset as any).thumbnailUrl ??
-                preset.thumbnail ??
-                undefined,
+              thumbnail: preset.thumbnail ?? undefined,
               description: preset.description,
             }}
             isSelected={selectedPresetId === preset.id}

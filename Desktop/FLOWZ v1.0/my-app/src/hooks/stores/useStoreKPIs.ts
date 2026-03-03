@@ -89,7 +89,7 @@ export function useStoreKPIs(storeId: string | null) {
             };
         },
         enabled: !!storeId,
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 }
 

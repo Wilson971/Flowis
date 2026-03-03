@@ -48,6 +48,8 @@ interface VariationDetailSheetProps {
     onUpdateField: (field: keyof EditableVariation, value: unknown) => void;
     onImageUpload?: (file: File) => void;
     isUploadingImage?: boolean;
+    /** Available options per attribute name (from parent product) */
+    parentAttributeOptions?: Map<string, string[]>;
 }
 
 // ============================================================================
@@ -61,6 +63,7 @@ export function VariationDetailSheet({
     onUpdateField,
     onImageUpload,
     isUploadingImage,
+    parentAttributeOptions,
 }: VariationDetailSheetProps) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -77,17 +80,42 @@ export function VariationDetailSheet({
                     <SheetTitle className="flex items-center gap-2">
                         Variation: {attributeTitle}
                     </SheetTitle>
-                    <SheetDescription>
+                    <SheetDescription asChild>
                         <div className="flex gap-1.5 flex-wrap">
-                            {variation.attributes.map((attr) => (
-                                <Badge
-                                    key={attr.name}
-                                    variant="outline"
-                                    className="text-xs"
-                                >
-                                    {attr.name}: {attr.option}
-                                </Badge>
-                            ))}
+                            {variation.attributes.map((attr) => {
+                                const options = parentAttributeOptions?.get(attr.name);
+                                if (options && options.length > 0) {
+                                    return (
+                                        <Select
+                                            key={attr.name}
+                                            value={attr.option}
+                                            onValueChange={(val) => {
+                                                const newAttrs = variation.attributes.map((a) =>
+                                                    a.name === attr.name ? { ...a, option: val } : a
+                                                );
+                                                onUpdateField("attributes", newAttrs);
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-7 text-xs w-auto min-w-[80px] gap-1">
+                                                <span className="text-muted-foreground">{attr.name}:</span>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {options.map((opt) => (
+                                                    <SelectItem key={opt} value={opt}>
+                                                        {opt}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    );
+                                }
+                                return (
+                                    <Badge key={attr.name} variant="outline" className="text-xs">
+                                        {attr.name}: {attr.option}
+                                    </Badge>
+                                );
+                            })}
                         </div>
                     </SheetDescription>
                 </SheetHeader>

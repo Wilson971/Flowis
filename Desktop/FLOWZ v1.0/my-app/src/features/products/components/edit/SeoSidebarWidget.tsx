@@ -1,18 +1,19 @@
 "use client";
 
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React, { useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { RefreshCw, ALargeSmall, FileText } from "lucide-react";
+import { ALargeSmall, ArrowRight } from "lucide-react";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { SeoScoreGauge } from "@/components/seo/SeoScoreGauge";
 import { cn } from "@/lib/utils";
 import { motionTokens } from "@/lib/design-system";
 import { getScoreBadgeStyle } from "@/lib/seo/scoreColors";
+import { SeoDetailSheet } from "./SeoDetailSheet";
 
 export const SeoSidebarWidget = () => {
-    const { seoAnalysis, runSeoAnalysis } = useProductEditContext();
+    const { seoAnalysis } = useProductEditContext();
+    const [sheetOpen, setSheetOpen] = useState(false);
 
     if (!seoAnalysis) return null;
 
@@ -40,7 +41,7 @@ export const SeoSidebarWidget = () => {
                             </div>
                             <div>
                                 <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-0.5">
-                                    Référencement
+                                    Referencement
                                 </p>
                                 <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                     Score SEO
@@ -48,7 +49,6 @@ export const SeoSidebarWidget = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {isAnalyzing && <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />}
                             {(() => {
                                 const badgeStyle = getScoreBadgeStyle(overallScore);
                                 return (
@@ -71,38 +71,40 @@ export const SeoSidebarWidget = () => {
 
                     <div className="w-full space-y-3">
                         {issues.length === 0 && overallScore > 0 && (
-                            <p className="text-xs text-center text-success font-medium bg-success/5 p-2 rounded">
-                                Excellent travail ! Votre fiche est optimisée.
+                            <p className="text-xs text-center text-success font-medium bg-success/5 p-2 rounded-lg">
+                                Excellent travail ! Votre fiche est optimisee.
                             </p>
                         )}
 
                         {criticalIssues > 0 && (
-                            <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/5 p-2 rounded border border-destructive/10">
+                            <button
+                                type="button"
+                                onClick={() => setSheetOpen(true)}
+                                className="w-full flex items-center gap-2 text-xs text-destructive bg-destructive/5 p-2 rounded-lg border border-destructive/10 hover:bg-destructive/10 transition-colors group/issue cursor-pointer"
+                            >
                                 <span className="font-semibold tracking-tight shrink-0 tabular-nums">{criticalIssues}</span>
-                                <span>problèmes critiques à corriger</span>
-                            </div>
+                                <span className="flex-1 text-left">problemes critiques a corriger</span>
+                                <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover/issue:opacity-100 group-hover/issue:translate-x-0 transition-all duration-200" />
+                            </button>
                         )}
 
                         {warningIssues > 0 && criticalIssues === 0 && (
-                            <div className="flex items-start gap-2 text-xs text-warning bg-warning/5 p-2 rounded border border-warning/10">
+                            <button
+                                type="button"
+                                onClick={() => setSheetOpen(true)}
+                                className="w-full flex items-center gap-2 text-xs text-warning bg-warning/5 p-2 rounded-lg border border-warning/10 hover:bg-warning/10 transition-colors group/issue cursor-pointer"
+                            >
                                 <span className="font-semibold tracking-tight shrink-0 tabular-nums">{warningIssues}</span>
-                                <span>améliorations possibles</span>
-                            </div>
+                                <span className="flex-1 text-left">ameliorations possibles</span>
+                                <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover/issue:opacity-100 group-hover/issue:translate-x-0 transition-all duration-200" />
+                            </button>
                         )}
-
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full text-[10px] h-8 font-semibold tracking-tight uppercase tracking-wider bg-muted/60 hover:bg-muted/80 border border-border/40 text-muted-foreground hover:text-foreground transition-colors shadow-sm"
-                            onClick={() => runSeoAnalysis?.()}
-                            disabled={isAnalyzing}
-                        >
-                            <RefreshCw className={cn("mr-2 h-3 w-3", isAnalyzing && "animate-spin")} />
-                            Détails & Analyse
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
+
+            {/* SEO Detail Sheet */}
+            <SeoDetailSheet open={sheetOpen} onOpenChange={setSheetOpen} />
         </motion.div>
     );
 };

@@ -88,8 +88,6 @@ export function transformFormToSaveData(
             const trimmedName = name.trim();
             // Match by ID first (stable), then fall back to trimmed name
             const found = availableCategories?.find((ac) =>
-                (ac.id && ac.id === (cat as any)?.id) ||
-                (ac.external_id && ac.external_id === (cat as any)?.external_id) ||
                 ac.name.trim() === trimmedName
             );
             return found

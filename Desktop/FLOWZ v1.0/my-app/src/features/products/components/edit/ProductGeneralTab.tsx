@@ -15,6 +15,7 @@ import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
 import { DraftSuggestionButton } from "@/components/products/ui/DraftSuggestionButton";
+import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { motionTokens } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,8 @@ export const ProductGeneralTab = () => {
         remainingProposals,
         draftActions,
         dirtyFieldsData,
-        contentBuffer
+        contentBuffer,
+        generationManifest
     } = useProductEditContext();
 
     // Modal state
@@ -36,6 +38,9 @@ export const ProductGeneralTab = () => {
 
     // Helper to check if field is dirty (unsaved local changes)
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
+
+    // Helper to check if field was validated by AI
+    const isValidated = (field: string) => isFieldValidatedByAI(generationManifest, field);
 
     // Open modal for a specific field
     const openSuggestionModal = (field: string) => {
@@ -96,7 +101,7 @@ export const ProductGeneralTab = () => {
                                 <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">Désignation</p>
                                 <Label htmlFor="title" className="text-[15px] font-semibold tracking-tight text-foreground flex items-center gap-2">
                                     Titre du produit <span className="text-destructive">*</span>
-                                    <FieldStatusBadge hasDraft={hasDraft("title")} isDirty={isDirty("title")} />
+                                    <FieldStatusBadge hasDraft={hasDraft("title")} isDirty={isDirty("title")} isValidated={isValidated("title")} />
                                 </Label>
                             </div>
                             <div className="flex items-center gap-3">
@@ -127,7 +132,7 @@ export const ProductGeneralTab = () => {
                                 <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">Résumé</p>
                                 <Label htmlFor="short_description" className="text-[15px] font-semibold tracking-tight text-foreground flex items-center gap-2">
                                     Description courte
-                                    <FieldStatusBadge hasDraft={hasDraft("short_description")} isDirty={isDirty("short_description")} />
+                                    <FieldStatusBadge hasDraft={hasDraft("short_description")} isDirty={isDirty("short_description")} isValidated={isValidated("short_description")} />
                                 </Label>
                             </div>
                             <div className="flex items-center gap-3">
@@ -168,7 +173,7 @@ export const ProductGeneralTab = () => {
                                 <p className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1">Marketing & Vente</p>
                                 <Label className="text-[15px] font-semibold tracking-tight text-foreground flex items-center gap-2">
                                     Description détaillée
-                                    <FieldStatusBadge hasDraft={hasDraft("description")} isDirty={isDirty("description")} />
+                                    <FieldStatusBadge hasDraft={hasDraft("description")} isDirty={isDirty("description")} isValidated={isValidated("description")} />
                                 </Label>
                             </div>
                             <div className="flex items-center gap-3">

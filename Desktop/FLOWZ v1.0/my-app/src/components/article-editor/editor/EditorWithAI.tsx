@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/tooltip';
 
 import type { useAIEditorActions } from '@/hooks/blog/useAIEditorActions';
+import type { AIEditorAction } from '@/schemas/article-editor';
 import { cn } from '@/lib/utils';
 
 // ============================================================================
@@ -225,7 +226,7 @@ export function EditorWithAI({
       if (!selectedText || !selectionRange || !editor || !aiActions) return;
 
       const result = await aiActions.previewAction({
-        action: action as any,
+        action: action as AIEditorAction,
         content: selectedText,
         selection: {
           from: selectionRange.from,

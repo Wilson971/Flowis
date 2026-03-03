@@ -43,6 +43,12 @@ export interface PushResult {
     error?: string;
     skipped?: boolean;
     skipReason?: string;
+    variations?: {
+        created: number;
+        updated: number;
+        deleted: number;
+        error?: string;
+    };
 }
 
 export interface PushResponse {
@@ -294,6 +300,31 @@ export function usePushProductBatch() {
             const successCount = data.successful ?? 0;
             const failedCount = data.failed ?? 0;
             const toastId = variables.product_ids.length > 1 ? 'batch-sync' : undefined;
+
+            // Build variation summary from results
+            const variationResults = data.results?.map(r => r.variations).filter(Boolean) || [];
+            const totalVarCreated = variationResults.reduce((sum, v) => sum + (v?.created ?? 0), 0);
+            const totalVarUpdated = variationResults.reduce((sum, v) => sum + (v?.updated ?? 0), 0);
+            const totalVarDeleted = variationResults.reduce((sum, v) => sum + (v?.deleted ?? 0), 0);
+            const variationErrors = variationResults.filter(v => v?.error).map(v => v!.error);
+            const totalVarChanges = totalVarCreated + totalVarUpdated + totalVarDeleted;
+
+            // Show variation-specific feedback
+            if (variationErrors.length > 0) {
+                toast.error('Erreur sync variations', {
+                    duration: 6000,
+                    description: variationErrors[0],
+                });
+            } else if (totalVarChanges > 0) {
+                const parts: string[] = [];
+                if (totalVarCreated > 0) parts.push(`${totalVarCreated} créée(s)`);
+                if (totalVarUpdated > 0) parts.push(`${totalVarUpdated} modifiée(s)`);
+                if (totalVarDeleted > 0) parts.push(`${totalVarDeleted} supprimée(s)`);
+                toast.success('Variations synchronisées', {
+                    duration: 4000,
+                    description: parts.join(', '),
+                });
+            }
 
             if (successCount > 0 && failedCount === 0) {
                 toast.success('Produits synchronisés', {

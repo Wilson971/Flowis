@@ -514,22 +514,11 @@ export function useVariationManager({
             }
             // ── End SKU validation ─────────────────────────────────────
 
-            // Fetch user's workspace_id for RLS compliance
-            const { data: membership } = await supabase
-                .from("workspace_members")
-                .select("workspace_id")
-                .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
-                .limit(1)
-                .single();
-
-            const workspaceId = membership?.workspace_id ?? null;
-
             // INSERT new variations
             if (toCreate.length > 0) {
                 const rows = toCreate.map((v) => ({
                     store_id: storeId,
                     product_id: productId,
-                    workspace_id: workspaceId,
                     parent_product_external_id: platformProductId,
                     external_id: `local_${v._localId}`,
                     platform: "woocommerce",
@@ -569,7 +558,6 @@ export function useVariationManager({
                 const migrateRows = toMigrateFromMetadata.map((v) => ({
                     store_id: storeId,
                     product_id: productId,
-                    workspace_id: workspaceId,
                     parent_product_external_id: platformProductId,
                     external_id: v.externalId || `local_${v._localId}`,
                     platform: "woocommerce",

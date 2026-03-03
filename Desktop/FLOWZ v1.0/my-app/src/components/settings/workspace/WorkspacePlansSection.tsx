@@ -126,7 +126,7 @@ export default function WorkspacePlansSection() {
             {/* Usage gauges */}
             <div className="space-y-3 pt-2">
               {USAGE_ITEMS.map((item) => {
-                const current = (planData?.usage as any)?.[item.key] ?? 0
+                const current = (planData?.usage as Record<string, number> | undefined)?.[item.key] ?? 0
                 const max = currentPlan.limits[item.limitKey]
                 const percentage = max > 0 ? Math.min(100, Math.round((current / max) * 100)) : 0
                 const isNearLimit = percentage >= 80

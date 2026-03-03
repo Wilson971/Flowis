@@ -17,7 +17,7 @@ import {
     ProductsToolbar,
 } from '@/components/products/ui';
 import { BatchGenerationSheet } from '@/components/products/ui/BatchGenerationSheet';
-import { BatchProgressPanel } from '@/components/products/BatchProgressPanel';
+import { useBatchFloating } from '@/components/batch';
 import { useBatchGeneration } from '@/hooks/products/useBatchGeneration';
 import { useAcceptDraft, useRejectDraft } from '@/hooks/products/useProductContent';
 import { ModularGenerationSettings } from '@/types/imageGeneration';
@@ -111,6 +111,13 @@ export function ProductsListContent() {
         lastEvent,
         progress: batchProgress,
     } = useBatchGeneration();
+
+    const { addBatch } = useBatchFloating();
+
+    // Register active batch in floating widget
+    useEffect(() => {
+        if (activeBatchId) addBatch(activeBatchId, "products");
+    }, [activeBatchId, addBatch]);
 
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isBatchPanelOpen, setIsBatchPanelOpen] = useState(false);
@@ -567,15 +574,7 @@ export function ProductsListContent() {
                 ))}
             </motion.div>
 
-            {/* Batch Progress Panel */}
-            {activeBatchId && !isGenerating && (
-                <BatchProgressPanel
-                    jobId={activeBatchId}
-                    onComplete={() => {
-                        // Refresh products after batch completes
-                    }}
-                />
-            )}
+            {/* Batch progress is now handled by the global BatchFloatingWidget */}
 
             {/* Products Table with Animation */}
             {products.length === 0 ? (

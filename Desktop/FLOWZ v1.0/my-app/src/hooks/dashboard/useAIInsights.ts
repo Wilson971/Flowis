@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { STALE_TIMES } from "@/lib/query-config";
 import {
   TrendingUp,
   TrendingDown,
@@ -300,7 +301,7 @@ export function useAIInsights({ kpis, seoScore, coveragePercent }: UseAIInsights
     queryKey: ["ai-insights-gemini", seoScore, coveragePercent, kpis?.blogStats?.draftCount],
     queryFn: () => fetchGeminiInsights(kpis!, seoScore, coveragePercent),
     enabled: !!kpis && seoScore > 0,
-    staleTime: 5 * 60_000, // 5 min cache
+    staleTime: STALE_TIMES.STATIC,
     retry: 1,
     refetchOnWindowFocus: false,
   });

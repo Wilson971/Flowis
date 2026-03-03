@@ -10,7 +10,7 @@
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
-import { FlowriterStep } from '@/types/blog-ai';
+import { FlowriterStep, type GenerationPhase } from '@/types/blog-ai';
 
 // Steps
 import { TopicStep } from '../steps/TopicStep';
@@ -153,7 +153,7 @@ export function FlowriterAssistant({ storeId, tenantId, onClose, onCancel, onCom
                   callbacks: {
                     onProgress: (phase, section, title) => {
                       actions.updateProgress({
-                        phase: phase as any,
+                        phase: phase as GenerationPhase,
                         currentSection: section,
                         currentSectionTitle: title,
                       });

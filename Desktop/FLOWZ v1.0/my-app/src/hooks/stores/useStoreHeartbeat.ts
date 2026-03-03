@@ -199,7 +199,7 @@ export function useAutoHealthCheck(storeIds: string[]) {
                 .map(r => r.value);
         },
         enabled: storeIds.length > 0,
-        staleTime: 10 * 60 * 1000, // consider fresh for 10 min (no refetch if user navigates back quickly)
+        staleTime: STALE_TIMES.ARCHIVE,
         refetchOnWindowFocus: false,
         refetchOnMount: 'always', // always check on page mount
     });

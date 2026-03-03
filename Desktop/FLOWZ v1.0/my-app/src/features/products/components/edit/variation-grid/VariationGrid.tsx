@@ -31,6 +31,7 @@ export function VariationGrid({
     uploadingVariationId,
     visibleColumns: externalCols,
     onVisibleColumnsChange,
+    parentAttributeOptions,
 }: VariationGridProps) {
     // Internal state (used when no external control)
     const [internalCols, setInternalCols] = useState<Set<string>>(
@@ -172,6 +173,7 @@ export function VariationGrid({
                                 }
                                 isUploading={uploadingVariationId === variation._localId}
                                 show={show}
+                                parentAttributeOptions={parentAttributeOptions}
                             />
                         ))}
                     </TableBody>

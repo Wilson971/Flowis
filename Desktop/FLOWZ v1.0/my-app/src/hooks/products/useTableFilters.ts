@@ -53,7 +53,9 @@ function saveFiltersToStorage(params: URLSearchParams): void {
             if (filters[k] === undefined) delete filters[k];
         });
         window.localStorage.setItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS, JSON.stringify(filters));
-    } catch {}
+    } catch (error) {
+        console.warn('[useTableFilters] Failed to save filters to localStorage:', error);
+    }
 }
 
 function loadFiltersFromStorage(): PersistedFilters | null {
@@ -68,7 +70,9 @@ function loadFiltersFromStorage(): PersistedFilters | null {
 function clearFiltersFromStorage(): void {
     try {
         window.localStorage.removeItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS);
-    } catch {}
+    } catch (error) {
+        console.warn('[useTableFilters] Failed to clear filters from localStorage:', error);
+    }
 }
 
 // --- Hook ---
@@ -136,7 +140,7 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
 
         const query = restored.toString();
         if (query) {
-            router.replace(`${pathname}?${query}`);
+            router.replace(`${pathname}?${query}`, { scroll: false });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Intentionnellement vide — exécuté une seule fois au mount
@@ -160,7 +164,7 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
 
         const searchString = current.toString();
         const query = searchString ? `?${searchString}` : '';
-        router.replace(`${pathname}${query}`);
+        router.replace(`${pathname}${query}`, { scroll: false });
     }, [router, pathname]);
 
     const setSearch = useCallback((value: string) => {
@@ -193,7 +197,7 @@ export const useTableFilters = (options: UseTableFiltersOptions = {}): UseTableF
         current.set('page', '1');
         current.set('pageSize', String(pageSize));
         const query = current.toString();
-        router.replace(`${pathname}?${query}`);
+        router.replace(`${pathname}?${query}`, { scroll: false });
     }, [router, pathname, pageSize]);
 
     const resetAll = useCallback(() => {

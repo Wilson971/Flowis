@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, RefreshCw, AlertTriangle, Pencil } from "lucide-react";
+import { Sparkles, RefreshCw, AlertTriangle, Pencil, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface FieldStatusBadgeProps {
@@ -7,6 +7,7 @@ export interface FieldStatusBadgeProps {
     isSynced?: boolean;
     isDirty?: boolean;
     hasConflict?: boolean;
+    isValidated?: boolean;
     tooltip?: string;
     className?: string;
 }
@@ -16,6 +17,7 @@ export const FieldStatusBadge = ({
     isSynced,
     isDirty,
     hasConflict,
+    isValidated,
     tooltip,
     className
 }: FieldStatusBadgeProps) => {
@@ -51,6 +53,25 @@ export const FieldStatusBadge = ({
                     </TooltipTrigger>
                     <TooltipContent>
                         <p>{tooltip || "Une proposition IA est disponible pour ce champ"}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+
+    // 2b. Validated by AI (no change needed)
+    if (isValidated) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Badge variant="outline" className={`h-5 gap-1 px-1.5 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 ${className}`}>
+                            <Check className="h-3 w-3" />
+                            <span className="text-[10px] font-medium uppercase">✓ IA</span>
+                        </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{tooltip || "Validé par l'IA · Ce champ est déjà optimal. Aucune modification requise."}</p>
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>

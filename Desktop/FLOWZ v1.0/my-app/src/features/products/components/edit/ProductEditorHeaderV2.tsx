@@ -50,7 +50,7 @@ function buildProductUrl(
     const platform = product.platform;
 
     if (platform === "shopify") {
-        const handle = (product as any).handle || metadata.handle;
+        const handle = product.handle || metadata.handle;
         const shopUrl = selectedStore?.platform_connections?.shop_url || "";
         if (handle && shopUrl) {
             const cleanUrl = shopUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");

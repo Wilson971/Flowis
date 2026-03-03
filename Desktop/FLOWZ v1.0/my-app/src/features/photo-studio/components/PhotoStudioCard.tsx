@@ -50,10 +50,8 @@ function getImageCount(product: Product): number {
 export type StudioStatus = "running" | "failed" | "done" | "none";
 
 /** Derive the studio processing status from a product's studio_jobs */
-export function getStudioStatus(product: Product): StudioStatus {
-  const jobs = (product as any).studio_jobs as
-    | Array<{ status: string }>
-    | undefined;
+export function getStudioStatus(product: Product & { studio_jobs?: Array<{ status: string }> }): StudioStatus {
+  const jobs = product.studio_jobs;
   if (!jobs || jobs.length === 0) return "none";
 
   if (jobs.some((j) => j.status === "running" || j.status === "pending"))

@@ -267,6 +267,7 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
         contentBuffer: contentBuffer ?? undefined,
         dirtyFieldsData,
         remainingProposals,
+        generationManifest: contentBuffer?.generation_manifest ?? null,
         draftActions,
         refetchProduct,
         refetchContentBuffer,
@@ -278,7 +279,7 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
     }), [
         productId, product, isLoading, methods, actions.isSaving, actions.handleSave,
         refetchProduct, refetchContentBuffer, selectedStore, analysisData, runServerAnalysis,
-        contentBuffer, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
+        contentBuffer, contentBuffer?.generation_manifest, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
     ]);
 
     // ========================================================================

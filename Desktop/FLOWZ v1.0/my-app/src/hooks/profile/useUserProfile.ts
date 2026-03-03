@@ -30,11 +30,22 @@ export interface UserPreferences {
     notifications?: {
         email: boolean;
         push: boolean;
+        appearance?: {
+            brand_theme?: string;
+            radius?: number;
+            theme?: string;
+        };
     };
     appearance?: {
         brand_theme?: string;
         radius?: number;
         theme?: string;
+    };
+    ai_defaults?: {
+        language?: string;
+        style?: string;
+        tone?: string;
+        model?: string;
     };
 }
 

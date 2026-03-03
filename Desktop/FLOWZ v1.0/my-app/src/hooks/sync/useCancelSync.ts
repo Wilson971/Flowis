@@ -17,7 +17,7 @@ export function useCancelSync() {
             const { data, error } = await supabase
                 .from('sync_queue')
                 .update({
-                    status: 'cancelled' as any,
+                    status: 'cancelled' as string,
                     completed_at: new Date().toISOString(),
                 })
                 .in('product_id', product_ids)

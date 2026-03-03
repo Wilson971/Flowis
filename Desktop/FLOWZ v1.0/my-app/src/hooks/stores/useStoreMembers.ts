@@ -12,6 +12,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type {
@@ -49,7 +50,7 @@ export function useStoreMembers(storeId: string) {
             return (data ?? []) as StoreMember[];
         },
         enabled: !!storeId,
-        staleTime: 30_000,
+        staleTime: STALE_TIMES.LIST,
     });
 }
 
@@ -71,7 +72,7 @@ export function useStoreInvitations(storeId: string) {
             return (data ?? []) as StoreInvitation[];
         },
         enabled: !!storeId,
-        staleTime: 30_000,
+        staleTime: STALE_TIMES.LIST,
     });
 }
 
@@ -92,7 +93,7 @@ export function useStoreAuditLog(storeId: string, limit = 20) {
             return (data ?? []) as StoreAuditLogEntry[];
         },
         enabled: !!storeId,
-        staleTime: 60_000,
+        staleTime: STALE_TIMES.DETAIL,
     });
 }
 

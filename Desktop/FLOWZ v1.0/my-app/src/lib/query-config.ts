@@ -15,4 +15,6 @@ export const STALE_TIMES = {
   STATIC: 5 * 60_000,
   /** 10min — Historical/archive data (sync logs, old reports) */
   ARCHIVE: 10 * 60_000,
+  /** 24h — Immutable data (product classification, image analysis) */
+  IMMUTABLE: 24 * 60 * 60_000,
 } as const;

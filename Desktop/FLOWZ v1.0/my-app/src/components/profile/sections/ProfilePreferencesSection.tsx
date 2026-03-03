@@ -19,7 +19,7 @@ export function ProfilePreferencesSection() {
   useEffect(() => {
     if (!profile || didSyncRef.current) return;
     didSyncRef.current = true;
-    const appearance = (profile?.preferences?.notifications as any)?.appearance;
+    const appearance = profile?.preferences?.notifications?.appearance;
     if (!appearance) return;
     if (appearance.brand_theme) setBrandTheme(appearance.brand_theme);
     if (typeof appearance.radius === 'number') setRadius(appearance.radius);
@@ -32,7 +32,7 @@ export function ProfilePreferencesSection() {
   };
 
   const handleBrandThemeChange = (newBrandTheme: string) => {
-    setBrandTheme(newBrandTheme as any);
+    setBrandTheme(newBrandTheme as 'amber' | 'emerald' | 'blue' | 'red');
     updateAppearance.mutate({ brand_theme: newBrandTheme });
   };
 

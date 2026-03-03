@@ -110,10 +110,8 @@ function getStudioStatusBadge(status: StudioStatus) {
   }
 }
 
-function getLastProcessedDate(product: Product): string | null {
-  const jobs = (product as any).studio_jobs as
-    | Array<{ updated_at?: string; created_at?: string }>
-    | undefined;
+function getLastProcessedDate(product: Product & { studio_jobs?: Array<{ updated_at?: string; created_at?: string }> }): string | null {
+  const jobs = product.studio_jobs;
   if (!jobs || jobs.length === 0) return null;
 
   const latest = jobs.reduce((max, j) => {

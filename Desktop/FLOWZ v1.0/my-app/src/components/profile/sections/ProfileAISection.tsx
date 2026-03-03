@@ -36,7 +36,7 @@ const AI_TONES = [
 
 export function ProfileAISection() {
   const { profile, updateProfile } = useUserProfile();
-  const aiDefaults = (profile?.preferences as any)?.ai_defaults ?? {};
+  const aiDefaults = profile?.preferences?.ai_defaults ?? {};
 
   const [language, setLanguage] = useState<string>(aiDefaults.language ?? 'fr');
   const [style, setStyle] = useState<string>(aiDefaults.style ?? 'Journalistique');
@@ -48,7 +48,7 @@ export function ProfileAISection() {
       preferences: {
         ...profile.preferences,
         ai_defaults: { language, style, tone },
-      } as any,
+      },
     });
   };
 

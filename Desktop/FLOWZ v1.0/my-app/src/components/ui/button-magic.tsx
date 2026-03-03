@@ -75,12 +75,12 @@ export const ButtonMagic = React.forwardRef<
 
     // If asChild is true, render as Link
     if (asChild && "href" in props) {
-        const { href, ...linkProps } = rest as { href: string } & Omit<LinkProps, "href">;
+        const { href, ...linkProps } = rest as { href: string } & Omit<LinkProps, "href"> & React.AnchorHTMLAttributes<HTMLAnchorElement>;
         return (
             <Link
                 href={href}
                 className={combinedClassName}
-                {...linkProps as any}
+                {...linkProps as Omit<LinkProps, "href">}
             >
                 <ButtonContent showSparkles={showSparkles} showArrow={showArrow}>
                     {children}

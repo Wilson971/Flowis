@@ -250,7 +250,7 @@ export interface ProductSerpAnalysis {
 }
 
 // ContentData is defined in types/productContent.ts (single source of truth)
-import type { ContentData } from './productContent';
+import type { ContentData, GenerationManifest } from './productContent';
 export type { ContentData };
 
 export interface Product {
@@ -263,6 +263,7 @@ export interface Product {
   stock?: number;
   sku?: string;
   product_type?: string;
+  handle?: string;
   imported_at: string;
   created_at?: string;
   updated_at?: string;
@@ -272,6 +273,7 @@ export interface Product {
 
   // AI Generated Content
   draft_generated_content?: ContentData | null;
+  generation_manifest?: GenerationManifest | null;
   working_content?: ContentData;
 
   // Content Management

@@ -18,6 +18,7 @@ import { useArticleEditContext } from '../context';
 import { useAIEditorActions } from '@/hooks/blog/useAIEditorActions';
 import { useLivePreview, type PreviewContent } from '@/hooks/blog/useLivePreview';
 import { cn } from '@/lib/utils';
+import { useNavigationGuard } from '@/features/products/hooks/useNavigationGuard';
 
 import { EditorHeader } from './EditorHeader';
 import { EditorSidebar } from './EditorSidebar';
@@ -148,6 +149,9 @@ export function EditorInnerLayout({ className }: { className?: string }) {
   }, [aiActions, form]);
 
   const isDirty = form.formState.isDirty;
+
+  // Warn user before navigating away with unsaved changes
+  useNavigationGuard({ isDirty });
 
   // ============================================================================
   // LOADING STATE

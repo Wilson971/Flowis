@@ -47,6 +47,7 @@ export const VariationRow = React.memo(function VariationRow({
     onImageUpload,
     isUploading,
     show,
+    parentAttributeOptions,
 }: {
     variation: EditableVariation;
     attrNames: string[];
@@ -58,6 +59,7 @@ export const VariationRow = React.memo(function VariationRow({
     onImageUpload?: (file: File) => void;
     isUploading?: boolean;
     show: (key: string) => boolean;
+    parentAttributeOptions?: Map<string, string[]>;
 }) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const attrMap = useMemo(
@@ -159,19 +161,51 @@ export const VariationRow = React.memo(function VariationRow({
             )}
 
             {/* Attribute Columns */}
-            {attrNames.map((name) => (
-                <TableCell key={name}>
-                    <Badge
-                        variant="outline"
-                        className={cn(
-                            "text-xs font-medium border-border/50",
-                            "bg-background/50 hover:border-primary/50 transition-colors"
+            {attrNames.map((name) => {
+                const currentOption = attrMap.get(name) || "";
+                const options = parentAttributeOptions?.get(name);
+                return (
+                    <TableCell key={name}>
+                        {options && options.length > 0 ? (
+                            <Select
+                                value={currentOption}
+                                onValueChange={(val) => {
+                                    const newAttrs = variation.attributes.map((a) =>
+                                        a.name === name ? { ...a, option: val } : a
+                                    );
+                                    // If attribute doesn't exist yet, add it
+                                    if (!variation.attributes.some((a) => a.name === name)) {
+                                        newAttrs.push({ name, option: val });
+                                    }
+                                    onUpdateField("attributes", newAttrs);
+                                }}
+                                disabled={isDeleted}
+                            >
+                                <SelectTrigger className="h-8 text-xs w-28">
+                                    <SelectValue placeholder="\u2014" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {options.map((opt) => (
+                                        <SelectItem key={opt} value={opt}>
+                                            {opt}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    "text-xs font-medium border-border/50",
+                                    "bg-background/50 hover:border-primary/50 transition-colors"
+                                )}
+                            >
+                                {currentOption || "\u2014"}
+                            </Badge>
                         )}
-                    >
-                        {attrMap.get(name) || "\u2014"}
-                    </Badge>
-                </TableCell>
-            ))}
+                    </TableCell>
+                );
+            })}
 
             {/* SKU */}
             {show("sku") && (

@@ -89,4 +89,6 @@ export interface VariationGridProps {
     /** External column visibility control */
     visibleColumns?: Set<string>;
     onVisibleColumnsChange?: (cols: Set<string>) => void;
+    /** Available options per attribute name (from parent product) */
+    parentAttributeOptions?: Map<string, string[]>;
 }

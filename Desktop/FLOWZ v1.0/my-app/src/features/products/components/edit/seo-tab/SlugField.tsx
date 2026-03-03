@@ -63,7 +63,7 @@ export const SlugFieldSection = ({
     }, [currentSlug, resetField]);
 
     return (
-        <div className="space-y-3">
+        <div id="field-slug" className="space-y-3">
             <div className="flex items-center justify-between">
                 <Label htmlFor="slug" className="text-sm font-semibold flex items-center gap-1.5">
                     Slug URL

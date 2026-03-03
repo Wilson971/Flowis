@@ -54,7 +54,7 @@ export function useProductClassification(
     queryKey: ['product-classification', productId],
     queryFn: () => classifyProduct(imageUrl!),
     enabled: !!productId && !!imageUrl,
-    staleTime: 24 * 60 * 60 * 1000, // 24h cache
+    staleTime: STALE_TIMES.IMMUTABLE,
     gcTime: 48 * 60 * 60 * 1000,    // 48h garbage collection
     retry: 1,
     refetchOnWindowFocus: false,

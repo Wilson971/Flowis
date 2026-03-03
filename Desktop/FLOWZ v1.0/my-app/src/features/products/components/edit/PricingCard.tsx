@@ -15,6 +15,7 @@ import { ProductFormValues } from "../../schemas/product-schema";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
+import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { cn } from "@/lib/utils";
 
 interface PricingCardProps {
@@ -35,9 +36,10 @@ export const PricingCard = ({
     onManageVariants,
 }: PricingCardProps) => {
     const { register, setValue, control, getValues } = useFormContext<ProductFormValues>();
-    const { dirtyFieldsData, remainingProposals, draftActions, contentBuffer } = useProductEditContext();
+    const { dirtyFieldsData, remainingProposals, draftActions, contentBuffer, generationManifest } = useProductEditContext();
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
     const hasDraft = (field: string) => remainingProposals.includes(field);
+    const isValidated = (field: string) => isFieldValidatedByAI(generationManifest, field);
 
     // SKU suggestion modal state
     const [skuModalOpen, setSkuModalOpen] = useState(false);
@@ -93,7 +95,7 @@ export const PricingCard = ({
                         <div className="flex items-center justify-between">
                             <Label htmlFor="sku" className="text-xs font-semibold flex items-center gap-1.5">
                                 SKU
-                                <FieldStatusBadge hasDraft={hasDraft("sku")} isDirty={isDirty("sku")} />
+                                <FieldStatusBadge hasDraft={hasDraft("sku")} isDirty={isDirty("sku")} isValidated={isValidated("sku")} />
                             </Label>
                             {hasDraft("sku") && (
                                 <Button

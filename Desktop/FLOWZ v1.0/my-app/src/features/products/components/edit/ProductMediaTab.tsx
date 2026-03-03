@@ -14,6 +14,7 @@ import {
     UploadingItem
 } from "@/components/products/ProductImageGallery";
 import { useProductEditContext } from "../../context/ProductEditContext";
+import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { SceneStudioDialog, type StudioProduct } from "@/features/photo-studio/components/SceneStudioDialog";
 import { ImageAltSuggestionModal, type ImageAltItem } from "@/components/products/ui/ImageAltSuggestionModal";
 
@@ -28,7 +29,8 @@ import { ImageAltSuggestionModal, type ImageAltItem } from "@/components/product
  */
 export const ProductMediaTab = () => {
     const { control, setValue, getValues } = useFormContext<ProductFormValues>();
-    const { productId, product, remainingProposals, draftActions, contentBuffer } = useProductEditContext();
+    const { productId, product, remainingProposals, draftActions, contentBuffer, generationManifest } = useProductEditContext();
+    const isValidated = (field: string) => isFieldValidatedByAI(generationManifest, field);
 
     const watchedImages = useWatch({ control, name: "images" }) || [];
     const [uploadingItems, setUploadingItems] = useState<UploadingItem[]>([]);

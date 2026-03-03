@@ -55,6 +55,9 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // 2c. Variation save ref — registered by ProductVariationsTab
     const variationSaveRef = useRef<(() => Promise<void>) | null>(null);
 
+    // 2d. Variation dirty check ref — registered by ProductVariationsTab
+    const variationDirtyRef = useRef<(() => boolean) | null>(null);
+
     // 2b. Form hook with Zod validation + restoring guard
     const methods = useProductForm({ product, isRestoringRef });
 
@@ -78,7 +81,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             });
             return;
         }
-        if (methods.formState.isDirty) {
+        if (methods.formState.isDirty || variationDirtyRef.current?.()) {
             toast.warning("Modifications non sauvegardées", {
                 description: "Sauvegardez d'abord vos modifications (Ctrl+S) avant de publier.",
             });
@@ -312,6 +315,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         contentBuffer: contentBuffer ?? undefined,
         dirtyFieldsData,
         remainingProposals,
+        generationManifest: contentBuffer?.generation_manifest ?? null,
         draftActions,
         refetchProduct,
         refetchContentBuffer,
@@ -323,7 +327,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     }), [
         productId, product, isLoading, methods, actions.isSaving, actions.handleSave,
         refetchProduct, refetchContentBuffer, selectedStore, analysisData, runServerAnalysis,
-        contentBuffer, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
+        contentBuffer, contentBuffer?.generation_manifest, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
     ]);
 
     return (
@@ -432,6 +436,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                                             platformProductId={product?.platform_product_id}
                                             metadataVariants={product?.metadata?.variants as unknown[] | undefined}
                                             onRegisterSave={(saveFn) => { variationSaveRef.current = saveFn; }}
+                                            onRegisterDirtyCheck={(dirtyFn) => { variationDirtyRef.current = dirtyFn; }}
                                         />
                                     )}
                                     <ProductSeoTab />

@@ -8,7 +8,7 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { DataTable } from "@/components/ui/data-table";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ProductsTableModernProps, defaultStatusConfig } from "./types";
 import { createColumnsV2 } from "./columnsV2";
@@ -29,6 +29,7 @@ export const ProductsTableModernV2 = ({
   const prefersReducedMotion = useReducedMotion();
   const [isClient, setIsClient] = useState(false);
   const [sorting, setSorting] = useState<any[]>([]);
+  const hasAnimatedRef = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -69,13 +70,14 @@ export const ProductsTableModernV2 = ({
   return (
     <motion.div
       variants={prefersReducedMotion ? undefined : motionTokens.variants.slideUp}
-      initial={prefersReducedMotion ? false : "hidden"}
+      initial={prefersReducedMotion || hasAnimatedRef.current ? false : "hidden"}
       animate={prefersReducedMotion ? {} : "visible"}
       transition={motionTokens.transitions.default}
+      onAnimationComplete={() => { hasAnimatedRef.current = true; }}
     >
       <div className="rounded-xl border border-border/40 bg-card relative overflow-hidden">
         <div className="absolute inset-0 dark:bg-gradient-to-br dark:from-foreground/[0.03] dark:via-transparent dark:to-transparent pointer-events-none rounded-xl" />
-        <div className="relative z-10 overflow-x-auto">
+        <div className="relative z-10 overflow-x-hidden">
           <DataTable
             columns={columns}
             data={products}

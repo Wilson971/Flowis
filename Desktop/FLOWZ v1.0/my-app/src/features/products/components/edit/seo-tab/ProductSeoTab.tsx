@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ProductFormValues } from "../../../hooks/useProductForm";
 import { useProductEditContext } from "../../../context/ProductEditContext";
+import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { motion } from "framer-motion";
 import { getProductCardTheme } from "@/lib/design-system";
 import { Globe } from "lucide-react";
@@ -27,7 +28,7 @@ import { NonTextCriteria } from "./NonTextCriteria";
 export const ProductSeoTab = () => {
     const theme = getProductCardTheme('ProductSeoTab');
     const { control, setValue, getValues } = useFormContext<ProductFormValues>();
-    const { selectedStore, dirtyFieldsData } = useProductEditContext();
+    const { selectedStore, dirtyFieldsData, generationManifest } = useProductEditContext();
     const isDirtyField = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
 
     // SEO Analysis from Context
@@ -46,6 +47,7 @@ export const ProductSeoTab = () => {
     const [coachingFieldLabel, setCoachingFieldLabel] = useState<string>("");
 
     const hasDraft = (field: string) => remainingProposals.includes(field);
+    const isValidated = (field: string) => isFieldValidatedByAI(generationManifest, field);
 
     const openSuggestionModal = (field: string) => {
         setModalField(field);
@@ -119,7 +121,7 @@ export const ProductSeoTab = () => {
     const previewTitle = metaTitle || productTitle;
 
     // GSC keywords for this product's permalink
-    const permalink = useWatch({ control, name: "permalink" as any }) as string | null | undefined;
+    const permalink = useWatch({ control, name: "permalink" });
     const { data: gscKeywords } = useGscKeywords(permalink);
 
     // Build ProductSeoInput from current form values for score projection
@@ -194,6 +196,7 @@ export const ProductSeoTab = () => {
                 fieldScores={fieldScores}
                 isDirtyField={isDirtyField}
                 hasDraft={hasDraft}
+                isValidated={isValidated}
                 openSuggestionModal={openSuggestionModal}
                 handleAISuggest={handleAISuggest}
                 domain={domain}
@@ -217,7 +220,7 @@ export const ProductSeoTab = () => {
             <GscKeywordsPanel
                 pageUrl={permalink}
                 onSetFocusKeyword={(keyword) => {
-                    setValue("focus_keyword" as any, keyword, { shouldDirty: true });
+                    setValue("focus_keyword", keyword, { shouldDirty: true });
                 }}
             />
 

@@ -12,6 +12,7 @@ import { useProductEditContext } from "../../../context/ProductEditContext";
 import { FieldStatusBadge } from "@/components/products/FieldStatusBadge";
 import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
 import { DraftSuggestionButton } from "@/components/products/ui/DraftSuggestionButton";
+import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { motionTokens } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,8 @@ export const GeneralTabV2 = () => {
         remainingProposals,
         draftActions,
         dirtyFieldsData,
-        contentBuffer
+        contentBuffer,
+        generationManifest
     } = useProductEditContext();
 
     // Modal state
@@ -33,6 +35,9 @@ export const GeneralTabV2 = () => {
 
     // Helper to check if field is dirty (unsaved local changes)
     const isDirty = (field: string) => dirtyFieldsData?.dirtyFieldsContent?.includes(field);
+
+    // Helper to check if field was validated by AI
+    const isValidated = (field: string) => isFieldValidatedByAI(generationManifest, field);
 
     // Open modal for a specific field
     const openSuggestionModal = (field: string) => {
@@ -83,13 +88,13 @@ export const GeneralTabV2 = () => {
                     {/* Content area */}
                     <div className="p-6 space-y-6">
                         {/* Product Title Section */}
-                        <div className="space-y-2">
+                        <div id="field-title" className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <label className="text-[13px] font-medium text-foreground">
                                         Titre du produit <span className="text-destructive">*</span>
                                     </label>
-                                    <FieldStatusBadge hasDraft={hasDraft("title")} isDirty={isDirty("title")} />
+                                    <FieldStatusBadge hasDraft={hasDraft("title")} isDirty={isDirty("title")} isValidated={isValidated("title")} />
                                     {renderFieldActions("title")}
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -107,11 +112,11 @@ export const GeneralTabV2 = () => {
                         </div>
 
                         {/* Short Description Section */}
-                        <div className={cn("space-y-2 border-t border-border/30 pt-6")}>
+                        <div id="field-short-description" className={cn("space-y-2 border-t border-border/30 pt-6")}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <label className="text-[13px] font-medium text-foreground">Description courte</label>
-                                    <FieldStatusBadge hasDraft={hasDraft("short_description")} isDirty={isDirty("short_description")} />
+                                    <FieldStatusBadge hasDraft={hasDraft("short_description")} isDirty={isDirty("short_description")} isValidated={isValidated("short_description")} />
                                     {renderFieldActions("short_description")}
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -139,11 +144,11 @@ export const GeneralTabV2 = () => {
                         </div>
 
                         {/* Detailed Description Section */}
-                        <div className={cn("space-y-2 border-t border-border/30 pt-6")}>
+                        <div id="field-description" className={cn("space-y-2 border-t border-border/30 pt-6")}>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <label className="text-[13px] font-medium text-foreground">Description detaillee</label>
-                                    <FieldStatusBadge hasDraft={hasDraft("description")} isDirty={isDirty("description")} />
+                                    <FieldStatusBadge hasDraft={hasDraft("description")} isDirty={isDirty("description")} isValidated={isValidated("description")} />
                                     {renderFieldActions("description")}
                                 </div>
                                 <div className="flex items-center gap-2">

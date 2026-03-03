@@ -5,7 +5,7 @@ import { UseFormReturn } from "react-hook-form";
 import { Product } from "@/types/product";
 import { ProductFormValues } from "../schemas/product-schema";
 import { SeoAnalysisData } from "@/types/seo";
-import { ProductContentBuffer, ContentStatus } from "@/types/productContent";
+import { ProductContentBuffer, ContentStatus, GenerationManifest } from "@/types/productContent";
 
 // ============================================================================
 // TYPES
@@ -66,6 +66,7 @@ export interface ProductEditContextType {
 
     // AI Proposals
     remainingProposals: string[];
+    generationManifest?: GenerationManifest | null;
     draftActions: DraftActions;
 
     // Save & Sync
