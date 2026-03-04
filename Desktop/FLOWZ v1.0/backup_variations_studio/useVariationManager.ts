@@ -58,34 +58,6 @@ export interface VariationStats {
     deleted: number;
 }
 
-// ============================================================================
-// FILTERING
-// ============================================================================
-
-export function filterVariations(
-    variations: EditableVariation[],
-    filters: { search: string; attributes: Record<string, string> }
-): EditableVariation[] {
-    return variations.filter((v) => {
-        // Search filter (SKU + attribute options)
-        if (filters.search) {
-            const q = filters.search.toLowerCase();
-            const matchesSku = v.sku?.toLowerCase().includes(q);
-            const matchesAttr = v.attributes.some((a) =>
-                a.option.toLowerCase().includes(q)
-            );
-            if (!matchesSku && !matchesAttr) return false;
-        }
-        // Attribute filters
-        for (const [attrName, selectedOption] of Object.entries(filters.attributes)) {
-            if (!selectedOption) continue;
-            const attr = v.attributes.find((a) => a.name === attrName);
-            if (!attr || attr.option !== selectedOption) return false;
-        }
-        return true;
-    });
-}
-
 interface UseVariationManagerOptions {
     productId: string;
     storeId?: string;
