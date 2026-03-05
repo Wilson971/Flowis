@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useFieldArray } from "react-hook-form";
 import { Card, CardContent } from "@/components/ui/card";
 import {
     Dialog,
@@ -17,23 +17,38 @@ import {
     AlertCircle,
     ArrowLeft,
     Save,
-    Settings2,
     SlidersHorizontal,
+    LayoutGrid,
+    Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { motionTokens } from "@/lib/design-system";
 
+import { AttributeSidebar } from "./AttributeSidebar";
+import { AttributeDetailPanel } from "./AttributeDetailPanel";
 import { VariationGrid } from "./VariationGrid";
-import { VariationToolbar, type VariationFilters } from "./VariationToolbar";
-import { AttributeSheet } from "./AttributeSheet";
+import { BulkVariationToolbar } from "./BulkVariationToolbar";
 import { VariationDetailSheet } from "./VariationDetailSheet";
-import { useVariationManager, filterVariations } from "../../hooks/useVariationManager";
+import { useVariationManager } from "../../hooks/useVariationManager";
 import { useVariationImageUpload } from "@/hooks/variations/useVariationImages";
 import { useDirtyVariationsCount } from "@/hooks/products/useProductVariations";
 import { toast } from "sonner";
 import type { ProductFormValues } from "../../schemas/product-schema";
 import type { VariationImage } from "@/hooks/products/useProductVariations";
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const TAB_ACCENTS = [
+    { border: "border-l-success", bg: "bg-success/5", dot: "bg-success", text: "text-success", badgeBg: "bg-success/10" },
+    { border: "border-l-amber-500", bg: "bg-amber-500/5", dot: "bg-amber-500", text: "text-amber-600", badgeBg: "bg-amber-500/10" },
+    { border: "border-l-sky-500", bg: "bg-sky-500/5", dot: "bg-sky-500", text: "text-sky-600", badgeBg: "bg-sky-500/10" },
+    { border: "border-l-purple-500", bg: "bg-purple-500/5", dot: "bg-purple-500", text: "text-purple-600", badgeBg: "bg-purple-500/10" },
+    { border: "border-l-rose-500", bg: "bg-rose-500/5", dot: "bg-rose-500", text: "text-rose-600", badgeBg: "bg-rose-500/10" },
+    { border: "border-l-teal-500", bg: "bg-teal-500/5", dot: "bg-teal-500", text: "text-teal-600", badgeBg: "bg-teal-500/10" },
+];
 
 // ============================================================================
 // TYPES
@@ -44,7 +59,9 @@ interface ProductVariationsTabProps {
     storeId?: string;
     platformProductId?: string;
     metadataVariants?: unknown[];
+    /** Callback to register the variation save function with the parent container */
     onRegisterSave?: (saveFn: () => Promise<void>) => void;
+    /** Callback to register a dirty check so parent can block publish when variations are unsaved */
     onRegisterDirtyCheck?: (dirtyFn: () => boolean) => void;
 }
 
@@ -61,16 +78,14 @@ export function ProductVariationsTab({
     onRegisterDirtyCheck,
 }: ProductVariationsTabProps) {
     const { watch } = useFormContext<ProductFormValues>();
+    const { remove } = useFieldArray({ name: "attributes" });
     const attributes = watch("attributes") || [];
 
     // ===== UI STATE =====
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [attributeSheetOpen, setAttributeSheetOpen] = useState(false);
+    const [studioTab, setStudioTab] = useState<"attributs" | "grille">("grille");
     const [detailVariationId, setDetailVariationId] = useState<string | null>(null);
-    const [filters, setFilters] = useState<VariationFilters>({
-        search: "",
-        attributes: {},
-    });
+    const [selectedAttributeIndex, setSelectedAttributeIndex] = useState<number | null>(null);
 
     // ===== HOOKS =====
     const manager = useVariationManager({
@@ -87,7 +102,9 @@ export function ProductVariationsTab({
 
     const { data: dirtyVariationsCount = 0 } = useDirtyVariationsCount(productId, storeId);
 
-    // Register save/dirty with parent
+    // Register save function with parent container so "ENREGISTRER" saves variations too.
+    // Use a ref to always access the latest manager state, avoiding stale closures
+    // and the race condition where the useEffect cleanup briefly sets the ref to a no-op.
     const managerRef = useRef(manager);
     managerRef.current = manager;
 
@@ -108,22 +125,28 @@ export function ProductVariationsTab({
         }
     }, [onRegisterDirtyCheck]);
 
+    // Auto-select first attribute when attributes change
+    useEffect(() => {
+        if (attributes.length > 0 && selectedAttributeIndex === null) {
+            setSelectedAttributeIndex(0);
+        }
+        if (selectedAttributeIndex !== null && selectedAttributeIndex >= attributes.length) {
+            setSelectedAttributeIndex(attributes.length > 0 ? attributes.length - 1 : null);
+        }
+    }, [attributes.length, selectedAttributeIndex]);
+
     // ===== COMPUTED =====
-    const variationAttributes = useMemo(
-        () =>
-            attributes
-                .filter((a) => a.variation && a.options.length > 0)
-                .map((a) => ({ name: a.name, options: [...new Set(a.options)] as string[] })),
+    const variationAttributes = attributes.filter(
+        (a) => a.variation && a.options.length > 0
+    );
+    const canGenerate = variationAttributes.length > 0;
+
+    const variationAttributeCount = useMemo(
+        () => attributes.filter((a) => a.variation === true).length,
         [attributes]
     );
 
-    const canGenerate = variationAttributes.length > 0;
-
-    const filteredVariations = useMemo(
-        () => filterVariations(manager.variations, filters),
-        [manager.variations, filters]
-    );
-
+    // Build a map of attribute name → available options for inline editing
     const parentAttributeOptions = useMemo(() => {
         const map = new Map<string, string[]>();
         for (const attr of attributes) {
@@ -134,11 +157,6 @@ export function ProductVariationsTab({
         return map;
     }, [attributes]);
 
-    const variationAttributeCount = useMemo(
-        () => attributes.filter((a) => a.variation === true).length,
-        [attributes]
-    );
-
     const priceRange = useMemo(() => {
         const prices = manager.variations
             .map((v) => parseFloat(v.regularPrice) || 0)
@@ -146,12 +164,16 @@ export function ProductVariationsTab({
         if (prices.length === 0) return "N/A";
         const min = Math.min(...prices);
         const max = Math.max(...prices);
-        if (min === max) return `${min.toFixed(2)} €`;
-        return `${min.toFixed(2)} – ${max.toFixed(2)} €`;
+        if (min === max) return `${min.toFixed(2)} \u20AC`;
+        return `${min.toFixed(2)} \u2013 ${max.toFixed(2)} \u20AC`;
     }, [manager.variations]);
 
     const totalStock = useMemo(
-        () => manager.variations.reduce((sum, v) => sum + (v.stockQuantity ?? 0), 0),
+        () =>
+            manager.variations.reduce(
+                (sum, v) => sum + (v.stockQuantity ?? 0),
+                0
+            ),
         [manager.variations]
     );
 
@@ -169,38 +191,27 @@ export function ProductVariationsTab({
         [handleUpload, manager.updateVariationField]
     );
 
+    const handleRemoveAttribute = useCallback((index: number) => {
+        remove(index);
+        if (attributes.length === 1) {
+            setSelectedAttributeIndex(null);
+        } else if (index === selectedAttributeIndex) {
+            setSelectedAttributeIndex(Math.max(0, index - 1));
+        }
+    }, [remove, attributes.length, selectedAttributeIndex]);
+
     const handleSaveAndClose = useCallback(async () => {
         if (manager.hasUnsavedChanges) {
             await manager.saveVariations();
             toast.info("Pensez à synchroniser", {
-                description: "Les variations sont sauvegardées localement. Cliquez sur Sync pour mettre à jour votre boutique.",
+                description: "Les variations sont sauvegardées localement. Cliquez sur le bouton Sync dans le header pour mettre à jour votre boutique.",
                 duration: 6000,
             });
         }
         setDialogOpen(false);
     }, [manager]);
 
-    // Keyboard shortcuts
-    useEffect(() => {
-        if (!dialogOpen) return;
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && manager.selectedIds.size > 0) {
-                e.preventDefault();
-                manager.clearSelection();
-            }
-            if (e.key === "a" && (e.ctrlKey || e.metaKey) && dialogOpen) {
-                e.preventDefault();
-                manager.toggleSelectAll();
-            }
-            if (e.key === "Delete" && manager.selectedIds.size > 0) {
-                e.preventDefault();
-                manager.deleteSelected();
-            }
-        };
-        window.addEventListener("keydown", handler);
-        return () => window.removeEventListener("keydown", handler);
-    }, [dialogOpen, manager.selectedIds.size, manager.clearSelection, manager.toggleSelectAll, manager.deleteSelected]);
-
+    // Find the detail variation for the sheet
     const detailVariation = detailVariationId
         ? manager.variations.find((v) => v._localId === detailVariationId) ?? null
         : null;
@@ -215,13 +226,16 @@ export function ProductVariationsTab({
             {/* ── Inline Summary Card ── */}
             <Card className="rounded-xl">
                 <CardContent className="p-6">
+                    {/* Top bar: title + open button */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                                 <Shuffle className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-foreground">Variations</h3>
+                                <h3 className="font-semibold text-foreground">
+                                    Variations
+                                </h3>
                                 <Badge variant="secondary" className="text-xs">
                                     {manager.stats.total}
                                 </Badge>
@@ -245,6 +259,7 @@ export function ProductVariationsTab({
                                 )}
                             </div>
                         </div>
+
                         <Button
                             type="button"
                             variant="outline"
@@ -259,31 +274,38 @@ export function ProductVariationsTab({
 
                     <Separator className="my-4" />
 
+                    {/* Summary stats grid */}
                     <div className="grid grid-cols-3 gap-4">
                         <div className="rounded-lg bg-muted/30 p-3">
                             <p className="text-xs text-muted-foreground">Attributs</p>
-                            <p className="text-sm font-medium text-foreground">{variationAttributeCount}</p>
+                            <p className="text-sm font-medium text-foreground">
+                                {variationAttributeCount}
+                            </p>
                         </div>
                         <div className="rounded-lg bg-muted/30 p-3">
                             <p className="text-xs text-muted-foreground">Fourchette prix</p>
-                            <p className="text-sm font-medium text-foreground">{priceRange}</p>
+                            <p className="text-sm font-medium text-foreground">
+                                {priceRange}
+                            </p>
                         </div>
                         <div className="rounded-lg bg-muted/30 p-3">
                             <p className="text-xs text-muted-foreground">Stock total</p>
-                            <p className="text-sm font-medium text-foreground">{totalStock}</p>
+                            <p className="text-sm font-medium text-foreground">
+                                {totalStock}
+                            </p>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* ── Fullscreen Dialog — UNIFIED GRID ── */}
+            {/* ── Fullscreen Dialog ── */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContentFullscreen
                     className="overflow-hidden p-0"
                     ariaTitle="Variation Studio"
                 >
                     <div className="flex h-screen flex-col bg-background">
-                        {/* ── Top Toolbar ── */}
+                        {/* ── Toolbar (fixed top bar) ── */}
                         <div className="h-14 shrink-0 border-b border-border bg-background flex items-center px-4 gap-4">
                             <Button
                                 type="button"
@@ -301,10 +323,14 @@ export function ProductVariationsTab({
                                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
                                     <Shuffle className="h-4 w-4 text-primary" />
                                 </div>
-                                <span className="font-semibold text-foreground">Variation Studio</span>
+                                <span className="font-semibold text-foreground">
+                                    Variation Studio
+                                </span>
                             </div>
 
-                            <Badge variant="secondary">{manager.stats.total} variations</Badge>
+                            <Badge variant="secondary">
+                                {manager.stats.total} variations
+                            </Badge>
 
                             {manager.hasUnsavedChanges && (
                                 <Badge
@@ -318,21 +344,7 @@ export function ProductVariationsTab({
 
                             <div className="flex-1" />
 
-                            {/* Attribute Sheet trigger */}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setAttributeSheetOpen(true)}
-                                className="gap-2"
-                            >
-                                <SlidersHorizontal className="h-4 w-4" />
-                                Attributs
-                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                                    {variationAttributeCount}
-                                </Badge>
-                            </Button>
-
+                            {/* Generate button */}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -348,6 +360,7 @@ export function ProductVariationsTab({
                                 Générer
                             </Button>
 
+                            {/* Save & Close button */}
                             <Button
                                 type="button"
                                 size="sm"
@@ -363,35 +376,151 @@ export function ProductVariationsTab({
                             </Button>
                         </div>
 
-                        {/* ── Contextual Toolbar (filters or bulk) ── */}
-                        <VariationToolbar
-                            variationAttributes={variationAttributes}
-                            filters={filters}
-                            onFiltersChange={setFilters}
-                            selectedCount={manager.selectedIds.size}
-                            onBulkUpdate={manager.bulkUpdateField}
-                            onDeleteSelected={manager.deleteSelected}
-                            onClearSelection={manager.clearSelection}
-                            totalCount={manager.variations.length}
-                            filteredCount={filteredVariations.length}
-                        />
+                        {/* ── Body: Sidebar tabs + Content ── */}
+                        <div className="flex flex-1 min-h-0">
+                            {/* VERTICAL TAB BAR */}
+                            <div className="w-[64px] shrink-0 border-r border-border bg-muted/20 flex flex-col items-center py-3 gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setStudioTab("grille")}
+                                    className={cn(
+                                        "flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 w-[56px] transition-colors",
+                                        studioTab === "grille"
+                                            ? "bg-primary/10 text-primary"
+                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    )}
+                                >
+                                    <LayoutGrid className="h-5 w-5" />
+                                    <span className="text-[10px] font-medium leading-none">Grille</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStudioTab("attributs")}
+                                    className={cn(
+                                        "flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 w-[56px] transition-colors",
+                                        studioTab === "attributs"
+                                            ? "bg-primary/10 text-primary"
+                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    )}
+                                >
+                                    <SlidersHorizontal className="h-5 w-5" />
+                                    <span className="text-[10px] font-medium leading-none">Attributs</span>
+                                </button>
+                            </div>
 
-                        {/* ── Grid ── */}
-                        <div className="flex-1 overflow-y-auto p-4">
-                            <VariationGrid
-                                variations={filteredVariations}
-                                selectedIds={manager.selectedIds}
-                                onToggleSelect={manager.toggleSelect}
-                                onToggleSelectAll={manager.toggleSelectAll}
-                                onUpdateField={manager.updateVariationField}
-                                onDelete={manager.deleteVariation}
-                                onOpenDetail={setDetailVariationId}
-                                onImageUpload={handleVariationImageUpload}
-                                isLoading={manager.isLoading}
-                                changeCounter={manager.changeCounter}
-                                uploadingVariationId={uploadingVariationId}
-                                parentAttributeOptions={parentAttributeOptions}
-                            />
+                            {/* CONTENT AREA */}
+                            {studioTab === "attributs" ? (
+                                /* ── Attributs View ── */
+                                <div className="flex-1 min-w-0 p-6">
+                                    <div className="grid grid-cols-[280px_1fr] gap-4 h-full">
+                                        {/* Left: Sidebar */}
+                                        <AttributeSidebar
+                                            activeIndex={selectedAttributeIndex}
+                                            onAttributeClick={setSelectedAttributeIndex}
+                                        />
+
+                                        {/* Right: Details + Grid */}
+                                        <div className="grid grid-rows-2 gap-4 h-full min-h-0">
+                                            {/* Attribute Details Panel */}
+                                            {selectedAttributeIndex !== null && attributes[selectedAttributeIndex] ? (
+                                                <div className="min-h-0 overflow-y-auto">
+                                                    <AttributeDetailPanel
+                                                        index={selectedAttributeIndex}
+                                                        onRemove={() => handleRemoveAttribute(selectedAttributeIndex)}
+                                                        onGenerate={canGenerate ? handleGenerate : undefined}
+                                                        variationCount={manager.variations.length}
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <div className="min-h-0 flex items-center justify-center rounded-xl border-2 border-dashed border-border/50 bg-muted/20">
+                                                    <p className="text-sm text-muted-foreground">Sélectionnez un attribut</p>
+                                                </div>
+                                            )}
+
+                                            {/* Variations Grid */}
+                                            <div className="min-h-0 h-full">
+                                                <VariationGrid
+                                                    variations={manager.variations}
+                                                    selectedIds={manager.selectedIds}
+                                                    onToggleSelect={manager.toggleSelect}
+                                                    onToggleSelectAll={manager.toggleSelectAll}
+                                                    onUpdateField={manager.updateVariationField}
+                                                    onDelete={manager.deleteVariation}
+                                                    onOpenDetail={setDetailVariationId}
+                                                    onImageUpload={handleVariationImageUpload}
+                                                    isLoading={manager.isLoading}
+                                                    changeCounter={manager.changeCounter}
+                                                    uploadingVariationId={uploadingVariationId}
+                                                    parentAttributeOptions={parentAttributeOptions}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* ── Grille View ── */
+                                <div className="flex-1 flex flex-col min-w-0">
+                                    {/* Header: bulk toolbar + attribute legend */}
+                                    <div className="p-4 border-b border-border/50 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-semibold text-foreground">
+                                                Grille de variations
+                                            </p>
+                                            <BulkVariationToolbar
+                                                selectedCount={manager.selectedIds.size}
+                                                onBulkUpdate={manager.bulkUpdateField}
+                                                onDeleteSelected={manager.deleteSelected}
+                                                onClearSelection={manager.clearSelection}
+                                            />
+                                        </div>
+
+                                        {/* Colored attribute legend bar */}
+                                        {attributes.filter((a) => a.variation).length > 0 && (
+                                            <div className="flex flex-wrap gap-2">
+                                                {attributes
+                                                    .filter((a) => a.variation)
+                                                    .map((attr, idx) => {
+                                                        const accent = TAB_ACCENTS[idx % TAB_ACCENTS.length];
+                                                        return (
+                                                            <div
+                                                                key={attr.name}
+                                                                className={cn(
+                                                                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs",
+                                                                    accent.badgeBg
+                                                                )}
+                                                            >
+                                                                <div className={cn("h-2 w-2 rounded-full shrink-0", accent.dot)} />
+                                                                <span className={cn("font-medium", accent.text)}>
+                                                                    {attr.name}
+                                                                </span>
+                                                                <span className="text-muted-foreground">
+                                                                    ({attr.options.length})
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Scrollable variation grid */}
+                                    <div className="flex-1 overflow-y-auto p-4">
+                                        <VariationGrid
+                                            variations={manager.variations}
+                                            selectedIds={manager.selectedIds}
+                                            onToggleSelect={manager.toggleSelect}
+                                            onToggleSelectAll={manager.toggleSelectAll}
+                                            onUpdateField={manager.updateVariationField}
+                                            onDelete={manager.deleteVariation}
+                                            onOpenDetail={setDetailVariationId}
+                                            onImageUpload={handleVariationImageUpload}
+                                            isLoading={manager.isLoading}
+                                            changeCounter={manager.changeCounter}
+                                            uploadingVariationId={uploadingVariationId}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* ── Footer ── */}
@@ -401,28 +530,12 @@ export function ProductVariationsTab({
                             <span>{manager.stats.new} nouvelle(s)</span>
                             <span>{manager.stats.modified} modifiée(s)</span>
                             <span>{manager.stats.deleted} supprimée(s)</span>
-                            {filteredVariations.length !== manager.variations.length && (
-                                <>
-                                    <Separator orientation="vertical" className="h-4" />
-                                    <span className="text-primary font-medium">
-                                        {filteredVariations.length} affichée(s)
-                                    </span>
-                                </>
-                            )}
                         </div>
                     </div>
                 </DialogContentFullscreen>
             </Dialog>
 
-            {/* ── Attribute Sheet ── */}
-            <AttributeSheet
-                open={attributeSheetOpen}
-                onOpenChange={setAttributeSheetOpen}
-                onGenerate={handleGenerate}
-                currentVariationCount={manager.variations.length}
-            />
-
-            {/* ── Detail Sheet ── */}
+            {/* ── Detail Sheet (works on top of Dialog via Radix z-index) ── */}
             <VariationDetailSheet
                 variation={detailVariation}
                 open={!!detailVariationId}
@@ -431,7 +544,11 @@ export function ProductVariationsTab({
                 }}
                 onUpdateField={(field, value) => {
                     if (detailVariationId) {
-                        manager.updateVariationField(detailVariationId, field, value);
+                        manager.updateVariationField(
+                            detailVariationId,
+                            field,
+                            value
+                        );
                     }
                 }}
                 onImageUpload={(file) => {
@@ -440,7 +557,8 @@ export function ProductVariationsTab({
                     }
                 }}
                 isUploadingImage={
-                    !!detailVariationId && uploadingVariationId === detailVariationId
+                    !!detailVariationId &&
+                    uploadingVariationId === detailVariationId
                 }
                 parentAttributeOptions={parentAttributeOptions}
             />
