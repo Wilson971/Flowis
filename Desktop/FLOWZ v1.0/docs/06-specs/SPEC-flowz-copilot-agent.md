@@ -1,6 +1,6 @@
 # FLOWZ Copilot — Agent IA E-commerce Hybride
 
-**Version :** 1.0 | **Date :** 6 mars 2026 | **Statut :** Proposition
+**Version :** 1.1 | **Date :** 6 mars 2026 | **Statut :** Proposition
 
 ---
 
@@ -603,3 +603,171 @@ Phase 4 (Mai-Juin)        Phase 5 (Juin-Juillet)
 **Livrable Phase 1 (MVP) : ~2-3 semaines**
 
 Le MVP (Phase 1) permet déjà de montrer la valeur : un chat qui comprend ton catalogue et répond à tes questions. C'est suffisant pour un premier "wow effect" et pour itérer avec les retours utilisateurs.
+
+---
+
+## ANNEXE A — Détails Techniques MCP WooCommerce
+
+> Cette section est technique. Elle est destinée au développeur qui implémentera le Copilot.
+
+### A.1 — Opérations MCP WooCommerce disponibles (beta)
+
+Le MCP WooCommerce (depuis v10.3) expose ces opérations via le WordPress Abilities API :
+
+| Ability ID | Description | Zone Copilot |
+|---|---|---|
+| `woocommerce/products-list` | Lister les produits avec filtres/pagination | Verte |
+| `woocommerce/products-get` | Détails d'un produit | Verte |
+| `woocommerce/products-create` | Créer un nouveau produit | Rouge |
+| `woocommerce/products-update` | Modifier un produit existant | Orange |
+| `woocommerce/products-delete` | Supprimer un produit | Rouge |
+| `woocommerce/orders-list` | Lister les commandes | Verte |
+| `woocommerce/orders-get` | Détails d'une commande | Verte |
+| `woocommerce/orders-create` | Créer une commande | Rouge |
+| `woocommerce/orders-update` | Modifier une commande | Rouge |
+
+### A.2 — Trois approches d'implémentation MCP Client
+
+#### Approche A : Anthropic `mcp_servers` (la plus simple)
+
+Anthropic gère toute la connexion MCP côté serveur. FLOWZ envoie juste l'URL du serveur MCP dans l'appel API.
+
+```typescript
+// /api/copilot/chat/route.ts
+import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic();
+const response = await client.beta.messages.create({
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 4096,
+  messages: [{ role: "user", content: userMessage }],
+  mcp_servers: [{
+    type: "url",
+    url: "https://boutique-du-marchand.com/wp-json/mcp/mcp-adapter-default-server",
+    name: "woocommerce",
+    authorization_token: `Bearer ${storeOAuthToken}`
+  }],
+  extra_headers: { "anthropic-beta": "mcp-client-2025-04-04" }
+});
+```
+
+**Avantage :** Zéro code MCP client, Anthropic gère la connexion.
+**Inconvénient :** Le site WooCommerce doit être accessible publiquement.
+
+#### Approche B : Anthropic SDK + MCP Client local (plus de contrôle)
+
+```typescript
+import Anthropic from '@anthropic-ai/sdk';
+import { mcpTools } from '@anthropic-ai/sdk/helpers/beta/mcp';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+// Connexion MCP au WooCommerce du marchand
+const mcpClient = new Client({ name: "flowz-copilot", version: "1.0.0" });
+await mcpClient.connect(
+  new StreamableHTTPClientTransport(
+    new URL("https://boutique.com/wp-json/mcp/mcp-adapter-default-server")
+  )
+);
+
+const anthropic = new Anthropic();
+const tools = await mcpTools(mcpClient);
+
+const response = await anthropic.messages.create({
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 4096,
+  tools,
+  messages: [{ role: "user", content: userMessage }],
+});
+```
+
+**Avantage :** Contrôle total, supporte prompts/resources MCP.
+**Inconvénient :** Gestion du cycle de vie de la connexion MCP.
+
+#### Approche C : Vercel AI SDK + MCP (idéal pour Next.js)
+
+```typescript
+import { streamText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
+import { experimental_createMCPClient } from 'ai';
+
+const mcpClient = await experimental_createMCPClient({
+  transport: {
+    type: 'sse',
+    url: 'https://boutique.com/wp-json/mcp/mcp-adapter-default-server'
+  }
+});
+
+const tools = await mcpClient.tools();
+const result = streamText({
+  model: anthropic('claude-sonnet-4-20250514'),
+  tools,
+  messages,
+});
+```
+
+**Avantage :** S'intègre naturellement dans l'écosystème Next.js/Vercel.
+
+### A.3 — Prérequis côté boutique marchand
+
+Pour que le MCP fonctionne, la boutique du marchand doit avoir :
+
+| Composant | Version minimum | Statut |
+|-----------|----------------|--------|
+| WordPress | 6.9+ | Abilities API en core |
+| WooCommerce | 10.3+ | MCP beta inclus |
+| MCP Adapter plugin | `wordpress/mcp-adapter` | À installer (gratuit) |
+| Authentification | Application passwords ou OAuth 2.1 | Natif WordPress |
+
+**Activation :** `WooCommerce → Settings → Advanced → Features → Enable MCP Beta`
+
+### A.4 — Recommandation d'implémentation
+
+Pour la Phase 4 (MCP), on recommande :
+
+1. **Commencer par l'Approche A** (`mcp_servers` parameter) — le plus simple, zéro code MCP
+2. **Fallback REST API** pour les boutiques sans MCP (système actuel FLOWZ via edge functions)
+3. **Stocker les tokens OAuth** dans la table `stores` existante (colonne `mcp_token` à ajouter)
+4. **Log audit** de chaque opération MCP dans Supabase (table `copilot_messages.tool_results`)
+
+### A.5 — Packages NPM à ajouter
+
+| Package | Usage | Phase |
+|---------|-------|-------|
+| `@anthropic-ai/sdk` | Chat Copilot (Claude) | Phase 1 |
+| `ai` + `@ai-sdk/anthropic` | Streaming + outils | Phase 1 (alt) |
+| `@modelcontextprotocol/sdk` | Client MCP | Phase 4 |
+| `@automattic/mcp-wordpress-remote` | Proxy MCP WooCommerce (optionnel) | Phase 4 |
+
+### A.6 — Concurrents et écosystème
+
+| Projet | Approche | Pertinence pour FLOWZ |
+|--------|----------|----------------------|
+| StifLi Flex MCP (plugin WP) | 117+ outils MCP dans un plugin | Concurrent potentiel, mais pas orienté contenu IA |
+| woo-mcp.com | MCP read-only (sécurisé) | Inspiration pour le mode lecture seule |
+| StoreAgent | Chatbot client-facing | Différent — orienté acheteur, pas marchand |
+| InstaWP MCP Server | Full WordPress operations | Inspiration technique |
+
+**Différenciateur FLOWZ :** Aucun concurrent ne combine **génération de contenu IA + analyse SEO + actions MCP sur boutique** dans un seul copilote hybride.
+
+---
+
+## ANNEXE B — Ce qui existe déjà dans FLOWZ (réutilisable)
+
+| Composant existant | Lignes | Réutilisation Copilot |
+|---|---|---|
+| `lib/ai/prompt-safety.ts` | 101L | Protection injection pour le chat |
+| `lib/ai/product-prompts.ts` | 551L | Outils de génération contenu produit |
+| `lib/ai/prompts.ts` | 560L | Outils de génération articles |
+| `lib/seo/analyzer.ts` | 918L | Outil d'analyse SEO |
+| `lib/rate-limit.ts` | ~80L | Rate limiting des appels Copilot |
+| `features/sync/machine.ts` | 337L | État de synchronisation |
+| `hooks/sync/*.ts` | 11 hooks | Push/pull vers WooCommerce |
+| `app/api/batch-generation/stream/route.ts` | 845L | Pattern SSE streaming réutilisable |
+| `app/api/flowriter/stream/route.ts` | 715L | Pattern SSE streaming réutilisable |
+| `hooks/notifications/useNotifications.ts` | 110L | Système de notifications existant |
+| Supabase Edge Functions (13) | 9,599L | Sync WooCommerce actuel (fallback) |
+
+**Total réutilisable : ~13,800+ lignes de code existant**
+
+Le Copilot ne repart pas de zéro — il se branche sur l'infrastructure FLOWZ existante.
