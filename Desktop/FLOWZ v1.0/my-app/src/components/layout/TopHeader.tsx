@@ -5,10 +5,13 @@ import {
   Plus,
   PanelLeft,
   PanelLeftClose,
+  PanelRightClose,
+  PanelRight,
   Package,
   FileText,
   Palette,
   LogOut,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { NotificationBell } from "../notifications/NotificationBell";
@@ -27,6 +30,7 @@ import {
 } from "../ui/tooltip";
 import { ThemeToggle } from "../ui/theme-toggle";
 import { useSidebarPreference } from "../../contexts/SidebarContext";
+import { useCopilot } from "../../contexts/CopilotContext";
 import Link from "next/link";
 import { useSettingsModal } from "@/contexts/SettingsModalContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -44,6 +48,7 @@ import { cn } from "@/lib/utils";
 
 export const TopHeader = () => {
   const { isCollapsed, toggleSidebar, isReady } = useSidebarPreference();
+  const { isOpen: isCopilotOpen, toggleCopilot } = useCopilot();
   const { openSettings } = useSettingsModal();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
@@ -180,6 +185,31 @@ export const TopHeader = () => {
 
             {/* Theme Toggle */}
             <ThemeToggle />
+
+            {/* Copilot Toggle */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleCopilot}
+                  className={cn(
+                    "h-8 w-8 rounded-lg header-btn transition-colors group",
+                    isCopilotOpen && "bg-primary/10"
+                  )}
+                  aria-label={isCopilotOpen ? "Fermer Copilot" : "Ouvrir Copilot"}
+                >
+                  {isCopilotOpen ? (
+                    <PanelRightClose className="h-4 w-4 text-primary transition-transform group-hover:scale-110" />
+                  ) : (
+                    <Sparkles className="h-4 w-4 text-foreground/70 transition-transform group-hover:scale-110" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-[10px] font-medium bg-popover text-popover-foreground border-border/40 uppercase tracking-wider">
+                {isCopilotOpen ? "Fermer Copilot" : "Copilot IA"}
+              </TooltipContent>
+            </Tooltip>
 
             {/* User Avatar */}
             <DropdownMenu>
