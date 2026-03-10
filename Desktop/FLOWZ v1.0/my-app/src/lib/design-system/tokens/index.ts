@@ -64,10 +64,14 @@ export {
 // GSC Tokens
 export {
   gscMetricTokens,
+  gscStatusTokens,
   resolveGscColor,
+  resolveGscStatusColor,
   resolveAllGscColors,
   type GscMetricKey,
   type GscMetricConfig,
+  type GscIndexationStatus,
+  type GscStatusConfig,
 } from './gsc';
 
 // Layer & Platform Tokens

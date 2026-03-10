@@ -148,6 +148,16 @@
   --color-gsc-ctr: var(--gsc-ctr);
   --color-gsc-position: var(--gsc-position);
 
+  /* GSC Indexation Status Colors */
+  --color-gsc-indexed: var(--gsc-indexed);
+  --color-gsc-not-indexed: var(--gsc-not-indexed);
+  --color-gsc-crawled: var(--gsc-crawled);
+  --color-gsc-discovered: var(--gsc-discovered);
+  --color-gsc-noindex: var(--gsc-noindex);
+  --color-gsc-blocked: var(--gsc-blocked);
+  --color-gsc-errors: var(--gsc-errors);
+  --color-gsc-unknown: var(--gsc-unknown);
+
   /* Platform Colors */
   --color-platform-shopify: var(--platform-shopify);
   --color-platform-woocommerce: var(--platform-woocommerce);

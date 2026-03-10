@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
     AreaChart,
@@ -11,6 +11,7 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
+import { resolveGscStatusColor } from "@/lib/design-system/tokens/gsc";
 
 interface HistoryEntry {
     date: string;
@@ -57,29 +58,29 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
     const rate = total > 0 ? Math.round((indexed / total) * 100) : 0;
 
     return (
-        <div className="rounded-2xl border border-white/[0.08] bg-[#111113] shadow-2xl p-3.5 min-w-[170px] text-xs backdrop-blur-sm">
-            <p className="text-[11px] font-medium text-[#52525b] mb-2.5 uppercase tracking-wider">{label}</p>
+        <div className="rounded-2xl border border-border/50 bg-popover shadow-2xl p-3.5 min-w-[170px] text-xs backdrop-blur-sm">
+            <p className="text-[11px] font-medium text-muted-foreground mb-2.5 uppercase tracking-wider">{label}</p>
             <div className="space-y-2">
                 <div className="flex items-center justify-between gap-6">
-                    <span className="flex items-center gap-2 text-[#71717a]">
-                        <span className="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_6px_#22c55e80]" />
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                        <span className="w-2 h-2 rounded-full bg-gsc-indexed shadow-sm" />
                         Indexées
                     </span>
-                    <span className="font-bold text-white tabular-nums">{indexed}</span>
+                    <span className="font-bold text-foreground tabular-nums">{indexed}</span>
                 </div>
                 <div className="flex items-center justify-between gap-6">
-                    <span className="flex items-center gap-2 text-[#71717a]">
-                        <span className="w-2 h-2 rounded-full bg-[#f59e0b] shadow-[0_0_6px_#f59e0b80]" />
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                        <span className="w-2 h-2 rounded-full bg-gsc-not-indexed shadow-sm" />
                         Non indexées
                     </span>
-                    <span className="font-bold text-white tabular-nums">{notIndexed}</span>
+                    <span className="font-bold text-foreground tabular-nums">{notIndexed}</span>
                 </div>
-                <div className="h-px bg-white/[0.06] my-1" />
+                <div className="h-px bg-border/30 my-1" />
                 <div className="flex items-center justify-between gap-6">
-                    <span className="text-[#52525b]">Taux</span>
+                    <span className="text-muted-foreground">Taux</span>
                     <span className={cn(
                         "font-bold text-sm",
-                        rate >= 80 ? "text-[#22c55e]" : rate >= 50 ? "text-[#f59e0b]" : "text-[#ef4444]"
+                        rate >= 80 ? "text-success" : rate >= 50 ? "text-warning" : "text-destructive"
                     )}>
                         {rate}%
                     </span>
@@ -91,6 +92,12 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 
 export function GscIndexationChart({ data }: GscIndexationChartProps) {
     const [range, setRange] = useState<RangeDays>(30);
+
+    // Resolve CSS variable colors for Recharts SVG attributes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const indexedColor = useMemo(() => resolveGscStatusColor('indexed'), []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const notIndexedColor = useMemo(() => resolveGscStatusColor('not_indexed'), []);
 
     // For "Auj." (days === 0): show only the last available data point as snapshot
     const isSnapshot = range === 0;
@@ -153,22 +160,22 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
         : null;
 
     return (
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-[#111113] to-[#0d0d0f] overflow-hidden">
+        <div className="rounded-2xl border border-border/30 bg-gradient-to-b from-card to-background overflow-hidden">
             {/* Header */}
             <div className="px-5 pt-5 pb-4">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <h3 className="text-sm font-semibold text-white tracking-tight">
+                        <h3 className="text-sm font-semibold text-foreground tracking-tight">
                             Indexation au fil du temps
                         </h3>
-                        <p className="text-[11px] text-[#52525b] mt-0.5">
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
                             {isSnapshot && snapshotDate
                                 ? `Snapshot du ${snapshotDate}`
                                 : "Évolution du taux par jour"}
                         </p>
                     </div>
                     {/* Range pills */}
-                    <div className="flex items-center gap-0.5 bg-white/[0.04] rounded-lg p-0.5 border border-white/[0.06]">
+                    <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5 border border-border/30">
                         {RANGES.map(({ label, days }) => (
                             <button
                                 key={days}
@@ -176,8 +183,8 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                                 className={cn(
                                     "px-2.5 py-1 text-[11px] font-medium rounded-md transition-all duration-150",
                                     range === days
-                                        ? "bg-white/[0.08] text-white shadow-sm"
-                                        : "text-[#52525b] hover:text-[#a1a1aa]"
+                                        ? "bg-muted/50 text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-muted-foreground"
                                 )}
                             >
                                 {label}
@@ -191,30 +198,30 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                     <div className="flex items-center gap-5 mt-4">
                         {/* Rate + delta pp */}
                         <div className="flex items-end gap-2">
-                            <span className="text-3xl font-bold text-white tracking-tight tabular-nums">
+                            <span className="text-3xl font-bold text-foreground tracking-tight tabular-nums">
                                 {lastRate}%
                             </span>
                             {!isSnapshot && (
                                 <span className={cn(
                                     "text-xs font-semibold mb-1 tabular-nums",
-                                    deltaRate > 0 ? "text-[#22c55e]" : deltaRate < 0 ? "text-[#ef4444]" : "text-[#52525b]"
+                                    deltaRate > 0 ? "text-gsc-indexed" : deltaRate < 0 ? "text-destructive" : "text-muted-foreground"
                                 )}>
                                     {deltaRate > 0 ? `▲ +${deltaRate}pp` : deltaRate < 0 ? `▼ ${deltaRate}pp` : "—"}
                                 </span>
                             )}
                         </div>
 
-                        <div className="h-8 w-px bg-white/[0.06]" />
+                        <div className="h-8 w-px bg-muted/40" />
 
                         {/* Indexed + delta count */}
                         <div>
-                            <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-0.5">Indexées</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Indexées</p>
                             <div className="flex items-baseline gap-1.5">
-                                <p className="text-sm font-bold text-[#22c55e] tabular-nums">{lastIndexed}</p>
+                                <p className="text-sm font-bold text-gsc-indexed tabular-nums">{lastIndexed}</p>
                                 {!isSnapshot && deltaCount !== 0 && (
                                     <span className={cn(
                                         "text-[10px] font-semibold tabular-nums",
-                                        deltaCount > 0 ? "text-[#22c55e]" : "text-[#ef4444]"
+                                        deltaCount > 0 ? "text-gsc-indexed" : "text-destructive"
                                     )}>
                                         {deltaCount > 0 ? `▲ +${deltaCount}` : `▼ ${deltaCount}`}
                                     </span>
@@ -224,17 +231,17 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
 
                         {/* Not indexed */}
                         <div>
-                            <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-0.5">En attente</p>
-                            <p className="text-sm font-bold text-[#f59e0b] tabular-nums">{lastNotIndexed}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">En attente</p>
+                            <p className="text-sm font-bold text-gsc-not-indexed tabular-nums">{lastNotIndexed}</p>
                         </div>
 
                         {!isSnapshot && (
                             <>
-                                <div className="h-8 w-px bg-white/[0.06]" />
+                                <div className="h-8 w-px bg-muted/40" />
                                 {/* Average */}
                                 <div>
-                                    <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-0.5">Moyenne</p>
-                                    <p className="text-sm font-bold text-[#a1a1aa] tabular-nums">{avgRate}%</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Moyenne</p>
+                                    <p className="text-sm font-bold text-muted-foreground tabular-nums">{avgRate}%</p>
                                 </div>
                             </>
                         )}
@@ -248,43 +255,43 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                     /* Snapshot mode: no line chart, show breakdown cards instead */
                     lastEntry ? (
                         <div className="mx-4 mb-2 grid grid-cols-3 gap-3">
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-center">
-                                <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-1">Indexées</p>
-                                <p className="text-xl font-bold text-[#22c55e] tabular-nums">{lastEntry.indexed}</p>
-                                <p className="text-[10px] text-[#3f3f46] mt-0.5">
+                            <div className="rounded-xl border border-border/30 bg-muted/20 p-3 text-center">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Indexées</p>
+                                <p className="text-xl font-bold text-gsc-indexed tabular-nums">{lastEntry.indexed}</p>
+                                <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                                     {lastEntry.total > 0 ? Math.round((lastEntry.indexed / lastEntry.total) * 100) : 0}% du total
                                 </p>
                             </div>
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-center">
-                                <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-1">En attente</p>
-                                <p className="text-xl font-bold text-[#f59e0b] tabular-nums">{lastEntry.not_indexed}</p>
-                                <p className="text-[10px] text-[#3f3f46] mt-0.5">problèmes actifs</p>
+                            <div className="rounded-xl border border-border/30 bg-muted/20 p-3 text-center">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">En attente</p>
+                                <p className="text-xl font-bold text-gsc-not-indexed tabular-nums">{lastEntry.not_indexed}</p>
+                                <p className="text-[10px] text-muted-foreground/60 mt-0.5">problèmes actifs</p>
                             </div>
-                            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 text-center">
-                                <p className="text-[10px] text-[#52525b] uppercase tracking-wider mb-1">Total sitemap</p>
-                                <p className="text-xl font-bold text-white tabular-nums">{lastEntry.total}</p>
+                            <div className="rounded-xl border border-border/30 bg-muted/20 p-3 text-center">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Total sitemap</p>
+                                <p className="text-xl font-bold text-foreground tabular-nums">{lastEntry.total}</p>
                                 {(lastEntry.intentional_exclusions ?? 0) > 0 && (
-                                    <p className="text-[10px] text-[#3f3f46] mt-0.5">
+                                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                                         {lastEntry.intentional_exclusions} exclues
                                     </p>
                                 )}
                             </div>
                         </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-[140px] gap-3 text-[#3f3f46]">
-                            <p className="text-xs font-medium text-[#52525b]">Aucune donnée aujourd&apos;hui</p>
-                            <p className="text-[11px] text-[#3f3f46]">Lancez une inspection pour générer un snapshot</p>
+                        <div className="flex flex-col items-center justify-center h-[140px] gap-3 text-muted-foreground/60">
+                            <p className="text-xs font-medium text-muted-foreground">Aucune donnée aujourd&apos;hui</p>
+                            <p className="text-[11px] text-muted-foreground/60">Lancez une inspection pour générer un snapshot</p>
                         </div>
                     )
                 ) : filtered.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[200px] gap-3 text-[#3f3f46]">
+                    <div className="flex flex-col items-center justify-center h-[200px] gap-3 text-muted-foreground/60">
                         <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
                             <rect width="40" height="40" rx="20" fill="currentColor" fillOpacity="0.08" />
                             <path d="M10 28l6-8 5 6 5-10 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                         <div className="text-center">
-                            <p className="text-xs font-medium text-[#52525b]">Aucune donnée</p>
-                            <p className="text-[11px] text-[#3f3f46] mt-0.5">Lancez une inspection pour générer l&apos;historique</p>
+                            <p className="text-xs font-medium text-muted-foreground">Aucune donnée</p>
+                            <p className="text-[11px] text-muted-foreground/60 mt-0.5">Lancez une inspection pour générer l&apos;historique</p>
                         </div>
                     </div>
                 ) : (
@@ -292,12 +299,12 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="fillIndexed" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%"   stopColor="#22c55e" stopOpacity={0.25} />
-                                    <stop offset="100%" stopColor="#22c55e" stopOpacity={0.02} />
+                                    <stop offset="0%"   stopColor={indexedColor} stopOpacity={0.25} />
+                                    <stop offset="100%" stopColor={indexedColor} stopOpacity={0.02} />
                                 </linearGradient>
                                 <linearGradient id="fillNotIndexed" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%"   stopColor="#f59e0b" stopOpacity={0.20} />
-                                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.02} />
+                                    <stop offset="0%"   stopColor={notIndexedColor} stopOpacity={0.20} />
+                                    <stop offset="100%" stopColor={notIndexedColor} stopOpacity={0.02} />
                                 </linearGradient>
                                 <filter id="glow-green">
                                     <feGaussianBlur stdDeviation="2" result="blur" />
@@ -306,12 +313,12 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                             </defs>
                             <CartesianGrid
                                 strokeDasharray="1 4"
-                                stroke="rgba(255,255,255,0.04)"
+                                stroke="hsl(var(--border) / 0.2)"
                                 vertical={false}
                             />
                             <XAxis
                                 dataKey="label"
-                                tick={{ fontSize: 10, fill: "#3f3f46" }}
+                                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                                 axisLine={false}
                                 tickLine={false}
                                 dy={6}
@@ -319,7 +326,7 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                                 minTickGap={range === 30 ? 40 : 20}
                             />
                             <YAxis
-                                tick={{ fontSize: 10, fill: "#3f3f46" }}
+                                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                                 axisLine={false}
                                 tickLine={false}
                                 width={28}
@@ -328,7 +335,7 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                             />
                             <Tooltip
                                 content={<CustomTooltip />}
-                                cursor={{ stroke: "rgba(255,255,255,0.08)", strokeWidth: 1 }}
+                                cursor={{ stroke: "hsl(var(--border) / 0.4)", strokeWidth: 1 }}
                             />
                             {/* Invisible area for total — makes it available in tooltip payload */}
                             <Area
@@ -343,21 +350,21 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
                             <Area
                                 type="monotone"
                                 dataKey="indexed"
-                                stroke="#22c55e"
+                                stroke={indexedColor}
                                 strokeWidth={2}
                                 fill="url(#fillIndexed)"
                                 dot={false}
-                                activeDot={{ r: 4, fill: "#22c55e", stroke: "#111113", strokeWidth: 2 }}
+                                activeDot={{ r: 4, fill: indexedColor, stroke: "hsl(var(--popover))", strokeWidth: 2 }}
                                 name="Indexées"
                             />
                             <Area
                                 type="monotone"
                                 dataKey="not_indexed"
-                                stroke="#f59e0b"
+                                stroke={notIndexedColor}
                                 strokeWidth={1.5}
                                 fill="url(#fillNotIndexed)"
                                 dot={false}
-                                activeDot={{ r: 3, fill: "#f59e0b", stroke: "#111113", strokeWidth: 2 }}
+                                activeDot={{ r: 3, fill: notIndexedColor, stroke: "hsl(var(--popover))", strokeWidth: 2 }}
                                 name="Non indexées"
                             />
                         </AreaChart>
@@ -368,12 +375,12 @@ export function GscIndexationChart({ data }: GscIndexationChartProps) {
             {/* Footer legend — only for line chart view */}
             {!isSnapshot && (
                 <div className="flex items-center gap-5 px-5 pb-4">
-                    <span className="flex items-center gap-1.5 text-[11px] text-[#52525b]">
-                        <span className="w-3 h-[2px] rounded-full bg-[#22c55e] inline-block" />
+                    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="w-3 h-[2px] rounded-full bg-gsc-indexed inline-block" />
                         Indexées
                     </span>
-                    <span className="flex items-center gap-1.5 text-[11px] text-[#52525b]">
-                        <span className="w-3 h-[2px] rounded-full bg-[#f59e0b] inline-block" />
+                    <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="w-3 h-[2px] rounded-full bg-gsc-not-indexed inline-block" />
                         Non indexées
                     </span>
                 </div>

@@ -442,6 +442,16 @@
   --gsc-ctr: var(--brand-400);
   --gsc-position: var(--brand-300);
 
+  /* GSC Indexation Status Colors */
+  --gsc-indexed: var(--success);
+  --gsc-not-indexed: var(--warning);
+  --gsc-crawled: var(--brand-400);
+  --gsc-discovered: var(--brand-300);
+  --gsc-noindex: var(--info);
+  --gsc-blocked: var(--brand-600);
+  --gsc-errors: var(--destructive);
+  --gsc-unknown: var(--muted-foreground);
+
   /* ------------------------------------------
    * PLATFORM COLORS
    * E-commerce platform brand colors

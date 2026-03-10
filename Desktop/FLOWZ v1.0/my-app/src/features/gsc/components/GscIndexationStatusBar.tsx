@@ -8,6 +8,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { GscIndexationOverview } from "@/lib/gsc/types";
+import { gscStatusTokens, type GscIndexationStatus } from "@/lib/design-system/tokens/gsc";
 
 interface GscIndexationStatusBarProps {
     overview: GscIndexationOverview;
@@ -18,16 +19,15 @@ const VERDICT_CONFIG: Array<{
     label: string;
     color: string;
     dotColor: string;
-}> = [
-    { key: 'indexed',               label: 'Indexé',               color: 'bg-[#22c55e]',           dotColor: 'bg-[#22c55e]' },
-    { key: 'not_indexed',           label: 'Non indexé',            color: 'bg-[#f59e0b]',           dotColor: 'bg-[#f59e0b]' },
-    { key: 'crawled_not_indexed',   label: 'Exploré, non indexé',   color: 'bg-[#f97316]',           dotColor: 'bg-[#f97316]' },
-    { key: 'discovered_not_indexed',label: 'Découvert, non indexé', color: 'bg-[#eab308]',           dotColor: 'bg-[#eab308]' },
-    { key: 'noindex',               label: 'Noindex (volontaire)',  color: 'bg-[#6366f1]',           dotColor: 'bg-[#6366f1]' },
-    { key: 'blocked_robots',        label: 'Bloqué robots.txt',     color: 'bg-[#8b5cf6]',           dotColor: 'bg-[#8b5cf6]' },
-    { key: 'errors',                label: 'Erreur',                color: 'bg-[#ef4444]',           dotColor: 'bg-[#ef4444]' },
-    { key: 'unknown',               label: 'Inconnu',               color: 'bg-[#52525b]',           dotColor: 'bg-[#52525b]' },
-];
+}> = (Object.keys(gscStatusTokens) as GscIndexationStatus[]).map((status) => {
+    const token = gscStatusTokens[status];
+    return {
+        key: status as keyof Omit<GscIndexationOverview, 'total' | 'history'>,
+        label: token.label,
+        color: token.bg,
+        dotColor: token.dot,
+    };
+});
 
 export function GscIndexationStatusBar({ overview }: GscIndexationStatusBarProps) {
     const total = overview.total || 1;
@@ -46,7 +46,7 @@ export function GscIndexationStatusBar({ overview }: GscIndexationStatusBarProps
                 </span>
                 <span className={cn(
                     "font-semibold",
-                    pctInspected === 100 ? "text-emerald-500" : "text-amber-500"
+                    pctInspected === 100 ? "text-success" : "text-warning"
                 )}>
                     {pctInspected}% complété
                 </span>
