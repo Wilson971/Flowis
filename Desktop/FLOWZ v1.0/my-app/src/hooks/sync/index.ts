@@ -54,7 +54,6 @@ export type { SyncStoreParams } from './useSyncStore';
 // Sync job management (start, pause, resume, cancel)
 export {
     useSyncJob,
-    useLatestSyncJob,
     useSyncJobs,
     useStartSync,
     usePauseSync,

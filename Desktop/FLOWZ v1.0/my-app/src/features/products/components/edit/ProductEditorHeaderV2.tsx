@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Product } from "@/types/product";
+import type { Store } from "@/types/store";
 import type { ProductFormValues } from "../../schemas/product-schema";
 import { StatusPill } from "./StatusPill";
 import { SyncPill } from "./SyncPill";
@@ -44,7 +45,7 @@ const ProductTitleDisplay = () => {
 
 function buildProductUrl(
     product: Product,
-    selectedStore: any
+    selectedStore: Store | null | undefined
 ): string | null {
     const metadata = product.metadata || {};
     const platform = product.platform;
@@ -87,7 +88,7 @@ interface FormHistory {
 export interface ProductEditorHeaderV2Props {
     product: Product;
     productId: string;
-    selectedStore: any;
+    selectedStore: Store | null | undefined;
     saveStatus: "idle" | "saving" | "saved" | "error";
     isDirty: boolean;
     dirtyFieldsContent: string[];

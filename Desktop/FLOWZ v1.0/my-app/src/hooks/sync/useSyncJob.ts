@@ -48,33 +48,6 @@ export function useSyncJob(jobId: string | null) {
 }
 
 /**
- * Hook to fetch the latest sync job for a store
- */
-export function useLatestSyncJob(storeId: string | null) {
-    const supabase = createClient();
-
-    return useQuery({
-        queryKey: ['sync-jobs', 'latest', storeId],
-        queryFn: async () => {
-            if (!storeId) return null;
-
-            const { data, error } = await supabase
-                .from('sync_jobs')
-                .select('id, store_id, status, current_phase, total_products, synced_products, total_variations, synced_variations, total_categories, synced_categories, error_message, created_at, started_at, completed_at, failed_items')
-                .eq('store_id', storeId)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-
-            if (error && error.code !== 'PGRST116') throw error;
-            return data as SyncJob | null;
-        },
-        enabled: !!storeId,
-        staleTime: STALE_TIMES.REALTIME,
-    });
-}
-
-/**
  * Hook to fetch all sync jobs for a store
  */
 export function useSyncJobs(storeId: string | null, limit = 10) {

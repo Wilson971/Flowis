@@ -3,6 +3,7 @@
 import { createContext, useContext, ReactNode } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Product } from "@/types/product";
+import type { Store } from "@/types/store";
 import { ProductFormValues } from "../schemas/product-schema";
 import { SeoAnalysisData } from "@/types/seo";
 import { ProductContentBuffer, ContentStatus, GenerationManifest } from "@/types/productContent";
@@ -84,7 +85,7 @@ export interface ProductEditContextType {
     resetModifiedFields?: () => void;
 
     // Store context
-    selectedStore?: any;
+    selectedStore?: Store | null;
 
     // Undo/Redo form history
     formHistory?: {
