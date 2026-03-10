@@ -61,6 +61,15 @@ export {
   createIndexedStagger,
 } from './motion';
 
+// GSC Tokens
+export {
+  gscMetricTokens,
+  resolveGscColor,
+  resolveAllGscColors,
+  type GscMetricKey,
+  type GscMetricConfig,
+} from './gsc';
+
 // Layer & Platform Tokens
 export {
   layerTokens,
@@ -79,6 +88,7 @@ import { cardTokens } from './cards';
 import { badgeTokens } from './badges';
 import { motionTokens } from './motion';
 import { layerTokens } from './layers';
+import { gscMetricTokens } from './gsc';
 
 /**
  * Complete Design System Tokens
@@ -90,6 +100,7 @@ export const designSystem = {
   badges: badgeTokens,
   motion: motionTokens,
   layers: layerTokens,
+  gsc: gscMetricTokens,
 } as const;
 
 export default designSystem;

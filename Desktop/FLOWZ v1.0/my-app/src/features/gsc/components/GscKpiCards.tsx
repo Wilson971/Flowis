@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { HelpCircle, Check } from "lucide-react";
 import type { GscKpiSummary } from "@/lib/gsc/types";
+import { gscMetricTokens, type GscMetricKey } from "@/lib/design-system/tokens/gsc";
 
 export type MetricKey = "clicks" | "impressions" | "ctr" | "position";
 
@@ -20,10 +21,10 @@ function formatNumber(n: number): string {
 }
 
 const METRIC_COLORS: Record<MetricKey, { bg: string; border: string }> = {
-    clicks: { bg: "bg-[#4285f4]", border: "border-[#4285f4]" },
-    impressions: { bg: "bg-[#5e35b1]", border: "border-[#5e35b1]" },
-    ctr: { bg: "bg-[#00897b]", border: "border-[#00897b]" },
-    position: { bg: "bg-[#e65100]", border: "border-[#e65100]" },
+    clicks: { bg: gscMetricTokens.clicks.bg, border: gscMetricTokens.clicks.border },
+    impressions: { bg: gscMetricTokens.impressions.bg, border: gscMetricTokens.impressions.border },
+    ctr: { bg: gscMetricTokens.ctr.bg, border: gscMetricTokens.ctr.border },
+    position: { bg: gscMetricTokens.position.bg, border: gscMetricTokens.position.border },
 };
 
 export function GscKpiCards({ kpis, visibleMetrics, onToggleMetric }: GscKpiCardsProps) {

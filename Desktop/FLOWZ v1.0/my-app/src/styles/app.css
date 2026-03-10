@@ -142,6 +142,12 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* GSC Metric Colors */
+  --color-gsc-clicks: var(--gsc-clicks);
+  --color-gsc-impressions: var(--gsc-impressions);
+  --color-gsc-ctr: var(--gsc-ctr);
+  --color-gsc-position: var(--gsc-position);
+
   /* Platform Colors */
   --color-platform-shopify: var(--platform-shopify);
   --color-platform-woocommerce: var(--platform-woocommerce);

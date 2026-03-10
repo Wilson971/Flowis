@@ -5,6 +5,7 @@ import { Filter, ArrowUpDown, ChevronLeft, ChevronRight, Search } from "lucide-r
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { GscKeywordData, GscTopPage, GscCountryStats, GscDeviceStats, GscDailyStats } from "@/lib/gsc/types";
+import { gscMetricTokens } from "@/lib/design-system/tokens/gsc";
 
 type SortKey = "clicks" | "impressions" | "ctr" | "position";
 
@@ -115,8 +116,8 @@ function GenericTable<T>({ data, renderRow, firstColumnLabel }: GenericTableProp
     );
 }
 
-function posColor(pos: number) {
-    return "text-[#e65100]";
+function posColor() {
+    return gscMetricTokens.position.text;
 }
 
 interface GscTabbedDataProps {
@@ -171,10 +172,10 @@ export function GscTabbedData({ dashboard }: GscTabbedDataProps) {
                         renderRow={(kw, idx) => (
                             <RowShell key={kw.query} isEven={idx % 2 === 0}>
                                 <span className="truncate pr-4">{kw.query}</span>
-                                <span className="text-right text-[#4285f4]">{formatNum(kw.clicks)}</span>
-                                <span className="text-right text-[#5e35b1]">{formatNum(kw.impressions)}</span>
-                                <span className="text-right text-[#00897b]">{formatCtr(kw.ctr)}</span>
-                                <span className={cn("text-right", posColor(kw.position))}>{formatPos(kw.position)}</span>
+                                <span className="text-right text-gsc-clicks">{formatNum(kw.clicks)}</span>
+                                <span className="text-right text-gsc-impressions">{formatNum(kw.impressions)}</span>
+                                <span className="text-right text-gsc-ctr">{formatCtr(kw.ctr)}</span>
+                                <span className={cn("text-right", posColor())}>{formatPos(kw.position)}</span>
                             </RowShell>
                         )}
                     />
@@ -189,10 +190,10 @@ export function GscTabbedData({ dashboard }: GscTabbedDataProps) {
                             return (
                                 <RowShell key={page.page_url} isEven={idx % 2 === 0}>
                                     <span className="truncate pr-4" title={page.page_url}>{path}</span>
-                                    <span className="text-right text-[#4285f4]">{formatNum(page.clicks)}</span>
-                                    <span className="text-right text-[#5e35b1]">{formatNum(page.impressions)}</span>
-                                    <span className="text-right text-[#00897b]">{formatCtr(page.ctr)}</span>
-                                    <span className={cn("text-right", posColor(page.position))}>{formatPos(page.position)}</span>
+                                    <span className="text-right text-gsc-clicks">{formatNum(page.clicks)}</span>
+                                    <span className="text-right text-gsc-impressions">{formatNum(page.impressions)}</span>
+                                    <span className="text-right text-gsc-ctr">{formatCtr(page.ctr)}</span>
+                                    <span className={cn("text-right", posColor())}>{formatPos(page.position)}</span>
                                 </RowShell>
                             );
                         }}
@@ -209,10 +210,10 @@ export function GscTabbedData({ dashboard }: GscTabbedDataProps) {
                                     <span className="text-lg leading-none">{countryFlag(c.country)}</span>
                                     <span className="truncate">{c.country}</span>
                                 </div>
-                                <span className="text-right text-[#4285f4]">{formatNum(c.clicks)}</span>
-                                <span className="text-right text-[#5e35b1]">{formatNum(c.impressions)}</span>
-                                <span className="text-right text-[#00897b]">{formatCtr(c.ctr)}</span>
-                                <span className={cn("text-right", posColor(c.position))}>{formatPos(c.position)}</span>
+                                <span className="text-right text-gsc-clicks">{formatNum(c.clicks)}</span>
+                                <span className="text-right text-gsc-impressions">{formatNum(c.impressions)}</span>
+                                <span className="text-right text-gsc-ctr">{formatCtr(c.ctr)}</span>
+                                <span className={cn("text-right", posColor())}>{formatPos(c.position)}</span>
                             </RowShell>
                         )}
                     />
@@ -225,10 +226,10 @@ export function GscTabbedData({ dashboard }: GscTabbedDataProps) {
                         renderRow={(d, idx) => (
                             <RowShell key={d.device} isEven={idx % 2 === 0}>
                                 <span className="truncate pr-4 capitalize">{d.device.toLowerCase()}</span>
-                                <span className="text-right text-[#4285f4]">{formatNum(d.clicks)}</span>
-                                <span className="text-right text-[#5e35b1]">{formatNum(d.impressions)}</span>
-                                <span className="text-right text-[#00897b]">{formatCtr(d.ctr)}</span>
-                                <span className={cn("text-right", posColor(d.position))}>{formatPos(d.position)}</span>
+                                <span className="text-right text-gsc-clicks">{formatNum(d.clicks)}</span>
+                                <span className="text-right text-gsc-impressions">{formatNum(d.impressions)}</span>
+                                <span className="text-right text-gsc-ctr">{formatCtr(d.ctr)}</span>
+                                <span className={cn("text-right", posColor())}>{formatPos(d.position)}</span>
                             </RowShell>
                         )}
                     />
@@ -251,10 +252,10 @@ export function GscTabbedData({ dashboard }: GscTabbedDataProps) {
                             return (
                                 <RowShell key={d.stat_date} isEven={idx % 2 === 0}>
                                     <span className="truncate pr-4">{dateStr}</span>
-                                    <span className="text-right text-[#4285f4]">{formatNum(d.clicks)}</span>
-                                    <span className="text-right text-[#5e35b1]">{formatNum(d.impressions)}</span>
-                                    <span className="text-right text-[#00897b]">{formatCtr(d.ctr)}</span>
-                                    <span className={cn("text-right", posColor(d.position))}>{formatPos(d.position)}</span>
+                                    <span className="text-right text-gsc-clicks">{formatNum(d.clicks)}</span>
+                                    <span className="text-right text-gsc-impressions">{formatNum(d.impressions)}</span>
+                                    <span className="text-right text-gsc-ctr">{formatCtr(d.ctr)}</span>
+                                    <span className={cn("text-right", posColor())}>{formatPos(d.position)}</span>
                                 </RowShell>
                             );
                         }}

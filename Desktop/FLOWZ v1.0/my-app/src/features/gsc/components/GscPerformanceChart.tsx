@@ -12,18 +12,13 @@ import {
 } from "recharts";
 import type { GscDailyStats } from "@/lib/gsc/types";
 import type { MetricKey } from "./GscKpiCards";
+import { resolveAllGscColors } from "@/lib/design-system/tokens/gsc";
+import { useMemo } from "react";
 
 interface GscPerformanceChartProps {
     data: GscDailyStats[];
     visibleMetrics: Record<MetricKey, boolean>;
 }
-
-const COLORS: Record<MetricKey, string> = {
-    clicks: "#4285f4",
-    impressions: "#5e35b1",
-    ctr: "#00897b",
-    position: "#e65100",
-};
 
 function formatDate(dateStr: string): string {
     const d = new Date(dateStr);
@@ -58,6 +53,10 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function GscPerformanceChart({ data, visibleMetrics }: GscPerformanceChartProps) {
+    // Resolve CSS variable colors for Recharts (needs raw hex values)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const COLORS = useMemo(() => resolveAllGscColors(), []);
+
     const chartData = data.map((d) => ({
         ...d,
         dateLabel: formatDate(d.stat_date),

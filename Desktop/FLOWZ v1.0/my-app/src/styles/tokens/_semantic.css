@@ -432,6 +432,17 @@
   --status-info-border: var(--info-border);
 
   /* ------------------------------------------
+   * GSC METRIC COLORS
+   * Google Search Console metric-specific colors
+   * Mapped to brand palette for theme consistency
+   * Usage: text-gsc-clicks, bg-gsc-impressions
+   * ------------------------------------------ */
+  --gsc-clicks: var(--brand-500);
+  --gsc-impressions: var(--brand-700);
+  --gsc-ctr: var(--brand-400);
+  --gsc-position: var(--brand-300);
+
+  /* ------------------------------------------
    * PLATFORM COLORS
    * E-commerce platform brand colors
    * Usage: text-[color:var(--platform-shopify)]
