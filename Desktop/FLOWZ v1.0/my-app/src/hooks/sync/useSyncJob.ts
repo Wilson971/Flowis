@@ -8,6 +8,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/lib/query-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { logActivity } from '@/lib/activity-log';
@@ -34,7 +35,7 @@ export function useSyncJob(jobId: string | null) {
 
             const { data, error } = await supabase
                 .from('sync_jobs')
-                .select('*')
+                .select('id, store_id, tenant_id, connection_id, job_type, status, current_phase, total_products, synced_products, total_variations, synced_variations, total_categories, synced_categories, config, error_message, created_at, updated_at, started_at, completed_at, paused_at, failed_items')
                 .eq('id', jobId)
                 .single();
 
@@ -42,6 +43,7 @@ export function useSyncJob(jobId: string | null) {
             return data as SyncJob;
         },
         enabled: !!jobId,
+        staleTime: STALE_TIMES.REALTIME,
     });
 }
 
@@ -58,7 +60,7 @@ export function useLatestSyncJob(storeId: string | null) {
 
             const { data, error } = await supabase
                 .from('sync_jobs')
-                .select('*')
+                .select('id, store_id, status, current_phase, total_products, synced_products, total_variations, synced_variations, total_categories, synced_categories, error_message, created_at, started_at, completed_at, failed_items')
                 .eq('store_id', storeId)
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -68,6 +70,7 @@ export function useLatestSyncJob(storeId: string | null) {
             return data as SyncJob | null;
         },
         enabled: !!storeId,
+        staleTime: STALE_TIMES.REALTIME,
     });
 }
 
@@ -84,7 +87,7 @@ export function useSyncJobs(storeId: string | null, limit = 10) {
 
             const { data, error } = await supabase
                 .from('sync_jobs')
-                .select('*')
+                .select('id, store_id, status, current_phase, total_products, synced_products, total_variations, synced_variations, total_categories, synced_categories, error_message, created_at, started_at, completed_at, failed_items')
                 .eq('store_id', storeId)
                 .order('created_at', { ascending: false })
                 .limit(limit);
@@ -93,6 +96,7 @@ export function useSyncJobs(storeId: string | null, limit = 10) {
             return data as SyncJob[];
         },
         enabled: !!storeId,
+        staleTime: STALE_TIMES.LIST,
     });
 }
 

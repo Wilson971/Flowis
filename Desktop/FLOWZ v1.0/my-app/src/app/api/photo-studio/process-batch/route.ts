@@ -55,6 +55,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Rate limit
+  const { rateLimitOrNull, RATE_LIMIT_PHOTO_BATCH } = await import('@/lib/rate-limit');
+  const rlResponse = rateLimitOrNull(user.id, 'photo-studio/process-batch', RATE_LIMIT_PHOTO_BATCH);
+  if (rlResponse) return rlResponse;
+
   // 3. Verify batch ownership
   const { data: batch, error: batchError } = await supabase
     .from("batch_jobs")

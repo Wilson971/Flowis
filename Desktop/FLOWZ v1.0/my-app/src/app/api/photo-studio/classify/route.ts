@@ -127,6 +127,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Non authentifié.' } }, { status: 401 });
   }
 
+  // Rate limit
+  const { rateLimitOrNull, RATE_LIMIT_PHOTO_CLASSIFY } = await import('@/lib/rate-limit');
+  const rlResponse = rateLimitOrNull(user.id, 'photo-studio/classify', RATE_LIMIT_PHOTO_CLASSIFY);
+  if (rlResponse) return rlResponse;
+
   // API key
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

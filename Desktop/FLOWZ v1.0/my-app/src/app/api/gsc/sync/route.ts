@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
+    // Rate limit
+    const { rateLimitOrNull, RATE_LIMIT_GSC_SYNC } = await import('@/lib/rate-limit');
+    const rlResponse = rateLimitOrNull(user.id, 'gsc/sync', RATE_LIMIT_GSC_SYNC);
+    if (rlResponse) return rlResponse;
+
     // Validate body
     let body: z.infer<typeof requestSchema>;
     try {

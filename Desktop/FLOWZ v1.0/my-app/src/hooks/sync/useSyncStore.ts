@@ -7,7 +7,7 @@
  * 3. Retourner l'état de progression pour l'affichage UI
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type MutableRefObject } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -40,6 +40,8 @@ export function useSyncStore() {
     const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
     const syncingRef = useRef(false);
+    const completionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Subscribe to real-time progress updates
     useEffect(() => {
@@ -68,9 +70,11 @@ export function useSyncStore() {
                 });
 
                 if (p.phase === 'completed' || p.phase === 'failed') {
-                    setTimeout(() => {
+                    if (completionTimerRef.current) clearTimeout(completionTimerRef.current);
+                    completionTimerRef.current = setTimeout(() => {
                         syncingRef.current = false;
                         setActiveStoreId(null);
+                        completionTimerRef.current = null;
                     }, 3000);
                 }
             })
@@ -86,6 +90,10 @@ export function useSyncStore() {
             newChannel.unsubscribe();
             supabase.removeChannel(newChannel);
             channelRef.current = null;
+            if (completionTimerRef.current) {
+                clearTimeout(completionTimerRef.current);
+                completionTimerRef.current = null;
+            }
         };
     }, [activeStoreId, supabase]);
 
@@ -183,8 +191,10 @@ export function useSyncStore() {
             });
 
             // Clear after showing error
-            setTimeout(() => {
+            if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+            errorTimerRef.current = setTimeout(() => {
                 setActiveStoreId(null);
+                errorTimerRef.current = null;
             }, 5000);
         },
     });

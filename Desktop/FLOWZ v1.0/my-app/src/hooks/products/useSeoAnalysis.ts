@@ -111,46 +111,26 @@ export function useSeoStats(storeId?: string) {
         queryFn: async () => {
             if (!storeId) return null;
 
-            const { data, error } = await supabase
-                .from('products')
-                .select('seo_score')
-                .eq('store_id', storeId);
+            const { data, error } = await supabase.rpc('get_seo_stats', {
+                p_store_id: storeId,
+            });
 
-            // If seo_score column doesn't exist yet, return null gracefully
             if (error) {
-                if (error.message?.includes('seo_score')) return null;
+                // Fallback if RPC doesn't exist yet
+                if (error.message?.includes('get_seo_stats')) return null;
                 throw error;
             }
 
-            const products = data || [];
-            const scored = products.filter(p => p.seo_score !== null);
-            const scores = scored.map(p => p.seo_score as number);
-            const total = products.length;
-
-            if (scored.length === 0) {
-                return {
-                    total,
-                    analyzed: 0,
-                    averageScore: 0,
-                    excellent: 0,
-                    good: 0,
-                    average: 0,
-                    poor: 0,
-                    critical: 0,
-                };
-            }
-
-            const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-
+            const result = data as Record<string, number>;
             return {
-                total,
-                analyzed: scored.length,
-                averageScore,
-                excellent: scores.filter(s => s >= 90).length,
-                good: scores.filter(s => s >= 70 && s < 90).length,
-                average: scores.filter(s => s >= 50 && s < 70).length,
-                poor: scores.filter(s => s >= 30 && s < 50).length,
-                critical: scores.filter(s => s < 30).length,
+                total: result.total ?? 0,
+                analyzed: result.analyzed ?? 0,
+                averageScore: result.averageScore ?? 0,
+                excellent: result.excellent ?? 0,
+                good: result.good ?? 0,
+                average: result.average ?? 0,
+                poor: result.poor ?? 0,
+                critical: result.critical ?? 0,
             };
         },
         enabled: !!storeId,

@@ -21,6 +21,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: 'Non authentifié' }, { status: 401 })
   }
 
+  // Rate limit
+  const { rateLimitOrNull, RATE_LIMIT_HEALTH_CHECK } = await import('@/lib/rate-limit');
+  const rlResponse = rateLimitOrNull(user.id, 'stores/health-check', RATE_LIMIT_HEALTH_CHECK);
+  if (rlResponse) return rlResponse;
+
   let rawBody: unknown
   try {
     rawBody = await req.json()

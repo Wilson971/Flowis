@@ -108,3 +108,85 @@ export const RATE_LIMIT_SEO_SUGGEST: RateLimitConfig = {
   maxRequests: 20,
   windowMs: 60_000,
 };
+
+/** GSC sync: 5 requests per minute per user */
+export const RATE_LIMIT_GSC_SYNC: RateLimitConfig = {
+  maxRequests: 5,
+  windowMs: 60_000,
+};
+
+/** GSC sitemap parse: 3 requests per minute per user */
+export const RATE_LIMIT_GSC_SITEMAP: RateLimitConfig = {
+  maxRequests: 3,
+  windowMs: 60_000,
+};
+
+/** GSC indexation submit: 5 requests per minute per user */
+export const RATE_LIMIT_GSC_INDEXATION: RateLimitConfig = {
+  maxRequests: 5,
+  windowMs: 60_000,
+};
+
+/** Store health check: 10 requests per minute per user */
+export const RATE_LIMIT_HEALTH_CHECK: RateLimitConfig = {
+  maxRequests: 10,
+  windowMs: 60_000,
+};
+
+/** SEO batch analyze: 3 requests per minute per user */
+export const RATE_LIMIT_SEO_BATCH: RateLimitConfig = {
+  maxRequests: 3,
+  windowMs: 60_000,
+};
+
+/** Workspace invite: 10 requests per minute per user */
+export const RATE_LIMIT_INVITE: RateLimitConfig = {
+  maxRequests: 10,
+  windowMs: 60_000,
+};
+
+/** Photo Studio classify: 10 requests per minute per user */
+export const RATE_LIMIT_PHOTO_CLASSIFY: RateLimitConfig = {
+  maxRequests: 10,
+  windowMs: 60_000,
+};
+
+/** Photo Studio process batch: 3 requests per minute per user */
+export const RATE_LIMIT_PHOTO_BATCH: RateLimitConfig = {
+  maxRequests: 3,
+  windowMs: 60_000,
+};
+
+/** GSC OAuth: 5 requests per minute per user */
+export const RATE_LIMIT_GSC_OAUTH: RateLimitConfig = {
+  maxRequests: 5,
+  windowMs: 60_000,
+};
+
+/**
+ * Helper: check rate limit and return 429 response if exceeded.
+ * Returns null if allowed, or a NextResponse if rate limited.
+ */
+export function rateLimitOrNull(
+  userId: string,
+  endpoint: string,
+  config: RateLimitConfig,
+): Response | null {
+  const result = checkRateLimit(userId, endpoint, config);
+  if (!result.allowed) {
+    const retryAfter = Math.ceil((result.resetAt - Date.now()) / 1000);
+    return new Response(
+      JSON.stringify({ error: 'Trop de requêtes, réessayez plus tard' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(retryAfter),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(result.resetAt),
+        },
+      },
+    );
+  }
+  return null;
+}

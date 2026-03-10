@@ -114,7 +114,7 @@ export function useBatchJobs(storeId?: string, limit = 20) {
         queryFn: async () => {
             let query = supabase
                 .from('batch_jobs')
-                .select('*')
+                .select('id, tenant_id, store_id, status, total_items, processed_items, successful_items, failed_items, created_at, updated_at, started_at, completed_at, error_message')
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
@@ -126,6 +126,7 @@ export function useBatchJobs(storeId?: string, limit = 20) {
             if (error) throw error;
             return (data || []) as BatchJob[];
         },
+        staleTime: STALE_TIMES.LIST,
     });
 }
 

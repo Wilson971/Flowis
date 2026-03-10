@@ -24,6 +24,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limit
+    const { rateLimitOrNull, RATE_LIMIT_SEO_BATCH } = await import('@/lib/rate-limit');
+    const rlResponse = rateLimitOrNull(user.id, 'seo/batch-analyze', RATE_LIMIT_SEO_BATCH);
+    if (rlResponse) return rlResponse;
+
     // Parse body
     let storeId: string;
     try {

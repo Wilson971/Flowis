@@ -97,6 +97,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
+    // Rate limit
+    const { rateLimitOrNull, RATE_LIMIT_GSC_SITEMAP } = await import('@/lib/rate-limit');
+    const rlResponse = rateLimitOrNull(user.id, 'gsc/sitemap', RATE_LIMIT_GSC_SITEMAP);
+    if (rlResponse) return rlResponse;
+
     let body: z.infer<typeof requestSchema>;
     try {
         const raw = await request.json();

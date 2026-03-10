@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
+    // Rate limit
+    const { rateLimitOrNull, RATE_LIMIT_INVITE } = await import('@/lib/rate-limit');
+    const rlResponse = rateLimitOrNull(user.id, 'workspace/invite', RATE_LIMIT_INVITE);
+    if (rlResponse) return rlResponse;
+
     // Verify caller is owner/admin of workspace
     const { data: membership } = await supabase
       .from('workspace_members')

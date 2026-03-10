@@ -119,6 +119,7 @@ export function useStore(storeId: string | null) {
             } as Store;
         },
         enabled: !!storeId,
+        staleTime: 60_000,
     });
 }
 
@@ -133,13 +134,14 @@ export function useActiveStore() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('stores')
-                .select('*')
+                .select('id, name, platform, status, active, currency, primary_language, country_code, description, created_at, updated_at, paused_at, connection_id, tenant_id')
                 .eq('active', true)
                 .maybeSingle();
 
             if (error) throw error;
             return data as Store | null;
         },
+        staleTime: 60_000,
     });
 }
 

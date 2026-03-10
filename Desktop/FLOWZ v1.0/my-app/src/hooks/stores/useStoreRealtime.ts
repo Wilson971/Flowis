@@ -24,6 +24,7 @@ export function useStoreRealtime(storeId: string | null): UseStoreRealtimeReturn
     const [progress, setProgress] = useState<SyncProgressPayload | null>(null)
     const [isActive, setIsActive] = useState(false)
     const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+    const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const supabase = createClient()
 
     const clearProgress = useCallback(() => {
@@ -53,10 +54,11 @@ export function useStoreRealtime(storeId: string | null): UseStoreRealtimeReturn
                 } else {
                     // Terminal state — keep progress visible briefly then clear
                     setIsActive(false)
-                    const timer = setTimeout(() => {
+                    if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
+                    clearTimerRef.current = setTimeout(() => {
                         setProgress(null)
+                        clearTimerRef.current = null
                     }, 3_000)
-                    return () => clearTimeout(timer)
                 }
             })
             .subscribe()
@@ -66,6 +68,10 @@ export function useStoreRealtime(storeId: string | null): UseStoreRealtimeReturn
         return () => {
             supabase.removeChannel(channel)
             channelRef.current = null
+            if (clearTimerRef.current) {
+                clearTimeout(clearTimerRef.current)
+                clearTimerRef.current = null
+            }
         }
     }, [storeId]) // eslint-disable-line react-hooks/exhaustive-deps
 

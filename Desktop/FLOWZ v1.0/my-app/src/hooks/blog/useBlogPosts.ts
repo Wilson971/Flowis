@@ -19,7 +19,7 @@ export function useBlogPosts(storeId?: string) {
         queryFn: async () => {
             let query = supabase
                 .from('blog_articles')  // FIXED: Use blog_articles instead of blog_posts
-                .select('*')
+                .select('id, title, slug, status, excerpt, featured_image_url, author_id, store_id, tenant_id, created_at, updated_at, published_at, tags, word_count')
                 .eq('archived', false)
                 .neq('status', 'auto_draft')
                 .order('created_at', { ascending: false });
@@ -35,6 +35,8 @@ export function useBlogPosts(storeId?: string) {
             return data as BlogPost[];
         },
         enabled: !!storeId, // Only fetch when storeId is provided
+        staleTime: 30_000,
+        refetchOnWindowFocus: false,
     });
 
     const createPost = useMutation({

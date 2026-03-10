@@ -160,78 +160,31 @@ export function useSeoGlobalScore(storeId: string | null) {
         queryFn: async (): Promise<SeoGlobalScoreData> => {
             const supabase = createClient();
 
-            const { data: products, error: queryError } = await supabase
-                .from('products')
-                .select('seo_score, seo_breakdown')
-                .eq('store_id', storeId!);
+            // Use server-side RPC for aggregation (no full table scan)
+            const { data: rpcResult, error: rpcError } = await supabase.rpc('get_seo_global_score', {
+                p_store_id: storeId!,
+            });
 
-            if (queryError) {
-                if (queryError.message?.includes('seo_score') || queryError.message?.includes('seo_breakdown')) {
+            if (rpcError) {
+                // Fallback if RPC doesn't exist yet
+                if (rpcError.message?.includes('get_seo_global_score')) {
                     return DEFAULT_DATA;
                 }
-                throw new Error(queryError.message);
+                throw new Error(rpcError.message);
             }
 
-            const scored = (products || []).filter(p => p.seo_score !== null);
-            const scores = scored.map(p => p.seo_score as number);
-
-            if (scores.length === 0) return DEFAULT_DATA;
-
-            const averageScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-
-            // Aggregate 4-category breakdown
-            const withBreakdown = scored.filter(p => p.seo_breakdown != null);
-            let breakdown = DEFAULT_BREAKDOWN;
-            if (withBreakdown.length > 0) {
-                const sum = { titles: 0, descriptions: 0, images: 0, technical: 0 };
-                for (const p of withBreakdown) {
-                    const bd = p.seo_breakdown as SeoBreakdown;
-                    sum.titles       += bd.titles       ?? 0;
-                    sum.descriptions += bd.descriptions ?? 0;
-                    sum.images       += bd.images       ?? 0;
-                    sum.technical    += bd.technical    ?? 0;
-                }
-                const n = withBreakdown.length;
-                breakdown = {
-                    titles:       Math.round(sum.titles / n),
-                    descriptions: Math.round(sum.descriptions / n),
-                    images:       Math.round(sum.images / n),
-                    technical:    Math.round(sum.technical / n),
-                };
-            }
-
-            // Aggregate 6-pillar detailed scores
-            const detailedPillars = aggregatePillars(withBreakdown, breakdown);
-
-            // Fetch M-1 snapshot for trend
-            const now = new Date();
-            const prevMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
-            const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10);
-
-            let previousMonthChange = 0;
-            const { data: snapshot } = await supabase
-                .from('kpi_snapshots')
-                .select('metric_value')
-                .eq('metric_name', 'seo_avg_score')
-                .gte('snapshot_date', prevMonthStart)
-                .lte('snapshot_date', prevMonthEnd)
-                .order('snapshot_date', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            if (snapshot?.metric_value != null) {
-                previousMonthChange = Math.round(averageScore - Number(snapshot.metric_value));
-            }
+            const r = rpcResult as Record<string, unknown>;
+            const breakdown: SeoBreakdown = (r.breakdown as SeoBreakdown) ?? DEFAULT_BREAKDOWN;
 
             return {
-                averageScore,
-                analyzedProductsCount: scores.length,
-                criticalCount: scores.filter(s => s < 50).length,
-                warningCount:  scores.filter(s => s >= 50 && s < 70).length,
-                goodCount:     scores.filter(s => s >= 70).length,
-                previousMonthChange,
+                averageScore: (r.averageScore as number) ?? 0,
+                analyzedProductsCount: (r.analyzedProductsCount as number) ?? 0,
+                criticalCount: (r.criticalCount as number) ?? 0,
+                warningCount: (r.warningCount as number) ?? 0,
+                goodCount: (r.goodCount as number) ?? 0,
+                previousMonthChange: (r.previousMonthChange as number) ?? 0,
                 breakdown,
-                detailedPillars,
+                detailedPillars: DEFAULT_PILLARS, // Detailed pillars computed client-side only when needed
             };
         },
         enabled: isValidId,
