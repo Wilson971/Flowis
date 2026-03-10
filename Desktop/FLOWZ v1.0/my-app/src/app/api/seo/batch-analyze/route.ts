@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
         .from("stores")
         .select("id, tenant_id")
         .eq("id", storeId)
+        .eq("tenant_id", user.id)
         .single();
 
     if (storeError || !store) {
@@ -56,7 +57,8 @@ export async function POST(req: NextRequest) {
         .limit(BATCH_SIZE);
 
     if (fetchError) {
-        return NextResponse.json({ error: fetchError.message }, { status: 500 });
+        console.error('[seo/batch-analyze] Fetch error:', fetchError.message);
+        return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
     }
 
     if (!products || products.length === 0) {

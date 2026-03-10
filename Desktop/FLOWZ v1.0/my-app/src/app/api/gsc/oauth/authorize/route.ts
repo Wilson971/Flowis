@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build Google OAuth URL
-    const redirectUri = `${getBaseUrl(request)}/api/gsc/oauth/callback`;
+    const redirectUri = `${getBaseUrl()}/api/gsc/oauth/callback`;
     const scopes = [
         'https://www.googleapis.com/auth/webmasters',          // read-write (needed for URL Inspection)
         'https://www.googleapis.com/auth/indexing',             // Google Indexing API
@@ -63,8 +63,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(authUrl.toString());
 }
 
-function getBaseUrl(request: NextRequest): string {
-    const host = request.headers.get('host') || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    return `${protocol}://${host}`;
+function getBaseUrl(): string {
+    return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 }

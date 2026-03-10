@@ -23,11 +23,7 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID")!;
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
 const GSC_TOKEN_ENCRYPTION_KEY = Deno.env.get("GSC_TOKEN_ENCRYPTION_KEY")!;
 
-const CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Content-Type": "application/json",
-};
+import { getCorsHeaders, handleCors } from "../_shared/cors.ts";
 
 // ─── Crypto (mirrors my-app/src/lib/gsc/crypto.ts exactly) ──────────────────
 
@@ -218,9 +214,8 @@ async function processSite(
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
-    if (req.method === "OPTIONS") {
-        return new Response("ok", { headers: CORS_HEADERS });
-    }
+    const corsResponse = handleCors(req);
+    if (corsResponse) return corsResponse;
 
     // Auth: accept JWT (UI) or service role (cron)
     const authHeader = req.headers.get("Authorization") || "";
@@ -246,14 +241,14 @@ Deno.serve(async (req) => {
                 .single();
 
             if (error || !site) {
-                return new Response(JSON.stringify({ error: "Site not found" }), { status: 404, headers: CORS_HEADERS });
+                return new Response(JSON.stringify({ error: "Site not found" }), { status: 404, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
             }
 
             const result = await processSite(supabase, site as any, batchSize);
             return new Response(JSON.stringify({
                 ...result,
                 has_more: result.remaining > 0,
-            }), { headers: CORS_HEADERS });
+            }), { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
         }
 
         // Cron mode: process ALL active sites with uninspected URLs
@@ -279,9 +274,9 @@ Deno.serve(async (req) => {
             sites_processed: results.length,
             total_inspected: results.reduce((s, r) => s + r.inspected, 0),
             results,
-        }), { headers: CORS_HEADERS });
+        }), { headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
 
     } catch (err) {
-        return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: CORS_HEADERS });
+        return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { ...getCorsHeaders(req), "Content-Type": "application/json" } });
     }
 });

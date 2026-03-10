@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : JSON.stringify(error)
     console.error('[workspace/invite] Error:', message)
     return NextResponse.json(
-      { error: 'Erreur interne du serveur', debug: message },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     )
   }

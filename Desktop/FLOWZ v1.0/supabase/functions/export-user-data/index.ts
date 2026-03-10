@@ -1,15 +1,10 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    })
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
 
   // ---- Auth: verify JWT ----
   const authHeader = req.headers.get('Authorization')
@@ -79,7 +74,7 @@ Deno.serve(async (req: Request) => {
       headers: {
         'Content-Type': 'application/json',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Access-Control-Allow-Origin': '*',
+        ...getCorsHeaders(req),
       },
     })
   } catch (err) {

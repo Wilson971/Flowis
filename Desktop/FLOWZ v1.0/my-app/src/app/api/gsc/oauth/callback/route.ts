@@ -19,10 +19,8 @@ export async function GET(request: NextRequest) {
     const stateParam = searchParams.get('state');
     const error = searchParams.get('error');
 
-    // Base URL for redirects
-    const host = request.headers.get('host') || 'localhost:3000';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const baseUrl = `${protocol}://${host}`;
+    // Base URL for redirects — use env var to prevent Host header injection
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // Handle Google errors
     if (error) {
