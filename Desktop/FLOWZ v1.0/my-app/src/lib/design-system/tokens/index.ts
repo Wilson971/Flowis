@@ -72,6 +72,9 @@ export {
   type GscMetricConfig,
   type GscIndexationStatus,
   type GscStatusConfig,
+  type GscPositionBucket,
+  resolveGscPositionColor,
+  resolveAllPositionColors,
 } from './gsc';
 
 // Layer & Platform Tokens

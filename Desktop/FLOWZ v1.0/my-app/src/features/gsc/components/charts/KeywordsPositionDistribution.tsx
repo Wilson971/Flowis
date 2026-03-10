@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3 } from "lucide-react";
 import {
@@ -12,18 +13,11 @@ import {
     Tooltip,
     Cell,
 } from "recharts";
+import { resolveAllPositionColors } from "@/lib/design-system/tokens/gsc";
 
 interface Props {
     distribution: { bucket: string; count: number }[];
 }
-
-const BUCKET_COLORS: Record<string, string> = {
-    "1-3": "hsl(160, 60%, 45%)",
-    "4-10": "hsl(142, 50%, 50%)",
-    "11-20": "hsl(35, 92%, 50%)",
-    "21-50": "hsl(20, 80%, 55%)",
-    "51+": "hsl(0, 70%, 55%)",
-};
 
 function CustomTooltip({ active, payload }: any) {
     if (!active || !payload?.length) return null;
@@ -39,6 +33,8 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 export function KeywordsPositionDistribution({ distribution }: Props) {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const BUCKET_COLORS = useMemo(() => resolveAllPositionColors(), []);
     const hasData = distribution.some(d => d.count > 0);
 
     return (

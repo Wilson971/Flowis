@@ -158,6 +158,13 @@
   --color-gsc-errors: var(--gsc-errors);
   --color-gsc-unknown: var(--gsc-unknown);
 
+  /* GSC Position Distribution Colors */
+  --color-gsc-pos-top3: var(--gsc-pos-top3);
+  --color-gsc-pos-top10: var(--gsc-pos-top10);
+  --color-gsc-pos-top20: var(--gsc-pos-top20);
+  --color-gsc-pos-top50: var(--gsc-pos-top50);
+  --color-gsc-pos-beyond: var(--gsc-pos-beyond);
+
   /* Platform Colors */
   --color-platform-shopify: var(--platform-shopify);
   --color-platform-woocommerce: var(--platform-woocommerce);

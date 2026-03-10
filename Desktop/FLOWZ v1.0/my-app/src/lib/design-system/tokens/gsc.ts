@@ -165,6 +165,42 @@ export function resolveGscStatusColor(status: GscIndexationStatus): string {
 }
 
 // ============================================================================
+// POSITION DISTRIBUTION TOKENS
+// ============================================================================
+
+export type GscPositionBucket = '1-3' | '4-10' | '11-20' | '21-50' | '51+';
+
+const GSC_POSITION_VARS: Record<GscPositionBucket, string> = {
+    '1-3': '--gsc-pos-top3',
+    '4-10': '--gsc-pos-top10',
+    '11-20': '--gsc-pos-top20',
+    '21-50': '--gsc-pos-top50',
+    '51+': '--gsc-pos-beyond',
+};
+
+/**
+ * Resolves position bucket color from CSS variable for Recharts.
+ */
+export function resolveGscPositionColor(bucket: GscPositionBucket): string {
+    if (typeof document === 'undefined') return '#888888';
+    const value = getComputedStyle(document.documentElement)
+        .getPropertyValue(GSC_POSITION_VARS[bucket])
+        .trim();
+    return value || '#888888';
+}
+
+/**
+ * Resolves all position bucket colors at once.
+ */
+export function resolveAllPositionColors(): Record<string, string> {
+    return Object.fromEntries(
+        (Object.keys(GSC_POSITION_VARS) as GscPositionBucket[]).map(
+            (bucket) => [bucket, resolveGscPositionColor(bucket)]
+        )
+    );
+}
+
+// ============================================================================
 // RUNTIME COLOR RESOLVER (for Recharts / SVG / inline styles)
 // ============================================================================
 

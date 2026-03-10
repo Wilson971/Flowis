@@ -452,6 +452,13 @@
   --gsc-errors: var(--destructive);
   --gsc-unknown: var(--muted-foreground);
 
+  /* GSC Position Distribution Colors (good → bad gradient) */
+  --gsc-pos-top3: var(--success);
+  --gsc-pos-top10: var(--brand-400);
+  --gsc-pos-top20: var(--warning);
+  --gsc-pos-top50: var(--brand-600);
+  --gsc-pos-beyond: var(--destructive);
+
   /* ------------------------------------------
    * PLATFORM COLORS
    * E-commerce platform brand colors

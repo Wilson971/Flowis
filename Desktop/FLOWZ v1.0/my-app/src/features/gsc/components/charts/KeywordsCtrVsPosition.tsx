@@ -113,9 +113,9 @@ export function KeywordsCtrVsPosition({ keywords }: Props) {
                                 <Tooltip content={<CustomTooltip />} />
                                 <Scatter
                                     data={data}
-                                    fill="hsl(217, 91%, 60%)"
+                                    fill="hsl(var(--primary))"
                                     fillOpacity={0.5}
-                                    stroke="hsl(217, 91%, 60%)"
+                                    stroke="hsl(var(--primary))"
                                     strokeOpacity={0.8}
                                 />
                             </ScatterChart>
