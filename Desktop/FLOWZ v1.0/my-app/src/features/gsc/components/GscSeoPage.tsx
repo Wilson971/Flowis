@@ -143,7 +143,7 @@ export function GscSeoPage() {
                             <h1 className="text-xl font-bold tracking-tight">SEO Analytics</h1>
                             {siteDisplayUrl && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                                    <span className="inline-block h-2 w-2 rounded-full bg-success" />
                                     {siteDisplayUrl}
                                 </p>
                             )}

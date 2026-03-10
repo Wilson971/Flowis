@@ -34,15 +34,15 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 function getScoreColor(score: number): string {
-    if (score >= 75) return "text-emerald-500";
-    if (score >= 50) return "text-amber-500";
-    return "text-red-500";
+    if (score >= 75) return "text-success";
+    if (score >= 50) return "text-warning";
+    return "text-destructive";
 }
 
 function getScoreBg(score: number): string {
-    if (score >= 75) return "bg-emerald-500";
-    if (score >= 50) return "bg-amber-500";
-    return "bg-red-500";
+    if (score >= 75) return "bg-success";
+    if (score >= 50) return "bg-warning";
+    return "bg-destructive";
 }
 
 function getScoreLabel(score: number): string {
@@ -70,22 +70,22 @@ const SEVERITY_CONFIG: Record<AuditSeverity, {
     critical: {
         icon: AlertCircle,
         label: "Critique",
-        badgeClass: "bg-red-500/10 text-red-600 border-red-500/20",
-        iconClass: "text-red-500",
+        badgeClass: "bg-destructive/10 text-destructive border-destructive/20",
+        iconClass: "text-destructive",
         borderClass: "border-l-red-500",
     },
     warning: {
         icon: AlertTriangle,
         label: "Avertissement",
-        badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-        iconClass: "text-amber-500",
+        badgeClass: "bg-warning/10 text-warning border-warning/20",
+        iconClass: "text-warning",
         borderClass: "border-l-amber-500",
     },
     ok: {
         icon: CheckCircle2,
         label: "OK",
-        badgeClass: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-        iconClass: "text-emerald-500",
+        badgeClass: "bg-success/10 text-success border-success/20",
+        iconClass: "text-success",
         borderClass: "border-l-emerald-500",
     },
 };
@@ -385,19 +385,19 @@ export function GscAuditTab({ siteId }: Props) {
                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     {criticals.length > 0 && (
                                         <span className="flex items-center gap-1">
-                                            <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                                            <AlertCircle className="h-3.5 w-3.5 text-destructive" />
                                             {criticals.length} critique{criticals.length > 1 ? "s" : ""}
                                         </span>
                                     )}
                                     {warnings.length > 0 && (
                                         <span className="flex items-center gap-1">
-                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                            <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                                             {warnings.length} avertissement{warnings.length > 1 ? "s" : ""}
                                         </span>
                                     )}
                                     {oks.length > 0 && (
                                         <span className="flex items-center gap-1">
-                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
                                             {oks.length} OK
                                         </span>
                                     )}

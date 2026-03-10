@@ -83,10 +83,10 @@ function KpiSkeleton() {
 }
 
 const SOURCE_BADGE: Record<GscUrlSource, { label: string; className: string; icon: typeof FileText }> = {
-    sitemap: { label: "Sitemap XML", className: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: FileText },
-    product: { label: "Produit", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: ShoppingBag },
-    blog: { label: "Blog", className: "bg-violet-500/10 text-violet-600 border-violet-500/20", icon: BookOpen },
-    manual: { label: "Manuel", className: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: FileText },
+    sitemap: { label: "Sitemap XML", className: "bg-info/10 text-info border-info/20", icon: FileText },
+    product: { label: "Produit", className: "bg-success/10 text-success border-success/20", icon: ShoppingBag },
+    blog: { label: "Blog", className: "bg-primary/10 text-primary border-primary/20", icon: BookOpen },
+    manual: { label: "Manuel", className: "bg-warning/10 text-warning border-warning/20", icon: FileText },
 };
 
 function SourceBadge({ source }: { source: GscUrlSource }) {
@@ -140,7 +140,7 @@ function UrlRow({ row }: { row: GscSitemapUrl }) {
             {/* Status */}
             <div className="w-[70px] shrink-0 flex justify-end">
                 {row.is_active ? (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded-full bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 rounded-full bg-success/10 text-success border-success/20">
                         Actif
                     </Badge>
                 ) : (
@@ -313,13 +313,13 @@ export function GscSitemapTab({ siteId }: GscSitemapTabProps) {
                             label="Sitemap XML"
                             value={stats.sitemap}
                             icon={FileText}
-                            iconClass="bg-blue-500/10 text-blue-600"
+                            iconClass="bg-info/10 text-info"
                         />
                         <KpiCard
                             label="Produits & Blog FLOWZ"
                             value={stats.product + stats.blog}
                             icon={ShoppingBag}
-                            iconClass="bg-emerald-500/10 text-emerald-600"
+                            iconClass="bg-success/10 text-success"
                         />
                     </>
                 )}
@@ -327,7 +327,7 @@ export function GscSitemapTab({ siteId }: GscSitemapTabProps) {
 
             {/* Refresh result banner */}
             {refreshResult && (
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-700">
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-success/20 bg-success/5 text-xs text-success">
                     <RefreshCw className="h-3.5 w-3.5 shrink-0" />
                     Scan terminé — {refreshResult.total.toLocaleString()} URLs ({refreshResult.new} nouvelles, {refreshResult.removed} supprimées)
                 </div>

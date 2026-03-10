@@ -28,10 +28,10 @@ function extractPath(url: string): string {
 
 function OpportunitySummaryCards({ data }: { data: { quick_wins: number; low_ctr: number; no_clicks: number; cannibalization: number } }) {
     const cards = [
-        { label: "Quick Wins", value: data.quick_wins, icon: Zap, color: "text-amber-500", bg: "bg-amber-500/10", desc: "Proches du top 3" },
-        { label: "CTR Faible", value: data.low_ctr, icon: MousePointerClick, color: "text-red-500", bg: "bg-red-500/10", desc: "Bien places mais peu cliques" },
-        { label: "Sans Clics", value: data.no_clicks, icon: EyeOff, color: "text-violet-500", bg: "bg-violet-500/10", desc: "Vus mais jamais cliques" },
-        { label: "Cannibalisation", value: data.cannibalization, icon: Copy, color: "text-orange-500", bg: "bg-orange-500/10", desc: "Pages en concurrence" },
+        { label: "Quick Wins", value: data.quick_wins, icon: Zap, color: "text-warning", bg: "bg-warning/10", desc: "Proches du top 3" },
+        { label: "CTR Faible", value: data.low_ctr, icon: MousePointerClick, color: "text-destructive", bg: "bg-destructive/10", desc: "Bien places mais peu cliques" },
+        { label: "Sans Clics", value: data.no_clicks, icon: EyeOff, color: "text-primary", bg: "bg-primary/10", desc: "Vus mais jamais cliques" },
+        { label: "Cannibalisation", value: data.cannibalization, icon: Copy, color: "text-warning", bg: "bg-orange-500/10", desc: "Pages en concurrence" },
     ];
 
     return (
@@ -178,7 +178,7 @@ export function GscOpportunitesTab({ siteId }: Props) {
                 title="Quick Wins"
                 description="Mots-cles en position 4-20 avec beaucoup d'impressions. Un petit effort de SEO pourrait les amener en top 3."
                 icon={Zap}
-                color="text-amber-500"
+                color="text-warning"
                 items={quickWins}
                 actionLabel="Optimisez le contenu et les meta pour gagner des positions"
             />
@@ -187,7 +187,7 @@ export function GscOpportunitesTab({ siteId }: Props) {
                 title="CTR Faible"
                 description="Deja en top 3 mais le CTR est bien en dessous de la moyenne du site. Le titre ou la meta-description ne convainc pas."
                 icon={MousePointerClick}
-                color="text-red-500"
+                color="text-destructive"
                 items={lowCtr}
                 actionLabel="Ameliorez vos titres et meta-descriptions pour attirer plus de clics"
             />
@@ -196,7 +196,7 @@ export function GscOpportunitesTab({ siteId }: Props) {
                 title="Sans Clics"
                 description="Beaucoup d'impressions mais 0 clic. Le snippet n'est pas attractif ou le mot-cle ne correspond pas a l'intention."
                 icon={EyeOff}
-                color="text-violet-500"
+                color="text-primary"
                 items={noClicks}
                 actionLabel="Revoir l'adequation contenu / intention de recherche"
             />
@@ -207,7 +207,7 @@ export function GscOpportunitesTab({ siteId }: Props) {
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                <Copy className="h-4 w-4 text-orange-500" />
+                                <Copy className="h-4 w-4 text-warning" />
                                 Cannibalisation
                                 <Badge variant="secondary" className="text-[10px] px-1.5">{cannibalization.length}</Badge>
                             </CardTitle>
@@ -223,7 +223,7 @@ export function GscOpportunitesTab({ siteId }: Props) {
                                     <AccordionTrigger className="text-xs py-2.5 hover:no-underline">
                                         <div className="flex items-center gap-3 w-full pr-2">
                                             <span className="font-semibold">{entry.query}</span>
-                                            <Badge variant="outline" className="text-[9px] px-1.5 text-orange-500 border-orange-500/30">
+                                            <Badge variant="outline" className="text-[9px] px-1.5 text-warning border-warning/30">
                                                 {entry.page_count} pages
                                             </Badge>
                                             <span className="text-muted-foreground tabular-nums ml-auto">

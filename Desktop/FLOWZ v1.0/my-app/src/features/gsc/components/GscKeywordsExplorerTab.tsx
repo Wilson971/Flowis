@@ -290,7 +290,7 @@ export function GscKeywordsExplorerTab({ siteId }: Props) {
                                             <div className="flex items-center gap-1.5">
                                                 <span className="font-medium truncate">{kw.query}</span>
                                                 {isQuickWin && (
-                                                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-amber-500 border-amber-500/30 gap-0.5 shrink-0">
+                                                    <Badge variant="outline" className="text-[9px] px-1 py-0 text-warning border-warning/30 gap-0.5 shrink-0">
                                                         <Zap className="h-2.5 w-2.5" /> Quick Win
                                                     </Badge>
                                                 )}

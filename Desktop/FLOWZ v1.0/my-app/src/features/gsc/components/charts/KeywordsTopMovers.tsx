@@ -40,8 +40,8 @@ export function KeywordsTopMovers({ changes, isLoading }: Props) {
                     {/* Gainers */}
                     <div className="space-y-1">
                         <div className="flex items-center gap-1.5 mb-2">
-                            <ArrowUp className="h-3.5 w-3.5 text-emerald-500" />
-                            <span className="text-xs font-medium text-emerald-500">Meilleurs gains</span>
+                            <ArrowUp className="h-3.5 w-3.5 text-success" />
+                            <span className="text-xs font-medium text-success">Meilleurs gains</span>
                         </div>
                         {gainers.length === 0 ? (
                             <p className="text-[11px] text-muted-foreground">Aucun gain</p>
@@ -51,7 +51,7 @@ export function KeywordsTopMovers({ changes, isLoading }: Props) {
                                     <span className="text-xs truncate flex-1 font-medium">{c.query}</span>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <GscPositionBadge position={c.position_7d} />
-                                        <span className={cn("text-xs font-medium tabular-nums text-emerald-500")}>
+                                        <span className={cn("text-xs font-medium tabular-nums text-success")}>
                                             +{c.delta.toFixed(1)}
                                         </span>
                                     </div>
@@ -63,8 +63,8 @@ export function KeywordsTopMovers({ changes, isLoading }: Props) {
                     {/* Losers */}
                     <div className="space-y-1">
                         <div className="flex items-center gap-1.5 mb-2">
-                            <ArrowDown className="h-3.5 w-3.5 text-red-500" />
-                            <span className="text-xs font-medium text-red-500">Plus grosses pertes</span>
+                            <ArrowDown className="h-3.5 w-3.5 text-destructive" />
+                            <span className="text-xs font-medium text-destructive">Plus grosses pertes</span>
                         </div>
                         {losers.length === 0 ? (
                             <p className="text-[11px] text-muted-foreground">Aucune perte</p>
@@ -74,7 +74,7 @@ export function KeywordsTopMovers({ changes, isLoading }: Props) {
                                     <span className="text-xs truncate flex-1 font-medium">{c.query}</span>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <GscPositionBadge position={c.position_7d} />
-                                        <span className={cn("text-xs font-medium tabular-nums text-red-500")}>
+                                        <span className={cn("text-xs font-medium tabular-nums text-destructive")}>
                                             {c.delta.toFixed(1)}
                                         </span>
                                     </div>

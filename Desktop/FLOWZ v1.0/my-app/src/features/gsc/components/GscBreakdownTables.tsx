@@ -117,7 +117,7 @@ export function GscCountriesTable({ countries }: { countries: GscCountryStats[] 
                                 <span className="text-right tabular-nums text-muted-foreground">{(c.ctr * 100).toFixed(1)}%</span>
                                 <span className={cn(
                                     "text-right tabular-nums font-medium",
-                                    c.position <= 10 ? "text-emerald-500" : c.position <= 20 ? "text-amber-500" : "text-muted-foreground"
+                                    c.position <= 10 ? "text-success" : c.position <= 20 ? "text-warning" : "text-muted-foreground"
                                 )}>
                                     {Math.round(c.position * 10) / 10}
                                 </span>

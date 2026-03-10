@@ -117,7 +117,7 @@ export function GscIndexationSelectionBar({
                             {/* Left — count + deselect */}
                             <div className="relative z-10 flex items-center gap-4 w-full sm:w-auto">
                                 <span className="bg-white/10 text-inherit text-xs font-bold px-3 py-1 rounded-full border border-white/10 flex items-center gap-2">
-                                    <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span className="flex h-2 w-2 rounded-full bg-success animate-pulse" />
                                     {selectedCount} URL{selectedCount > 1 ? "s" : ""} sélectionnée{selectedCount > 1 ? "s" : ""}
                                 </span>
                                 <Button

@@ -43,12 +43,12 @@ function RadarAnimation() {
     return (
         <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
             {/* Outer rings */}
-            <span className="absolute inset-0 rounded-full border border-violet-500/20 animate-ping" style={{ animationDuration: "2s" }} />
-            <span className="absolute inset-1 rounded-full border border-violet-500/30 animate-ping" style={{ animationDuration: "2s", animationDelay: "0.4s" }} />
-            <span className="absolute inset-2 rounded-full border border-violet-500/40 animate-ping" style={{ animationDuration: "2s", animationDelay: "0.8s" }} />
+            <span className="absolute inset-0 rounded-full border border-primary/20 animate-ping" style={{ animationDuration: "2s" }} />
+            <span className="absolute inset-1 rounded-full border border-primary/30 animate-ping" style={{ animationDuration: "2s", animationDelay: "0.4s" }} />
+            <span className="absolute inset-2 rounded-full border border-primary/40 animate-ping" style={{ animationDuration: "2s", animationDelay: "0.8s" }} />
             {/* Core icon */}
-            <div className="relative z-10 w-8 h-8 rounded-full bg-violet-500/15 border border-violet-500/40 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-violet-400" />
+            <div className="relative z-10 w-8 h-8 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-primary" />
             </div>
         </div>
     );
@@ -72,7 +72,7 @@ function UrlTicker({ passes }: { passes: number }) {
     return (
         <span
             className={cn(
-                "text-xs text-violet-300/80 transition-opacity duration-300",
+                "text-xs text-primary/80 transition-opacity duration-300",
                 visible ? "opacity-100" : "opacity-0"
             )}
         >
@@ -134,15 +134,15 @@ function ScanStepIndicator({
                         {/* Step node */}
                         <div className={cn(
                             "flex items-center gap-1.5 shrink-0",
-                            status === "done" && "text-emerald-400",
-                            status === "active" && "text-violet-400",
+                            status === "done" && "text-success",
+                            status === "active" && "text-primary",
                             status === "pending" && "text-white/25"
                         )}>
                             {/* Icon */}
                             <div className={cn(
                                 "w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300",
-                                status === "done" && "bg-emerald-500/20 border border-emerald-500/40",
-                                status === "active" && "bg-violet-500/20 border border-violet-500/40 shadow-[0_0_8px_rgba(139,92,246,0.3)]",
+                                status === "done" && "bg-success/20 border border-success/40",
+                                status === "active" && "bg-primary/20 border border-primary/40 shadow-[0_0_8px_hsl(var(--primary) / 0.3)]",
                                 status === "pending" && "bg-white/[0.04] border border-white/[0.08]"
                             )}>
                                 {status === "done" && <Check className="w-3 h-3" />}
@@ -154,7 +154,7 @@ function ScanStepIndicator({
                             <div className="hidden sm:flex flex-col min-w-0">
                                 <span className={cn(
                                     "text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap transition-colors duration-300",
-                                    status === "done" && "text-emerald-400",
+                                    status === "done" && "text-success",
                                     status === "active" && "text-white",
                                     status === "pending" && "text-white/25"
                                 )}>
@@ -164,11 +164,11 @@ function ScanStepIndicator({
                                     <div className="flex items-center gap-1.5 mt-0.5">
                                         <div className="h-1 w-16 bg-white/[0.06] rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-violet-500 rounded-full transition-all duration-700 ease-out"
+                                                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
                                                 style={{ width: `${Math.min(progress, 94)}%` }}
                                             />
                                         </div>
-                                        <span className="text-[9px] tabular-nums text-violet-300/70">{progress}%</span>
+                                        <span className="text-[9px] tabular-nums text-primary/70">{progress}%</span>
                                     </div>
                                 )}
                             </div>
@@ -179,9 +179,9 @@ function ScanStepIndicator({
                             <div className={cn(
                                 "flex-1 h-px mx-2 transition-colors duration-300",
                                 i < currentStep
-                                    ? "bg-emerald-500/40"
+                                    ? "bg-success/40"
                                     : i === currentStep
-                                        ? "bg-gradient-to-r from-violet-500/40 to-white/[0.06]"
+                                        ? "bg-gradient-to-r from-primary/40 to-muted/30"
                                         : "bg-white/[0.06]"
                             )} />
                         )}
@@ -219,20 +219,20 @@ export function GscScanProgressBanner({
     // ── Auth error state (token révoqué) ─────────────────────────────────────
     if (error && isAuthError) {
         return (
-            <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-4">
+            <div className="rounded-xl border border-warning/25 bg-warning/5 p-4">
                 <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <div className="w-8 h-8 rounded-full bg-warning/15 border border-warning/30 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-4 h-4 text-warning" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-amber-400">Connexion Google expirée</p>
-                        <p className="text-xs text-amber-300/70 mt-1">
+                        <p className="text-sm font-semibold text-warning">Connexion Google expirée</p>
+                        <p className="text-xs text-warning/70 mt-1">
                             Votre accès Google Search Console a expiré ou été révoqué. Reconnectez votre compte pour relancer l&apos;inspection.
                         </p>
                         {onReconnect && (
                             <button
                                 onClick={onReconnect}
-                                className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
+                                className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-warning hover:text-warning transition-colors"
                             >
                                 <RefreshCw className="w-3 h-3" />
                                 Reconnecter Google Search Console
@@ -241,7 +241,7 @@ export function GscScanProgressBanner({
                     </div>
                     <button
                         onClick={onDismiss}
-                        className="text-amber-400/60 hover:text-amber-400 transition-colors text-lg leading-none shrink-0"
+                        className="text-warning/60 hover:text-warning transition-colors text-lg leading-none shrink-0"
                     >
                         ×
                     </button>
@@ -253,18 +253,18 @@ export function GscScanProgressBanner({
     // ── Generic error state ───────────────────────────────────────────────────
     if (error) {
         return (
-            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
                 <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
-                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                    <div className="w-8 h-8 rounded-full bg-destructive/15 border border-destructive/30 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-4 h-4 text-destructive" />
                     </div>
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-red-400">Inspection échouée</p>
-                        <p className="text-xs text-red-300/70 mt-0.5 truncate">{error}</p>
+                        <p className="text-sm font-semibold text-destructive">Inspection échouée</p>
+                        <p className="text-xs text-destructive/70 mt-0.5 truncate">{error}</p>
                     </div>
                     <button
                         onClick={onDismiss}
-                        className="text-red-400/60 hover:text-red-400 transition-colors text-lg leading-none"
+                        className="text-destructive/60 hover:text-destructive transition-colors text-lg leading-none"
                     >
                         ×
                     </button>
@@ -276,20 +276,20 @@ export function GscScanProgressBanner({
     // ── Done state ───────────────────────────────────────────────────────────
     if (done) {
         return (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <div className="rounded-xl border border-success/20 bg-success/5 p-4">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <div className="w-8 h-8 rounded-full bg-success/15 border border-success/30 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-success" />
                     </div>
                     <div className="flex-1">
-                        <p className="text-sm font-semibold text-emerald-400">Inspection terminée</p>
-                        <p className="text-xs text-emerald-300/70 mt-0.5">
+                        <p className="text-sm font-semibold text-success">Inspection terminée</p>
+                        <p className="text-xs text-success/70 mt-0.5">
                             {inspected} URL{inspected > 1 ? "s" : ""} inspectée{inspected > 1 ? "s" : ""} en {passes} passe{passes > 1 ? "s" : ""}
                         </p>
                     </div>
                     <button
                         onClick={onDismiss}
-                        className="text-emerald-400/60 hover:text-emerald-400 transition-colors text-lg leading-none"
+                        className="text-success/60 hover:text-success transition-colors text-lg leading-none"
                     >
                         ×
                     </button>
@@ -300,9 +300,9 @@ export function GscScanProgressBanner({
 
     // ── Running state ────────────────────────────────────────────────────────
     return (
-        <div className="rounded-xl border border-violet-500/25 bg-gradient-to-br from-violet-500/8 via-violet-500/5 to-transparent overflow-hidden">
+        <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/8 via-primary/5 to-transparent overflow-hidden">
             {/* Animated top border */}
-            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-violet-500 to-transparent animate-pulse" />
+            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
 
             <div className="p-4 space-y-3">
                 {/* Header row */}
@@ -311,7 +311,7 @@ export function GscScanProgressBanner({
 
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                            <PulsingDot className="text-violet-400" />
+                            <PulsingDot className="text-primary" />
                             <span className="text-sm font-semibold text-white">
                                 Inspection complète en cours
                             </span>
@@ -323,7 +323,7 @@ export function GscScanProgressBanner({
                         variant="ghost"
                         size="sm"
                         onClick={onStop}
-                        className="h-8 gap-1.5 text-xs text-red-400/80 hover:text-red-400 hover:bg-red-500/10 border border-red-500/20 shrink-0"
+                        className="h-8 gap-1.5 text-xs text-destructive/80 hover:text-destructive hover:bg-destructive/10 border border-destructive/20 shrink-0"
                     >
                         <XCircle className="w-3.5 h-3.5" />
                         Arrêter
@@ -333,17 +333,17 @@ export function GscScanProgressBanner({
                 {/* Stats row */}
                 <div className="grid grid-cols-3 gap-2">
                     <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-violet-300/50 font-medium mb-0.5">Inspectées</p>
+                        <p className="text-[10px] uppercase tracking-wide text-primary/50 font-medium mb-0.5">Inspectées</p>
                         <p className="text-base font-bold text-white tabular-nums">{inspected}</p>
                     </div>
                     <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-violet-300/50 font-medium mb-0.5">Restantes</p>
+                        <p className="text-[10px] uppercase tracking-wide text-primary/50 font-medium mb-0.5">Restantes</p>
                         <p className="text-base font-bold text-white tabular-nums">
                             {remaining !== null ? remaining : "…"}
                         </p>
                     </div>
                     <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] px-3 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-violet-300/50 font-medium mb-0.5">Passes</p>
+                        <p className="text-[10px] uppercase tracking-wide text-primary/50 font-medium mb-0.5">Passes</p>
                         <p className="text-base font-bold text-white tabular-nums">{passes}</p>
                     </div>
                 </div>

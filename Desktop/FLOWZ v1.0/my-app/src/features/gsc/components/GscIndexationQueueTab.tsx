@@ -49,14 +49,14 @@ export function GscIndexationQueueTab({ siteId }: GscIndexationQueueTabProps) {
                     label="Pages soumises"
                     value={stats.submitted}
                     total={totalAll}
-                    color="text-emerald-500"
+                    color="text-success"
                 />
                 <KpiCard
                     icon={Clock}
                     label="En file d'attente"
                     value={stats.pending}
                     total={totalAll}
-                    color="text-amber-500"
+                    color="text-warning"
                 />
                 <KpiCard
                     icon={AlertCircle}
@@ -148,10 +148,10 @@ function QueueItemRow({ item }: { item: GscQueueItem }) {
     return (
         <div className="flex items-center gap-3 py-2.5 px-2">
             {item.status === 'submitted' && (
-                <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                <CheckCircle className="h-3.5 w-3.5 text-success shrink-0" />
             )}
             {item.status === 'pending' && (
-                <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <Clock className="h-3.5 w-3.5 text-warning shrink-0" />
             )}
             {item.status === 'failed' && (
                 <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />

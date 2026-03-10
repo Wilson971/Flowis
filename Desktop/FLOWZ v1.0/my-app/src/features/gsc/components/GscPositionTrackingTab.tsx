@@ -16,7 +16,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 function DeltaArrow({ change }: { change: GscPositionChange }) {
     if (change.direction === 'up') {
         return (
-            <span className="inline-flex items-center gap-0.5 text-emerald-500 font-medium">
+            <span className="inline-flex items-center gap-0.5 text-success font-medium">
                 <ArrowUp className="h-3 w-3" />
                 <span className="tabular-nums">+{change.delta.toFixed(1)}</span>
             </span>
@@ -24,7 +24,7 @@ function DeltaArrow({ change }: { change: GscPositionChange }) {
     }
     if (change.direction === 'down') {
         return (
-            <span className="inline-flex items-center gap-0.5 text-red-500 font-medium">
+            <span className="inline-flex items-center gap-0.5 text-destructive font-medium">
                 <ArrowDown className="h-3 w-3" />
                 <span className="tabular-nums">{change.delta.toFixed(1)}</span>
             </span>
@@ -68,10 +68,10 @@ export function GscPositionTrackingTab({ siteId }: Props) {
         <div className="space-y-4">
             {/* Info / Warning banner */}
             {!has7dData ? (
-                <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-xs">
-                    <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+                <div className="flex items-center gap-2 rounded-xl bg-warning/10 border border-warning/20 px-4 py-3 text-xs">
+                    <AlertCircle className="h-4 w-4 text-warning shrink-0" />
                     <div>
-                        <p className="font-medium text-amber-600">Donnees 7 jours non disponibles</p>
+                        <p className="font-medium text-warning">Donnees 7 jours non disponibles</p>
                         <p className="text-muted-foreground mt-0.5">
                             Synchronisez avec la periode &quot;7 jours&quot; pour comparer les positions.
                             Cliquez sur &quot;Synchroniser&quot; apres avoir selectionne 7j dans l&apos;onglet Vue d&apos;ensemble.
@@ -88,8 +88,8 @@ export function GscPositionTrackingTab({ siteId }: Props) {
             {/* Mini KPIs */}
             <div className="grid grid-cols-3 gap-4">
                 {[
-                    { label: "Ameliores", value: improved, color: "text-emerald-500", bg: "bg-emerald-500/10", icon: ArrowUp },
-                    { label: "Degrades", value: declined, color: "text-red-500", bg: "bg-red-500/10", icon: ArrowDown },
+                    { label: "Ameliores", value: improved, color: "text-success", bg: "bg-success/10", icon: ArrowUp },
+                    { label: "Degrades", value: declined, color: "text-destructive", bg: "bg-destructive/10", icon: ArrowDown },
                     { label: "Stables", value: stable, color: "text-muted-foreground", bg: "bg-muted/30", icon: Minus },
                 ].map(k => (
                     <Card key={k.label} className="border-border/40">

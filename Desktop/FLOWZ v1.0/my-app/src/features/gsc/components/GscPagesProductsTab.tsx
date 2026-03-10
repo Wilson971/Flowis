@@ -74,22 +74,22 @@ export function GscPagesProductsTab({ siteId }: Props) {
                 </Card>
                 <Card className="border-border/40">
                     <CardContent className="p-4 flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                            <Link2 className="h-4 w-4 text-emerald-500" />
+                        <div className="h-9 w-9 rounded-lg bg-success/10 flex items-center justify-center">
+                            <Link2 className="h-4 w-4 text-success" />
                         </div>
                         <div>
-                            <div className="text-lg font-bold tabular-nums text-emerald-500">{stats.linked}</div>
+                            <div className="text-lg font-bold tabular-nums text-success">{stats.linked}</div>
                             <div className="text-[11px] text-muted-foreground">Liees a un produit</div>
                         </div>
                     </CardContent>
                 </Card>
                 <Card className="border-border/40">
                     <CardContent className="p-4 flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <div className="h-9 w-9 rounded-lg bg-warning/10 flex items-center justify-center">
+                            <AlertTriangle className="h-4 w-4 text-warning" />
                         </div>
                         <div>
-                            <div className="text-lg font-bold tabular-nums text-amber-500">{stats.unlinked}</div>
+                            <div className="text-lg font-bold tabular-nums text-warning">{stats.unlinked}</div>
                             <div className="text-[11px] text-muted-foreground">Sans produit FLOWZ</div>
                         </div>
                     </CardContent>
@@ -147,7 +147,7 @@ export function GscPagesProductsTab({ siteId }: Props) {
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-1.5">
                                             {p.has_product ? (
-                                                <Link2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                                                <Link2 className="h-3 w-3 text-success shrink-0" />
                                             ) : (
                                                 <EyeOff className="h-3 w-3 text-muted-foreground/40 shrink-0" />
                                             )}
