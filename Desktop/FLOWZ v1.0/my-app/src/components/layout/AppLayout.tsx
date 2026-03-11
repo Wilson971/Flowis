@@ -5,7 +5,11 @@ import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
 import { AuroraBackground } from "./AuroraBackground";
 import { SidebarPreferenceProvider } from "../../contexts/SidebarContext";
+import { CopilotProvider, useCopilot } from "../../contexts/CopilotContext";
 import { useTheme } from "../../contexts/ThemeContext";
+import { CopilotPanel } from "../copilot/CopilotPanel";
+import { SpotlightModal } from "../copilot/spotlight/SpotlightModal";
+import { AnimatePresence } from "framer-motion";
 
 /**
  * AppLayout Component
@@ -16,10 +20,12 @@ import { useTheme } from "../../contexts/ThemeContext";
  * - Collapsible sidebar with persistence
  * - Smart sticky header with scroll detection
  * - Rounded card-style main content area
+ * - Windows Copilot-style AI panel (push behavior)
  */
 
 const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { theme } = useTheme();
+  const { isOpen: isCopilotOpen } = useCopilot();
 
   return (
     <div className="flex h-screen w-full bg-[#0e0e0e] text-white relative overflow-hidden">
@@ -31,13 +37,13 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
         <AppSidebar />
       </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col h-full relative z-30 overflow-hidden p-1 md:p-2 lg:p-3 pl-0">
-        {/* Large unified card */}
+      {/* Main content area - flex row for main card + copilot (push on desktop) */}
+      <div className="flex-1 flex flex-row h-full relative z-30 overflow-hidden p-1 md:p-2 lg:p-3 pl-0 gap-2 transition-all duration-300">
+        {/* Main card */}
         <div
           suppressHydrationWarning
           className={cn(
-            "flex-1 min-h-0 flex flex-col bg-background text-foreground rounded-l-3xl md:rounded-3xl border border-white/5 overflow-hidden",
+            "flex-1 min-w-0 min-h-0 flex flex-col bg-background text-foreground rounded-l-3xl md:rounded-3xl border border-white/5 overflow-hidden",
             theme
           )}
         >
@@ -48,14 +54,22 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
           <main
             id="main-content"
             role="main"
-            className="flex-1 min-h-0 overflow-y-auto w-full bg-background/50 scroll-smooth custom-scrollbar"
+            className="flex-1 min-h-0 overflow-y-auto w-full bg-background scroll-smooth custom-scrollbar"
           >
-            <div className="px-4 md:px-8 py-4 md:py-6 max-w-none mx-auto w-full">
+            <div className="px-4 md:px-8 py-4 md:py-6 w-full">
               {children}
             </div>
           </main>
         </div>
+
+        {/* Copilot panel — push on desktop, overlay on mobile (handled internally) */}
+        <AnimatePresence>
+          {isCopilotOpen && <CopilotPanel />}
+        </AnimatePresence>
       </div>
+
+      {/* Spotlight search modal (Ctrl+K) */}
+      <SpotlightModal />
     </div>
   );
 };
@@ -63,7 +77,9 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
 export const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <SidebarPreferenceProvider>
-      <AppLayoutContent>{children}</AppLayoutContent>
+      <CopilotProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </CopilotProvider>
     </SidebarPreferenceProvider>
   );
 };
