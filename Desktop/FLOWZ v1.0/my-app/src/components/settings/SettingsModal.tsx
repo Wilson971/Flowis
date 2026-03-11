@@ -47,6 +47,9 @@ import {
 // GSC section
 import GscSettingsSection from "@/components/settings/integrations/GscSettingsSection";
 
+// Copilot section
+import { CopilotSettingsSection } from "@/components/copilot/settings/CopilotSettingsSection";
+
 // Workspace sections
 import WorkspaceGeneralSection from "@/components/settings/workspace/WorkspaceGeneralSection";
 import WorkspacePeopleSection from "@/components/settings/workspace/WorkspacePeopleSection";
@@ -103,6 +106,12 @@ const sidebarItems: { section: string; items: SidebarItem[] }[] = [
             { id: "integrations-general", label: "Integrations", icon: Plug },
             { id: "integrations-gsc", label: "Google Search Console", icon: Search, badge: { label: "New", variant: "success" } },
         ]
+    },
+    {
+        section: "Copilot",
+        items: [
+            { id: "copilot-ia", label: "Copilot IA", icon: Sparkles, badge: { label: "New", variant: "success" } },
+        ]
     }
 ];
 
@@ -137,6 +146,7 @@ export function SettingsModal() {
         "account-danger": { title: "Danger Zone", description: "Actions irréversibles sur votre compte." },
         "integrations-general": { title: "Intégrations", description: "Gérez vos plateformes e-commerce et connecteurs externes." },
         "integrations-gsc": { title: "Google Search Console", description: "Connectez et gérez vos sites Google Search Console." },
+        "copilot-ia": { title: "Copilot IA", description: "Personnalisez le comportement et les préférences de votre assistant IA.", badge: { label: "New", variant: "success" } },
     };
 
     const currentHeader = pageHeaders[activeTab];
@@ -165,6 +175,11 @@ export function SettingsModal() {
         // GSC settings
         if (activeTab === "integrations-gsc") {
             return <GscSettingsSection />;
+        }
+
+        // Copilot settings
+        if (activeTab === "copilot-ia") {
+            return <CopilotSettingsSection />;
         }
 
         // Account & Integrations sections

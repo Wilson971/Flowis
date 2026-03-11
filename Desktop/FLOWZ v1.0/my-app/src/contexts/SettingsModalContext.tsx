@@ -14,7 +14,8 @@ export type SettingsTab =
     | "account-ai"
     | "account-danger"
     | "integrations-general"
-    | "integrations-gsc";
+    | "integrations-gsc"
+    | "copilot-ia";
 
 interface SettingsModalContextType {
     initialTab?: SettingsTab;
