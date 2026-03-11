@@ -439,6 +439,7 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
             queryClient.invalidateQueries({ queryKey: ['product-content', variables.productId] });
             queryClient.invalidateQueries({ queryKey: ['products'] });
             queryClient.invalidateQueries({ queryKey: ['product-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['seo-global-score'] });
 
             if (dirtyFields.length > 0) {
                 toast.success('Produit sauvegardé', {

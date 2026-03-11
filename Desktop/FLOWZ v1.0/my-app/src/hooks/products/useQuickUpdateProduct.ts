@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { ContentData } from '@/types/productContent';
 import type { ProductSavePayload } from './useProductSave';
 import { computeDirtyFields } from './computeDirtyFields';
+import { calculateProductSeoScore, computeSeoBreakdown } from '@/lib/seo/analyzer';
 
 export function useQuickUpdateProduct() {
     const queryClient = useQueryClient();
@@ -41,12 +42,29 @@ export function useQuickUpdateProduct() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Authentication required');
 
+            // Recalculate SEO score (no trigger in DB anymore)
+            const images = Array.isArray(updatedWorking.images)
+                ? updatedWorking.images.map((img: { src?: string; alt?: string }) => ({ src: img.src, alt: img.alt }))
+                : [];
+            const seoResult = calculateProductSeoScore({
+                title: updatedWorking.title ?? '',
+                short_description: updatedWorking.short_description ?? '',
+                description: updatedWorking.description ?? '',
+                meta_title: updatedWorking.seo?.title ?? '',
+                meta_description: updatedWorking.seo?.description ?? '',
+                slug: updatedWorking.slug ?? '',
+                images,
+                focus_keyword: updatedWorking.seo?.focus_keyword,
+            });
+
             const { error } = await supabase
                 .from('products')
                 .update({
                     working_content: updatedWorking,
                     dirty_fields_content: dirtyFields,
                     working_content_updated_at: new Date().toISOString(),
+                    seo_score: seoResult.overall,
+                    seo_breakdown: computeSeoBreakdown(seoResult.criteria),
                 })
                 .eq('id', productId)
                 .eq('tenant_id', user.id);
@@ -57,6 +75,8 @@ export function useQuickUpdateProduct() {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['product', variables.productId] });
             queryClient.invalidateQueries({ queryKey: ['product-content', variables.productId] });
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['seo-global-score'] });
         },
     });
 }

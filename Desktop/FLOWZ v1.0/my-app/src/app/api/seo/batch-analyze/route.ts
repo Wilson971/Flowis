@@ -77,15 +77,16 @@ export async function POST(req: NextRequest) {
         const meta = (product.metadata ?? {}) as Record<string, unknown>;
         const images = (wc.images ?? meta.images ?? []) as Array<{ src?: string; alt?: string }>;
 
+        const seo = (wc.seo ?? {}) as Record<string, unknown>;
         const input: ProductSeoInput = {
             title: (wc.title as string) ?? (product.title as string) ?? "",
             short_description: (wc.short_description as string) ?? (meta.short_description as string) ?? "",
             description: (wc.description as string) ?? (meta.description as string) ?? "",
-            meta_title: (wc.meta_title as string) ?? (meta.meta_title as string) ?? "",
-            meta_description: (wc.meta_description as string) ?? (meta.meta_description as string) ?? "",
+            meta_title: (seo.title as string) ?? (wc.meta_title as string) ?? (meta.meta_title as string) ?? "",
+            meta_description: (seo.description as string) ?? (wc.meta_description as string) ?? (meta.meta_description as string) ?? "",
             slug: (wc.slug as string) ?? (meta.slug as string) ?? (wc.permalink as string) ?? "",
             images,
-            focus_keyword: ((wc.seo as Record<string, unknown>)?.focus_keyword as string) ?? "",
+            focus_keyword: (seo.focus_keyword as string) ?? "",
         };
 
         const result = calculateProductSeoScore(input);
