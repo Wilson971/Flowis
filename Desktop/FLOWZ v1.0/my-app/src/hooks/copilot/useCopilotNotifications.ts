@@ -37,7 +37,8 @@ export function useCopilotNotifications({ enabled = true }: { enabled?: boolean 
     queryFn: async () => {
       const res = await fetch("/api/copilot/notifications")
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      return res.json()
+      const data = await res.json()
+      return data.notifications ?? []
     },
     enabled,
     refetchInterval: 5 * 60 * 1000,
