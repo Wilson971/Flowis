@@ -20,6 +20,7 @@ import { useSeoAnalysis } from "../hooks/useSeoAnalysis";
 import { useFormHistory } from "../hooks/useFormHistory";
 import { useFormHistoryKeyboard } from "../hooks/useFormHistoryKeyboard";
 import { useFormStabilization } from "../hooks/useFormStabilization";
+import { EDITOR_CONFIG } from "../constants/editor-config";
 import { useNavigationGuard } from "../hooks/useNavigationGuard";
 import { usePushSingleProduct } from "@/hooks/sync/usePushToStore";
 import { useProductVersionManager } from "@/hooks/products/useProductVersions";
@@ -175,8 +176,8 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     const history = useFormHistory({
         methods,
         enabled: !isLoading && !!product,
-        maxSnapshots: 50,
-        debounceMs: 500,
+        maxSnapshots: EDITOR_CONFIG.MAX_SNAPSHOTS,
+        debounceMs: EDITOR_CONFIG.HISTORY_DEBOUNCE_MS,
         isRestoringRef,
     });
 
@@ -251,7 +252,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             saveStatusTimerRef.current = setTimeout(() => {
                 saveStatusTimerRef.current = null;
                 setSaveStatus('idle');
-            }, 3000);
+            }, EDITOR_CONFIG.SAVE_STATUS_RESET_MS);
 
             if (variationSaveOk) {
                 versionManager.createVersion({
@@ -267,7 +268,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             saveStatusTimerRef.current = setTimeout(() => {
                 saveStatusTimerRef.current = null;
                 setSaveStatus('idle');
-            }, 5000);
+            }, EDITOR_CONFIG.SAVE_STATUS_ERROR_RESET_MS);
             if (e instanceof StaleDataError || e instanceof DuplicateSkuError) {
                 // These are user-facing errors with safe messages — already handled by useProductSave.onError
             } else {
@@ -365,7 +366,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         formHistory: history,
         saveStatus,
     }), [
-        productId, product, isLoading, methods, actions.isSaving, actions.handleSave,
+        productId, product, isLoading, methods.control, methods.formState, actions.isSaving, actions.handleSave,
         refetchProduct, refetchContentBuffer, selectedStore, analysisData, runServerAnalysis,
         contentBuffer, contentBuffer?.generation_manifest, dirtyFieldsData, remainingProposals, draftActions, history, saveStatus
     ]);

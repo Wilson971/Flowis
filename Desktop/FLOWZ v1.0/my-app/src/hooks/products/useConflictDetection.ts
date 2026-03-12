@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIMES } from '@/lib/query-config';
+import { EDITOR_CONFIG } from '@/features/products/constants/editor-config';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { ContentData } from '@/types/productContent';
@@ -199,7 +200,7 @@ export function useConflictDetection(productId?: string) {
         staleTime: STALE_TIMES.REALTIME,
         refetchInterval: () => {
             if (typeof document !== 'undefined' && document.hidden) return false;
-            return 15_000;
+            return EDITOR_CONFIG.CONFLICT_POLL_INTERVAL_MS;
         },
     });
 }
