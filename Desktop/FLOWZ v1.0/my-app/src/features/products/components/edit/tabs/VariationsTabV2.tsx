@@ -12,7 +12,6 @@ interface VariationsTabV2Props {
   platformProductId?: string;
   metadataVariants?: unknown[];
   onRegisterSave?: (saveFn: () => Promise<void>) => void;
-  onRegisterDirtyCheck?: (dirtyFn: () => boolean) => void;
 }
 
 export const VariationsTabV2 = (props: VariationsTabV2Props) => {

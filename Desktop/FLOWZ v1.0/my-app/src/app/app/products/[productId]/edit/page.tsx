@@ -1,8 +1,8 @@
-import { ProductEditorContainerV2 } from '@/features/products/components/ProductEditorContainerV2';
+import { ProductEditorContainer } from '@/features/products/components/ProductEditorContainer';
 
 export default async function ProductEditPage(props: {
     params: Promise<{ productId: string }>;
 }) {
     const params = await props.params;
-    return <ProductEditorContainerV2 productId={params.productId} />;
+    return <ProductEditorContainer productId={params.productId} />;
 }
