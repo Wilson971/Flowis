@@ -135,16 +135,11 @@ export function useArticleSave(options: UseArticleSaveOptions): UseArticleSaveRe
       }
     } catch (error) {
       if (error instanceof StaleArticleError) {
-        console.warn('[useArticleSave] Stale data conflict on saveDraft — article was modified elsewhere', {
-          articleId,
-          expectedUpdatedAt: article?.updated_at,
-        });
         toast.warning('Conflit de modification', {
           description: error.message,
           duration: 8000,
         });
       } else {
-        console.warn('[useArticleSave] saveDraft failed:', error);
         toast.error('Erreur lors de la sauvegarde');
       }
     }
@@ -252,16 +247,11 @@ export function useArticleSave(options: UseArticleSaveOptions): UseArticleSaveRe
       }
     } catch (error) {
       if (error instanceof StaleArticleError) {
-        console.warn('[useArticleSave] Stale data conflict on saveAndPublish — article was modified elsewhere', {
-          articleId,
-          expectedUpdatedAt: article?.updated_at,
-        });
         toast.warning('Conflit de modification', {
           description: error.message,
           duration: 8000,
         });
       } else {
-        console.warn('[useArticleSave] saveAndPublish failed:', error);
         toast.error('Erreur lors de la publication');
       }
     }

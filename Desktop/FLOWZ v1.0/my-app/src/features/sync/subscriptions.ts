@@ -54,7 +54,7 @@ class SyncSubscriptionManager {
         onProgress: (progress: SyncProgressData) => void
     ): UnsubscribeFn {
         if (!this.supabase) {
-            console.error('[SyncSubscriptions] Supabase not initialized');
+            // Supabase not initialized — return no-op
             return () => {};
         }
 
@@ -102,7 +102,7 @@ class SyncSubscriptionManager {
         onFail?: (job: SyncJob, error: string) => void
     ): UnsubscribeFn {
         if (!this.supabase) {
-            console.error('[SyncSubscriptions] Supabase not initialized');
+            // Supabase not initialized — return no-op
             return () => {};
         }
 
@@ -162,7 +162,7 @@ class SyncSubscriptionManager {
         onLog: (log: { message: string; type: string }) => void
     ): UnsubscribeFn {
         if (!this.supabase) {
-            console.error('[SyncSubscriptions] Supabase not initialized');
+            // Supabase not initialized — return no-op
             return () => {};
         }
 

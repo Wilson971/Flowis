@@ -98,15 +98,6 @@ export function useRecentActivity(storeId?: string, limit = 12) {
       const studioJobs = r3.status === 'fulfilled' ? r3.value.data : null;
       const products   = r4.status === 'fulfilled' ? r4.value.data : null;
 
-      console.group('[useRecentActivity] debug');
-      console.log('storeId:', storeId);
-      console.log('activity_log:', r0.status === 'fulfilled' ? { data: r0.value.data?.length, error: r0.value.error } : r0.reason);
-      console.log('blog_articles:', r1.status === 'fulfilled' ? { data: r1.value.data?.length, error: r1.value.error } : r1.reason);
-      console.log('sync_jobs:',     r2.status === 'fulfilled' ? { data: r2.value.data?.length, error: r2.value.error } : r2.reason);
-      console.log('studio_jobs:',   r3.status === 'fulfilled' ? { data: r3.value.data?.length, error: r3.value.error } : r3.reason);
-      console.log('products:',      r4.status === 'fulfilled' ? { data: r4.value.data?.length, error: r4.value.error } : r4.reason);
-      console.groupEnd();
-
       // ── Map activity_log ─────────────────────────────────────────────────
       for (const a of actLogs || []) {
         const meta: ActivityMetaChip[] = [];

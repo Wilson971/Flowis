@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { getScoreColor } from "@/lib/seo/scoreColors"
 
 interface ProductCardProps {
   data: Record<string, unknown>
@@ -17,12 +18,6 @@ export function ProductCard({ data }: ProductCardProps) {
   const truncated = description.length > 120 ? description.slice(0, 120) + "..." : description
   const onApply = data.onApply as (() => void) | undefined
   const onView = data.onView as (() => void) | undefined
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-success"
-    if (score >= 50) return "text-warning"
-    return "text-destructive"
-  }
 
   return (
     <Card className="rounded-xl">

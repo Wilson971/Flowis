@@ -80,7 +80,7 @@ export function useSyncStore() {
             })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR') {
-                    console.warn('[useSyncStore] Channel error for store', activeStoreId);
+                    // Silently ignore channel errors
                 }
             });
 

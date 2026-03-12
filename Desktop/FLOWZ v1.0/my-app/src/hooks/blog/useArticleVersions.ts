@@ -329,7 +329,7 @@ export function useCleanupOldVersions() {
       }
     },
     onError: (error: Error) => {
-      console.error('Error cleaning up versions:', error);
+      // Silently ignore — cleanup is best-effort
     },
   });
 }

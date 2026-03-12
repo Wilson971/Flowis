@@ -97,7 +97,7 @@ export function useSyncManager() {
                     consecutiveErrorsRef.current = 0; // Reset on success
                 } catch (err: any) {
                     consecutiveErrorsRef.current++;
-                    console.warn(`[useSyncManager] Retry failed (${consecutiveErrorsRef.current}/${MAX_CONSECUTIVE_ERRORS}):`, err.message);
+                    // Retry failed — tracked by consecutiveErrorsRef
 
                     if (consecutiveErrorsRef.current >= MAX_CONSECUTIVE_ERRORS) {
                         throw new Error(`Sync failed after ${MAX_CONSECUTIVE_ERRORS} consecutive errors: ${err.message}`);

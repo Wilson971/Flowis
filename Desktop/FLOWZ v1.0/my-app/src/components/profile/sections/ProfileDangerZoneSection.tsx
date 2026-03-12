@@ -77,7 +77,6 @@ export function ProfileDangerZoneSection() {
       await signOut();
       router.push('/login');
     } catch (err) {
-      console.warn('[ProfileDangerZone] Account deletion failed:', err);
       toast.error('Erreur lors de la suppression du compte');
     } finally {
       setIsDeleting(false);

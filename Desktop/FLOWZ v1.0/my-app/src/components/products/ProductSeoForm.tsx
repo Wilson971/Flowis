@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn, stripHtml } from '@/lib/utils';
 import { motion } from "framer-motion";
+import { getScoreBgColor } from '@/lib/seo/scoreColors';
 
 // ============================================================================
 // TYPES
@@ -52,20 +53,13 @@ export const calculateScore = (text: string, idealLength: number): number => {
 };
 
 export const SeoScoreBar = ({ score }: SeoScoreProps) => {
-  const getScoreColor = (s: number) => {
-    if (s >= 90) return 'bg-success shadow-[0_0_10px_color-mix(in srgb,var(--success),transparent_60%)]';
-    if (s >= 60) return 'bg-info shadow-[0_0_10px_color-mix(in srgb,var(--info),transparent_60%)]';
-    if (s >= 30) return 'bg-warning shadow-[0_0_10px_color-mix(in srgb,var(--warning),transparent_60%)]';
-    return 'bg-destructive shadow-[0_0_10px_color-mix(in srgb,var(--destructive),transparent_60%)]';
-  };
-
   return (
     <div className="h-1.5 w-full bg-muted/30 rounded-full overflow-hidden relative border border-border/10">
       <motion.div
         initial={{ width: 0 }}
         animate={{ width: `${Math.min(Math.max(score, 0), 100)}%` }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className={cn('h-full transition-all duration-500 rounded-full', getScoreColor(score))}
+        className={cn('h-full transition-all duration-500 rounded-full', getScoreBgColor(score))}
       />
     </div>
   );

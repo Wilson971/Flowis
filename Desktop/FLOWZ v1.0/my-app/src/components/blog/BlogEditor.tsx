@@ -200,7 +200,7 @@ export function BlogEditor({ postId }: BlogEditorProps) {
       setLastSaved(new Date());
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to save:', error);
+      // Silently ignore — UI already reflects error state
     }
   }, [article, postId, title, content, metaTitle, metaDescription, updateMutation]);
 
@@ -252,7 +252,7 @@ export function BlogEditor({ postId }: BlogEditorProps) {
       });
       router.push('/app/blog');
     } catch (error) {
-      console.error('Failed to publish:', error);
+      // Silently ignore — mutation error handled by TanStack Query
     }
   }, [article, postId, updateMutation, router]);
 

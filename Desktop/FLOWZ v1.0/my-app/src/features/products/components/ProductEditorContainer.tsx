@@ -124,7 +124,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
             product_id: productId,
             form_data: currentValues,
             trigger_type: 'ai_approval',
-        }).catch(err => console.error('Failed to create ai_approval version:', err));
+        }).catch(() => { /* version creation is non-blocking */ });
     }, [methods, versionManager, productId]);
 
     // ------------------------------------------------------------------------
@@ -249,7 +249,7 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                     product_id: productId,
                     form_data: data,
                     trigger_type: 'manual_save',
-                }).catch(err => console.error('Failed to create version:', err));
+                }).catch(() => { /* version creation is non-blocking */ });
             }
         } catch (e) {
             postSaveGuardRef.current = false;

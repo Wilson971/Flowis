@@ -140,7 +140,7 @@ const SceneStudioDialogInner = ({
       try {
         await publishSession.mutateAsync({ sessionId, productId: product.id });
       } catch (publishError: any) {
-        console.warn('Could not mark session as published:', publishError?.message || publishError);
+        // Non-blocking — session publish status is best-effort
       }
 
       updateSessionImage(selectedImageId, { status: 'published' });

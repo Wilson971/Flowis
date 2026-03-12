@@ -427,24 +427,6 @@ export function analyzeRealTimeSeo(
 }
 
 // ============================================================================
-// SCORE UTILITIES (legacy — used by blog components)
-// ============================================================================
-
-export function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-emerald-500';
-  if (score >= 60) return 'text-amber-500';
-  if (score >= 40) return 'text-orange-500';
-  return 'text-red-500';
-}
-
-export function getScoreLabel(score: number): string {
-  if (score >= 80) return 'Excellent';
-  if (score >= 60) return 'Bon';
-  if (score >= 40) return 'À améliorer';
-  return 'Faible';
-}
-
-// ============================================================================
 // v3.0: UNIFIED PRODUCT SEO SCORING ENGINE
 // ============================================================================
 

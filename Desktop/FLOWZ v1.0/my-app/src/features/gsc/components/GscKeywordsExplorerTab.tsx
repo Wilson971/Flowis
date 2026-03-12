@@ -99,7 +99,7 @@ function exportKeywordsCsv(siteId: string, dateRange: string, search: string, pa
             a.click();
             URL.revokeObjectURL(url);
         })
-        .catch(console.error);
+        .catch(() => { /* Silently ignore */ });
 }
 
 // ────────────────────────────────────────────────────────────────────

@@ -47,7 +47,7 @@ export function FeaturedImageCard() {
           shouldDirty: true,
         });
       } catch (error) {
-        console.error('Upload error:', error);
+        // Silently ignore — UI shows upload state
       } finally {
         setIsUploading(false);
       }

@@ -35,7 +35,7 @@ export const SidebarPreferenceProvider = ({ children }: { children: React.ReactN
         setIsCollapsed(stored === 'true');
       }
     } catch (error) {
-      console.error('Error loading sidebar preference:', error);
+      // Silently ignore localStorage errors
     } finally {
       setIsReady(true);
     }
@@ -47,7 +47,7 @@ export const SidebarPreferenceProvider = ({ children }: { children: React.ReactN
       try {
         localStorage.setItem(STORAGE_KEY, String(isCollapsed));
       } catch (error) {
-        console.error('Error saving sidebar preference:', error);
+        // Silently ignore localStorage errors
       }
     }
   }, [isCollapsed, isReady]);

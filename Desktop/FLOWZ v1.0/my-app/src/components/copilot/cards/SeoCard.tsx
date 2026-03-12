@@ -3,6 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { getScoreColor } from "@/lib/seo/scoreColors"
 
 interface SeoCardProps {
   data: Record<string, unknown>
@@ -14,13 +15,6 @@ export function SeoCard({ data }: SeoCardProps) {
   const criticalCount = (data.criticalCount as number) ?? (data.critical_count as number) ?? 0
   const totalProducts = (data.total_products as number) ?? 0
   const issues = (data.issues as string[]) ?? []
-
-  // M4 fix: Use semantic color tokens instead of hardcoded Tailwind colors
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-success"
-    if (score >= 50) return "text-warning"
-    return "text-destructive"
-  }
 
   const getScoreBg = (score: number) => {
     if (score >= 80) return "bg-success"

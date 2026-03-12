@@ -123,7 +123,7 @@ export function useSyncQueueRealtime(storeId?: string) {
       )
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
-          console.warn('[useSyncQueueRealtime] Channel subscription error');
+          // Silently ignore channel errors
         }
       });
 

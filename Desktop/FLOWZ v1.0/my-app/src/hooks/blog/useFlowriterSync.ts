@@ -367,7 +367,7 @@ export function useFlowriterSync(options: FlowriterSyncOptions) {
       const articleId = await convertToDraftMutation.mutateAsync(state);
       return articleId;
     } catch (error) {
-      console.error('[FlowriterSync] Convert failed:', error);
+      // Silently ignore — mutation error handled by TanStack Query
       return null;
     }
   }, [convertToDraftMutation]);

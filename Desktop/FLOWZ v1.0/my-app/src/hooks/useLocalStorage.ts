@@ -18,7 +18,7 @@ export function useLocalStorage<T>(key: string, options: { defaultValue: T }) {
             const item = window.localStorage.getItem(key);
             return item ? JSON.parse(item) : options.defaultValue;
         } catch (error) {
-            console.error(error);
+            // Silently ignore parse errors
             return options.defaultValue;
         }
     });
@@ -27,7 +27,7 @@ export function useLocalStorage<T>(key: string, options: { defaultValue: T }) {
         try {
             window.localStorage.setItem(key, JSON.stringify(value));
         } catch (error) {
-            console.error(error);
+            // Silently ignore storage write errors
         }
     }, [key, value]);
 

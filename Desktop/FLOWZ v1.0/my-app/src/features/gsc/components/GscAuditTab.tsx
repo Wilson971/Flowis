@@ -20,6 +20,7 @@ import {
 import { useGscAudit, useRunSeoAudit } from "@/hooks/integrations/useGscAudit";
 import type { AuditCategory, AuditSeverity, SeoAuditIssue } from "@/hooks/integrations/useGscAudit";
 import { GscEmptyTab } from "./shared/GscEmptyTab";
+import { getScoreColor, getScoreLabel, getScoreBgColor } from "@/lib/seo/scoreColors";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,24 +32,6 @@ function formatRelativeTime(dateStr: string): string {
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `il y a ${hours}h`;
     return `il y a ${Math.floor(hours / 24)}j`;
-}
-
-function getScoreColor(score: number): string {
-    if (score >= 75) return "text-success";
-    if (score >= 50) return "text-warning";
-    return "text-destructive";
-}
-
-function getScoreBg(score: number): string {
-    if (score >= 75) return "bg-success";
-    if (score >= 50) return "bg-warning";
-    return "bg-destructive";
-}
-
-function getScoreLabel(score: number): string {
-    if (score >= 75) return "Bon";
-    if (score >= 50) return "Moyen";
-    return "Critique";
 }
 
 // ── Category config ───────────────────────────────────────────────────────────
@@ -94,7 +77,7 @@ const SEVERITY_CONFIG: Record<AuditSeverity, {
 
 function ScoreGauge({ score }: { score: number }) {
     const color = getScoreColor(score);
-    const bg = getScoreBg(score);
+    const bg = getScoreBgColor(score);
     const label = getScoreLabel(score);
 
     return (
@@ -154,7 +137,7 @@ function CategoryScore({ category, score, maxScore }: {
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
-                        className={cn("h-full rounded-full transition-all duration-500", getScoreBg(pct))}
+                        className={cn("h-full rounded-full transition-all duration-500", getScoreBgColor(pct))}
                         style={{ width: `${pct}%` }}
                     />
                 </div>

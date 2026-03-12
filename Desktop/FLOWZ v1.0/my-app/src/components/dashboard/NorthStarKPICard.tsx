@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Target, TrendingUp, TrendingDown, Minus, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motionTokens, styles } from "@/lib/design-system";
+import { getScoreColor, getScoreLabel } from "@/lib/seo/scoreColors";
 import { AnimatedCounter } from "./AnimatedCounter";
 import { ProgressRing } from "./ProgressRing";
 import { SparklineChart, generateTrendData } from "./SparklineChart";
@@ -33,19 +34,6 @@ export function NorthStarKPICard({
   onDrillDown,
   className,
 }: NorthStarKPICardProps) {
-  const getScoreColor = (value: number) => {
-    if (value >= 80) return "text-signal-success";
-    if (value >= 50) return "text-signal-warning";
-    return "text-destructive";
-  };
-
-  const getScoreLabel = (value: number) => {
-    if (value >= 80) return "Excellent";
-    if (value >= 60) return "Bon";
-    if (value >= 40) return "Moyen";
-    return "Critique";
-  };
-
   const TrendIcon = previousPeriodChange > 0
     ? TrendingUp
     : previousPeriodChange < 0

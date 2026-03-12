@@ -253,7 +253,7 @@ export const MediaTabV2 = () => {
                 });
 
             } catch (error) {
-                console.error('Erreur compression/upload:', error);
+                // Upload error — handled below with toast
                 setUploadingItems(prev =>
                     prev.map(item =>
                         item.id === uploadId
@@ -345,6 +345,7 @@ export const MediaTabV2 = () => {
                             onUpdateAlt={handleUpdateAlt}
                             onDelete={handleDelete}
                             maxImages={15}
+                            maxVisible={7}
                             productTitle={product?.title}
                             productId={productId}
                             allowDelete={true}

@@ -167,7 +167,7 @@ export const MorphSurfaceFeedback = React.forwardRef<
         await onSubmit(formData)
         onSuccess()
       } catch (error) {
-        console.error("Form submission error:", error)
+        // Silently ignore
       }
     } else {
       onSuccess()
@@ -228,7 +228,7 @@ export const MorphSurfaceFeedback = React.forwardRef<
         await onSubmit(data)
         onSuccess()
       } catch (error) {
-        console.error("Form submission error:", error)
+        // Silently ignore
       }
     } else {
       onSuccess()

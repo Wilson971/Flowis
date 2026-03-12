@@ -99,7 +99,7 @@ export function ProfileSecuritySection() {
           setMfaFactorId(verified.id);
         }
       } catch (err) {
-        console.warn('[ProfileSecurity] MFA factor check failed:', err);
+        // Silently ignore — MFA check is best-effort
       } finally {
         setMfaLoading(false);
       }
@@ -146,7 +146,6 @@ export function ProfileSecuritySection() {
       setChallengeId(null);
       setTotpCode('');
     } catch (err) {
-      console.warn('[ProfileSecurity] 2FA verification failed:', err);
       toast.error('Code incorrect', { description: 'Vérifiez le code dans votre application TOTP.' });
     } finally {
       setMfaActionLoading(false);

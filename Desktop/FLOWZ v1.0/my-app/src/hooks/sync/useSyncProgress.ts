@@ -74,7 +74,7 @@ export function useSyncProgress(storeId: string | null) {
             )
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR') {
-                    console.warn('[useSyncProgress] Job channel error for store', storeId);
+                    // Silently ignore channel errors
                 }
             });
 

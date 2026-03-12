@@ -275,7 +275,7 @@ export function useSyncEngine(): SyncContextValue {
             await pauseMutation.mutateAsync(activeJobId);
             toast.info('Synchronisation mise en pause');
         } catch (error) {
-            console.warn('[useSyncEngine] Pause failed, reverting state:', error);
+            // Pause failed — revert state below
             // Revert state
             if (activeJob) {
                 dispatch({ type: 'JOB_UPDATE', job: activeJob });
@@ -321,7 +321,7 @@ export function useSyncEngine(): SyncContextValue {
                 queryInvalidation.onSyncError(activeStoreId);
             }
         } catch (error) {
-            console.error('[SyncEngine] Failed to cancel:', error);
+            // Silently ignore — cancel is best-effort
         }
     }, [cancelMutation]);
 

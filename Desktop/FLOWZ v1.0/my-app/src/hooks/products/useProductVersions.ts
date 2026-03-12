@@ -179,7 +179,7 @@ export function useCreateProductVersion() {
             }
         },
         onError: (error: Error) => {
-            console.error('Error creating product version:', error);
+            // Silently ignore — version creation is non-blocking
         },
     });
 }

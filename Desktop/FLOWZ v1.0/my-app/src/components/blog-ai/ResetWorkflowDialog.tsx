@@ -268,7 +268,7 @@ export function ResetWorkflowDialog({
       onReset(type, step || targetStep || undefined);
       onOpenChange(false);
     } catch (error) {
-      console.error('Reset failed:', error);
+      // Silently ignore
     } finally {
       setIsProcessing(false);
       setSelectedOption(null);

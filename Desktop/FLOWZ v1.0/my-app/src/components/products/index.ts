@@ -31,5 +31,4 @@ export { FieldStatusBadge } from './FieldStatusBadge';
 export { ProductSeoForm } from './ProductSeoForm';
 export { ProductsFilter } from './ProductsFilter';
 export { ProductsPagination } from './ProductsPagination';
-export { ProductsTableModern } from './ProductsTableModern';
 export { SimpleProductsList } from './SimpleProductsList';

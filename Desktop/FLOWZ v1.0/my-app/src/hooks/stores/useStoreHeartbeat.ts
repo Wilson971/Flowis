@@ -143,7 +143,7 @@ export function useHeartbeatLogs(storeId: string | null | undefined, limit = 10)
 
             if (error) {
                 // Table might not exist, return empty array
-                console.warn('Heartbeat logs table not found:', error.message);
+                // Table might not exist yet
                 return [];
             }
             return data as HeartbeatLog[];

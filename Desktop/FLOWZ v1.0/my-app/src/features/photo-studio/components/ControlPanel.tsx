@@ -220,7 +220,7 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
           }
 
         } catch (itemError: any) {
-          console.error(`Error generating angle ${viewAngle}:`, itemError);
+          // Generation failed for this angle — handled below with toast
           const currentImages = state.sessionImages;
           setSessionImages(currentImages.filter(img => img.id !== tempId));
           toast.error('Echec partiel', { description: `Impossible de generer l'angle ${viewAngle}` });

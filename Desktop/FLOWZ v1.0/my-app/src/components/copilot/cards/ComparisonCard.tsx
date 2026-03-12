@@ -3,6 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { getScoreColor } from "@/lib/seo/scoreColors"
 
 interface ComparisonCardProps {
   data: Record<string, unknown>
@@ -18,12 +19,6 @@ export function ComparisonCard({ data }: ComparisonCardProps) {
   const onEdit = data.onEdit as (() => void) | undefined
 
   const diff = scoreAfter - scoreBefore
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-success"
-    if (score >= 50) return "text-warning"
-    return "text-destructive"
-  }
 
   return (
     <Card className="rounded-xl">

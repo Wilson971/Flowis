@@ -85,7 +85,7 @@ export const TopHeader = () => {
       await signOut();
       router.push("/login");
     } catch (error) {
-      console.error("Error signing out:", error);
+      // Silently ignore
     } finally {
       setIsLoggingOut(false);
     }

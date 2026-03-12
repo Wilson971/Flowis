@@ -40,6 +40,7 @@ import {
 import { useArticleEditContext } from '../context';
 import { FieldStatusBadge } from '@/components/products/FieldStatusBadge';
 import { cn } from '@/lib/utils';
+import { getScoreColor, getScoreLabel } from '@/lib/seo/scoreColors';
 
 // ============================================================================
 // SEO PREVIEW
@@ -81,18 +82,6 @@ function GooglePreview({
 // ============================================================================
 
 function SeoScoreIndicator({ score }: { score: number }) {
-  const getScoreColor = (s: number) => {
-    if (s >= 80) return 'text-emerald-500';
-    if (s >= 50) return 'text-amber-500';
-    return 'text-destructive';
-  };
-
-  const getScoreLabel = (s: number) => {
-    if (s >= 80) return 'Excellent';
-    if (s >= 50) return 'Correct';
-    return 'A ameliorer';
-  };
-
   const getProgressColor = (s: number) => {
     if (s >= 80) return 'bg-emerald-500';
     if (s >= 50) return 'bg-amber-500';

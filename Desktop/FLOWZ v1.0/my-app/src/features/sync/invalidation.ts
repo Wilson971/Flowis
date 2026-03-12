@@ -170,7 +170,7 @@ class QueryInvalidationManager {
      */
     async invalidateNow(queryKeys: QueryKeyPattern[]) {
         if (!this.queryClient) {
-            console.error('[QueryInvalidation] QueryClient not initialized');
+            // QueryClient not initialized — skip invalidation
             return;
         }
 

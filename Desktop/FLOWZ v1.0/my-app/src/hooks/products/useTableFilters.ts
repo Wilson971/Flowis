@@ -54,7 +54,7 @@ function saveFiltersToStorage(params: URLSearchParams): void {
         });
         window.localStorage.setItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS, JSON.stringify(filters));
     } catch (error) {
-        console.warn('[useTableFilters] Failed to save filters to localStorage:', error);
+        // Silently ignore localStorage write errors
     }
 }
 
@@ -71,7 +71,7 @@ function clearFiltersFromStorage(): void {
     try {
         window.localStorage.removeItem(STORAGE_KEYS.PRODUCTS_TABLE_FILTERS);
     } catch (error) {
-        console.warn('[useTableFilters] Failed to clear filters from localStorage:', error);
+        // Silently ignore localStorage errors
     }
 }
 

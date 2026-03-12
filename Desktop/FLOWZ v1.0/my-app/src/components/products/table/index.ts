@@ -1,4 +1,3 @@
-export { ProductsTableModern } from "./ProductsTableModern";
 export { ProductRowActions } from "./ProductRowActions";
 export { ProductSEOCell, ProductSERPCell, ProductImageCell } from "./cells";
 export { createColumns } from "./columns";

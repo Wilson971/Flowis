@@ -5,6 +5,7 @@ import { BarChart3, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { motionTokens, styles } from "@/lib/design-system";
+import { getScoreBadgeStyle } from "@/lib/seo/scoreColors";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,6 @@ interface SeoAnalysisProgressCardProps {
   analyzedProducts: number;
   averageScore?: number;
   isLoading?: boolean;
-}
-
-function getScoreColor(score: number): string {
-  if (score >= 80) return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-  if (score >= 60) return "bg-amber-500/10 text-amber-500 border-amber-500/20";
-  return "bg-red-500/10 text-red-500 border-red-500/20";
 }
 
 export function SeoAnalysisProgressCard({
@@ -34,6 +29,7 @@ export function SeoAnalysisProgressCard({
       ? Math.round((analyzedProducts / totalProducts) * 100)
       : 0;
   const isComplete = progress >= 100;
+  const scoreBadge = averageScore !== undefined ? getScoreBadgeStyle(averageScore) : null;
 
   return (
     <motion.div
@@ -59,7 +55,7 @@ export function SeoAnalysisProgressCard({
             variant="outline"
             className={cn(
               "text-xs font-medium rounded-full",
-              getScoreColor(averageScore)
+              scoreBadge?.bg, scoreBadge?.text, scoreBadge?.border
             )}
           >
             Score moyen : {averageScore}

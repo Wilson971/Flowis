@@ -512,7 +512,7 @@ export function useAutoSync(type: PushType) {
             if (error instanceof DOMException && error.name === 'AbortError') return null;
             // The mutation's onError already shows a toast — only log here.
             // Auto-sync failure is non-fatal: data is saved locally.
-            console.error(`[useAutoSync] Auto-sync failed for ${type} ${id}:`, error);
+            // Auto-sync failure is non-fatal: data is saved locally
             return null;
         }
     }, [type]);

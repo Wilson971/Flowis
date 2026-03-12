@@ -178,7 +178,7 @@ export function useUnifiedSync() {
       // Validate all jobs were inserted
       if (!insertedJobs || insertedJobs.length !== jobs.length) {
         const inserted = insertedJobs?.length ?? 0;
-        console.warn(`[useUnifiedSync] Partial insert: ${inserted}/${jobs.length} jobs created`);
+        // Partial insert detected
         result.errors.push(`Only ${inserted}/${jobs.length} jobs were queued`);
       }
 
@@ -245,8 +245,6 @@ export function useUnifiedSync() {
     },
 
     onError: (error, variables) => {
-      console.error('[useUnifiedSync] Error:', error);
-
       // Rollback optimistic updates
       for (const productId of variables.productIds) {
         queryClient.invalidateQueries({ queryKey: ['product', productId] });

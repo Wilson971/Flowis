@@ -42,8 +42,7 @@ export class AIErrorBoundary extends Component<AIErrorBoundaryProps, AIErrorBoun
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-        // Log the error
-        console.error('AIErrorBoundary caught an error:', error, errorInfo);
+        // TODO: Send to error tracking service (e.g. Sentry)
 
         // Call optional error handler
         this.props.onError?.(error, errorInfo);
