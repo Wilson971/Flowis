@@ -192,6 +192,7 @@ export const ProductEditorHeader = ({
                                         size="icon"
                                         onClick={history.undo}
                                         disabled={!history.canUndo}
+                                        aria-label="Annuler (Ctrl+Z)"
                                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                     >
                                         <Undo2 className="h-3.5 w-3.5" />
@@ -207,6 +208,7 @@ export const ProductEditorHeader = ({
                                         size="icon"
                                         onClick={history.redo}
                                         disabled={!history.canRedo}
+                                        aria-label="Rétablir (Ctrl+Y)"
                                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                     >
                                         <Redo2 className="h-3.5 w-3.5" />
@@ -228,6 +230,7 @@ export const ProductEditorHeader = ({
                         variant="outline"
                         onClick={onReset}
                         disabled={!isDirty || isSaving}
+                        aria-label="Annuler les modifications"
                         className="h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest border-border/50 hover:bg-muted/50 transition-colors"
                     >
                         Annuler
@@ -236,6 +239,7 @@ export const ProductEditorHeader = ({
                         onClick={onSave}
                         disabled={isSaving}
                         variant="outline"
+                        aria-label="Enregistrer (Ctrl+S)"
                         className="h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest border-primary/25 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors shadow-sm"
                     >
                         {isSaving ? (
@@ -254,6 +258,7 @@ export const ProductEditorHeader = ({
                         onClick={onPublish}
                         disabled={isPublishing || isSaving || (!hasPendingChanges && !hasConflict && !isDirty)}
                         variant="outline"
+                        aria-label="Publier vers la boutique"
                         className={cn(
                             "h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest transition-colors",
                             hasPendingChanges
