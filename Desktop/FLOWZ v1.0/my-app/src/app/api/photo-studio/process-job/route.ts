@@ -1,62 +1,29 @@
 import { GoogleGenAI } from "@google/genai";
 import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getPromptModifier,
-} from "@/features/photo-studio/constants/scenePresets";
-import {
-  VIEW_ANGLE_PROMPTS,
-  type ViewAngle,
-} from "@/features/photo-studio/types/studio";
 import { fetchImageSafe } from "@/lib/ssrf";
+import {
+  getActionHandler,
+  isValidAction,
+  DEFAULT_ANGLES,
+} from "@/features/photo-studio/actions";
+import type { ActionInput } from "@/features/photo-studio/actions";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 // ============================================================================
-// PROMPT BUILDERS
+// COST CALCULATOR
 // ============================================================================
 
-function buildPromptForAction(
-  action: string,
-  presetJson: Record<string, unknown>,
-  productName: string
-): string {
-  switch (action) {
-    case "remove_bg":
-      return `Remove the background from this product image of "${productName}". Replace the background with a clean, pure white (#FFFFFF) background. Preserve all product details, textures, shadows, and colors exactly as they are. Professional product photography cutout.`;
-
-    case "enhance":
-      return `Enhance this product image of "${productName}" for professional e-commerce use. Improve lighting balance, color accuracy, sharpness, contrast and overall image quality. Make it look like a professional studio photograph. Keep the product exactly as it is — only improve the image quality.`;
-
-    case "replace_bg": {
-      const presetId = presetJson?.scenePresetId as string | undefined;
-      const modifier = presetId
-        ? getPromptModifier(presetId)
-        : "on a clean, modern professional background";
-      return `Edit this product image of "${productName}". Place the product ${modifier}. Keep the product clearly visible and the main focus. Do not alter the product itself, only change the background and environment. Professional e-commerce photography.`;
-    }
-
-    case "generate_scene": {
-      const presetId = presetJson?.scenePresetId as string | undefined;
-      const modifier = presetId
-        ? getPromptModifier(presetId)
-        : "in a professional lifestyle setting";
-      return `Create a professional e-commerce lifestyle scene for this "${productName}". ${modifier}. The product should be the clear focal point. Professional product photography quality. Photorealistic.`;
-    }
-
-    case "generate_angles":
-      return `Generate a professional product photograph of "${productName}", front view, facing the camera directly. Professional studio lighting, clean white background.`;
-
-    default:
-      return `Edit this product image of "${productName}" for professional e-commerce use. Improve the overall quality and presentation.`;
-  }
-}
-
-function buildAnglePrompt(productName: string, angle: string): string {
-  const angleDesc =
-    VIEW_ANGLE_PROMPTS[angle as ViewAngle] || "front view, facing the camera";
-  return `Generate a professional product photograph of "${productName}", ${angleDesc}. Professional studio lighting, clean white background. High resolution e-commerce product photography.`;
+function calculateGeminiCost(usage: {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+}) {
+  const inputCost = ((usage?.promptTokenCount ?? 0) / 1_000_000) * 0.075;
+  const outputCost =
+    ((usage?.candidatesTokenCount ?? 0) / 1_000_000) * 0.3;
+  return inputCost + outputCost;
 }
 
 // ============================================================================
@@ -91,11 +58,12 @@ async function uploadToStorage(
       upsert: false,
     });
 
-  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
+  if (uploadError)
+    throw new Error(`Storage upload failed: ${uploadError.message}`);
 
-  const { data: { publicUrl } } = supabase.storage
-    .from(STORAGE_BUCKET)
-    .getPublicUrl(storagePath);
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
 
   return publicUrl;
 }
@@ -109,11 +77,15 @@ async function generateWithGemini(
   model: string,
   sourceImage: { data: string; mimeType: string },
   prompt: string,
+  temperature: number,
   supabase: Awaited<ReturnType<typeof createClient>>,
   productId: string,
   jobId: string,
   imageIndex: number
-): Promise<string | null> {
+): Promise<{
+  url: string | null;
+  usage: { promptTokenCount?: number; candidatesTokenCount?: number };
+}> {
   const response = await ai.models.generateContent({
     model,
     contents: {
@@ -129,18 +101,22 @@ async function generateWithGemini(
     },
     config: {
       responseModalities: ["TEXT", "IMAGE"],
-      temperature: 0.6,
+      temperature,
     },
   });
 
+  const usage = {
+    promptTokenCount: response.usageMetadata?.promptTokenCount,
+    candidatesTokenCount: response.usageMetadata?.candidatesTokenCount,
+  };
+
   const parts = response.candidates?.[0]?.content?.parts;
-  if (!parts) return null;
+  if (!parts) return { url: null, usage };
 
   for (const part of parts) {
     if (part.inlineData?.data) {
       const mime = part.inlineData.mimeType || "image/png";
-      // Upload to Supabase Storage instead of storing base64 in DB
-      return await uploadToStorage(
+      const url = await uploadToStorage(
         supabase,
         part.inlineData.data,
         mime,
@@ -148,9 +124,10 @@ async function generateWithGemini(
         jobId,
         imageIndex
       );
+      return { url, usage };
     }
   }
-  return null;
+  return { url: null, usage };
 }
 
 // ============================================================================
@@ -194,9 +171,7 @@ async function updateBatchProgress(
 // POST HANDLER
 // ============================================================================
 
-export async function POST(
-  request: NextRequest
-): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   // 1. Parse request
   let body: { jobId: string };
   try {
@@ -230,7 +205,10 @@ export async function POST(
   const supabase = await createClient();
 
   // SEC-05: Explicit auth check BEFORE fetching job
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json(
       { success: false, error: "Authentication required" },
@@ -260,14 +238,54 @@ export async function POST(
     );
   }
 
+  const tenantId = user.id;
+  const action = job.action as string;
+
+  // 4b. Validate action via registry
+  if (!isValidAction(action)) {
+    return NextResponse.json(
+      { success: false, error: "Unknown action" },
+      { status: 400 }
+    );
+  }
+
+  const handler = getActionHandler(action)!;
+
+  // 4c. Quota check BEFORE processing
+  const currentMonth = new Date().toISOString().slice(0, 7) + "-01";
+  const { data: quota } = await supabase
+    .from("studio_quotas")
+    .select("generations_used, generations_limit")
+    .eq("tenant_id", tenantId)
+    .eq("month", currentMonth)
+    .single();
+
+  if (quota && quota.generations_used >= quota.generations_limit) {
+    await supabase
+      .from("studio_jobs")
+      .update({ status: "failed", error_message: "Quota mensuel atteint" })
+      .eq("id", jobId);
+
+    if (job.batch_id) {
+      await updateBatchProgress(supabase, job.batch_id);
+    }
+
+    return NextResponse.json(
+      { success: false, error: "QUOTA_EXCEEDED" },
+      { status: 429 }
+    );
+  }
+
   // 5. Mark as running
   await supabase
     .from("studio_jobs")
     .update({ status: "running" })
     .eq("id", jobId);
 
+  const startTime = Date.now();
+
   try {
-    // 6. Get product info (include all image source fields)
+    // 6. Get product info
     const { data: product, error: productError } = await supabase
       .from("products")
       .select("title, metadata, working_content, image_url")
@@ -282,19 +300,20 @@ export async function POST(
     }
 
     const productName = product?.title || "Product";
+    const productDescription =
+      (product?.working_content as Record<string, unknown>)
+        ?.short_description as string | undefined;
 
     // 7. Resolve input image URLs with multi-source fallback
     let inputUrls: string[] = (job.input_urls || []).filter(Boolean);
 
     if (inputUrls.length === 0 && product) {
-      // Priority 1: working_content.images (active working copy)
       const wcImages = (product.working_content as Record<string, unknown>)
         ?.images as Array<{ src: string }> | undefined;
       if (wcImages?.length) {
         inputUrls = wcImages.filter((img) => img.src).map((img) => img.src);
       }
 
-      // Priority 2: metadata.images (original synced data)
       if (inputUrls.length === 0) {
         const metaImages = (product.metadata as Record<string, unknown>)
           ?.images as Array<{ src: string }> | undefined;
@@ -305,7 +324,6 @@ export async function POST(
         }
       }
 
-      // Priority 3: image_url (single featured image field)
       if (inputUrls.length === 0 && product.image_url) {
         inputUrls = [product.image_url as string];
       }
@@ -324,31 +342,56 @@ export async function POST(
     const presetJson =
       (job.preset_json as Record<string, unknown>) || {};
 
-    // 9. Generate based on action
+    // 9. Generate based on action using registry
     const outputUrls: string[] = [];
+    let totalUsage = { promptTokenCount: 0, candidatesTokenCount: 0 };
 
-    if (job.action === "generate_angles") {
+    if (action === "generate_angles") {
       // Multiple angles from first source image
-      const angles: string[] = (presetJson.angles as string[]) || [
-        "front",
-        "three_quarter_left",
-        "three_quarter_right",
-        "top",
-      ];
+      const angles: string[] =
+        (presetJson.angles as string[]) || DEFAULT_ANGLES;
       const sourceImage = await fetchImageSafe(inputUrls[0], MAX_IMAGE_SIZE);
 
       for (let i = 0; i < angles.length; i++) {
-        const prompt = buildAnglePrompt(productName, angles[i]);
-        const result = await generateWithGemini(ai, model, sourceImage, prompt, supabase, job.product_id, jobId, i);
-        if (result) outputUrls.push(result);
+        const input: ActionInput = {
+          imageBase64: sourceImage.data,
+          imageMimeType: sourceImage.mimeType,
+          productName,
+          productDescription,
+          angles: [angles[i]],
+          preset: presetJson,
+        };
+        const prompt = handler.buildPrompt(input);
+        const { url, usage } = await generateWithGemini(
+          ai, model, sourceImage, prompt,
+          handler.config.temperature,
+          supabase, job.product_id, jobId, i
+        );
+        totalUsage.promptTokenCount += usage.promptTokenCount ?? 0;
+        totalUsage.candidatesTokenCount += usage.candidatesTokenCount ?? 0;
+        if (url) outputUrls.push(url);
       }
     } else {
       // Standard: process first input image
-      const prompt = buildPromptForAction(job.action, presetJson, productName);
       const sourceImage = await fetchImageSafe(inputUrls[0], MAX_IMAGE_SIZE);
+      const input: ActionInput = {
+        imageBase64: sourceImage.data,
+        imageMimeType: sourceImage.mimeType,
+        productName,
+        productDescription,
+        preset: presetJson,
+        userInstruction: presetJson?.instruction as string | undefined,
+      };
+      const prompt = handler.buildPrompt(input);
 
-      const result = await generateWithGemini(ai, model, sourceImage, prompt, supabase, job.product_id, jobId, 0);
-      if (result) outputUrls.push(result);
+      const { url, usage } = await generateWithGemini(
+        ai, model, sourceImage, prompt,
+        handler.config.temperature,
+        supabase, job.product_id, jobId, 0
+      );
+      totalUsage.promptTokenCount += usage.promptTokenCount ?? 0;
+      totalUsage.candidatesTokenCount += usage.candidatesTokenCount ?? 0;
+      if (url) outputUrls.push(url);
     }
 
     if (outputUrls.length === 0) {
@@ -364,7 +407,40 @@ export async function POST(
       })
       .eq("id", jobId);
 
-    // 11. Update batch progress
+    // 11. Insert studio_images records
+    for (const url of outputUrls) {
+      await supabase.from("studio_images").insert({
+        tenant_id: tenantId,
+        product_id: job.product_id,
+        job_id: jobId,
+        storage_url: url,
+        thumbnail_url: url,
+        action,
+        status: "draft",
+        metadata: { preset: presetJson },
+      });
+    }
+
+    // 12. Insert metrics
+    const latencyMs = Date.now() - startTime;
+    await supabase.from("studio_metrics").insert({
+      tenant_id: tenantId,
+      job_id: jobId,
+      action,
+      status: "done",
+      latency_ms: latencyMs,
+      gemini_tokens_input: totalUsage.promptTokenCount,
+      gemini_tokens_output: totalUsage.candidatesTokenCount,
+      estimated_cost_usd: calculateGeminiCost(totalUsage),
+    });
+
+    // 13. Increment quota
+    await supabase.rpc("increment_studio_quota", {
+      p_tenant_id: tenantId,
+      p_cost: calculateGeminiCost(totalUsage),
+    });
+
+    // 14. Update batch progress
     if (job.batch_id) {
       await updateBatchProgress(supabase, job.batch_id);
     }
@@ -374,8 +450,7 @@ export async function POST(
       outputCount: outputUrls.length,
     });
   } catch (err: unknown) {
-    const message =
-      err instanceof Error ? err.message : "Erreur inconnue";
+    const message = err instanceof Error ? err.message : "Erreur inconnue";
     console.error(`[Photo Studio] Job ${jobId} failed:`, message);
 
     // Mark job as failed
@@ -386,6 +461,20 @@ export async function POST(
         error_message: message,
       })
       .eq("id", jobId);
+
+    // Insert failure metrics
+    const latencyMs = Date.now() - startTime;
+    await supabase.from("studio_metrics").insert({
+      tenant_id: tenantId,
+      job_id: jobId,
+      action,
+      status: "failed",
+      latency_ms: latencyMs,
+      gemini_tokens_input: 0,
+      gemini_tokens_output: 0,
+      estimated_cost_usd: 0,
+      error_type: message.slice(0, 255),
+    });
 
     // Update batch progress even on failure
     if (job.batch_id) {
