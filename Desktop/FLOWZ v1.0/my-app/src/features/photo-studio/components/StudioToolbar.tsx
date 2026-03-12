@@ -19,6 +19,7 @@ import {
   type PlatformFilter,
   type ImageCountFilter,
 } from "./StudioFilterBar";
+import { ViewSwitcher, type ViewMode } from "./viewer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,6 +40,11 @@ interface StudioToolbarProps {
   onPlatformFilterChange: (value: PlatformFilter) => void;
   onImageCountFilterChange: (value: ImageCountFilter) => void;
   onResetFilters: () => void;
+  /** Results view mode (gallery/compare/lighttable) */
+  resultsViewMode?: ViewMode;
+  onResultsViewModeChange?: (mode: ViewMode) => void;
+  /** Whether we are currently showing the results tab */
+  showResultsViewSwitcher?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +85,9 @@ export function StudioToolbar({
   onPlatformFilterChange,
   onImageCountFilterChange,
   onResetFilters,
+  resultsViewMode = "gallery",
+  onResultsViewModeChange,
+  showResultsViewSwitcher = false,
 }: StudioToolbarProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -122,6 +131,14 @@ export function StudioToolbar({
             </button>
           ))}
         </div>
+
+        {/* Results view switcher (gallery/compare/lighttable) */}
+        {showResultsViewSwitcher && onResultsViewModeChange && (
+          <ViewSwitcher
+            value={resultsViewMode}
+            onChange={onResultsViewModeChange}
+          />
+        )}
 
         {/* Product count */}
         <div className="text-sm text-muted-foreground ml-auto">

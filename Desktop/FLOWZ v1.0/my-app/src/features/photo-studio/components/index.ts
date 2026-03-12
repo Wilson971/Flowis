@@ -1,15 +1,8 @@
 export { SceneStudioDialog, type StudioProduct } from './SceneStudioDialog';
 export { SceneStudioLayout } from './SceneStudioLayout';
-export { ActionBar } from './ActionBar';
-export { ControlPanel } from './ControlPanel';
-export { LightTable } from './LightTable';
-export { SessionTimeline } from './SessionTimeline';
-export { PresetGrid } from './PresetGrid';
-export { CompareOverlay } from './CompareOverlay';
-export { ImageAdjustments } from './ImageAdjustments';
-export { CropTool } from './CropTool';
-export { AnnotationLayer } from './AnnotationLayer';
 export { SceneStudioLoader } from './SceneStudioLoader';
+export { PresetGrid } from './PresetGrid';
+
 // Batch components
 export { StudioBatchPanel } from './StudioBatchPanel';
 export { BatchStudioProgressPanel } from './BatchStudioProgressPanel';
@@ -18,6 +11,7 @@ export { BatchStudioProgressPanel } from './BatchStudioProgressPanel';
 export { PhotoStudioPage } from './PhotoStudioPage';
 export { PhotoStudioTable } from './PhotoStudioTable';
 export { PhotoStudioCard } from './PhotoStudioCard';
+
 // Re-export modals
 export {
   SourceImagesModal,
@@ -27,3 +21,12 @@ export {
   type SourceImageItem,
   type DetectedTag,
 } from './modals';
+
+// Editor components
+export * from './editor';
+
+// Viewer components
+export * from './viewer';
+
+// Validation components
+export * from './validation';
