@@ -8,7 +8,15 @@ import { MorphSurface } from '@/components/ui/morph-surface';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { PresetGrid } from './PresetGrid';
-import { PresetsModal, SettingsModal, type GenerationSettings } from './modals';
+import { PresetsModal, SettingsModal } from './modals';
+import type { GenerationQuality, AspectRatio } from '@/features/photo-studio/types/studio';
+
+type GenerationSettings = {
+  quality: GenerationQuality;
+  aspectRatio: AspectRatio;
+  viewPresetId: string;
+  creativityLevel: number;
+};
 import { useStudioContext } from '@/features/photo-studio/context/StudioContext';
 import { useSceneGeneration } from '@/features/photo-studio/hooks/useSceneGeneration';
 import { useSceneGenerationMachine } from '@/features/photo-studio/hooks/useSceneGenerationMachine';
@@ -444,9 +452,6 @@ export const ControlPanel = ({ productId, productName, sourceImageUrl }: Control
       <SettingsModal
         open={settingsModalOpen}
         onOpenChange={setSettingsModalOpen}
-        settings={settings}
-        onSettingsChange={setSettings}
-        availableCredits={10}
       />
     </div>
   );

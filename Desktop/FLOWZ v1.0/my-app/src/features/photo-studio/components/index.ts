@@ -26,5 +26,4 @@ export {
   SettingsModal,
   type SourceImageItem,
   type DetectedTag,
-  type GenerationSettings,
 } from './modals';

@@ -1,212 +1,278 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Settings, Sparkles, Camera, Palette,
-  Square, Smartphone, Monitor, RectangleVertical, ShoppingBag,
-  AlertTriangle, Image, RotateCw, Search, Focus, Home,
+  Settings, Sparkles, Palette, Shield, Download, Gauge,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import type { GenerationQuality, AspectRatio } from '@/features/photo-studio/types/studio';
-import { VIEW_PRESETS, getViewPresetById } from '@/features/photo-studio/constants/viewPresets';
-
-export type GenerationSettings = {
-  quality: GenerationQuality;
-  aspectRatio: AspectRatio;
-  viewPresetId: string;
-  creativityLevel: number;
-};
+import {
+  useStudioSettings,
+  type StudioSettings,
+} from '@/features/photo-studio/hooks/useStudioSettings';
 
 type SettingsModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  settings: GenerationSettings;
-  onSettingsChange: (settings: GenerationSettings) => void;
-  availableCredits?: number;
 };
 
-const QUALITY_OPTIONS = [
-  { value: 'standard' as GenerationQuality, label: 'Standard', description: 'Rapide' },
-  { value: 'high' as GenerationQuality, label: 'Haute qualite', description: 'Detaille' },
-  { value: 'ultra' as GenerationQuality, label: 'Ultra HD', description: 'Maximum' },
-];
+export const SettingsModal = ({ open, onOpenChange }: SettingsModalProps) => {
+  const { settings, isLoading, updateSettings } = useStudioSettings();
+  const [draft, setDraft] = useState<StudioSettings>(settings);
 
-const ASPECT_RATIO_OPTIONS = [
-  { value: '1:1' as AspectRatio, label: 'Carre (1:1)', Icon: Square, description: 'Instagram, catalogues' },
-  { value: '4:5' as AspectRatio, label: 'Portrait (4:5)', Icon: Smartphone, description: 'Instagram Feed' },
-  { value: '16:9' as AspectRatio, label: 'Paysage (16:9)', Icon: Monitor, description: 'Bannieres web' },
-  { value: '9:16' as AspectRatio, label: 'Story (9:16)', Icon: RectangleVertical, description: 'Stories' },
-  { value: '3:4' as AspectRatio, label: 'Produit (3:4)', Icon: ShoppingBag, description: 'E-commerce' },
-];
+  // Sync draft when settings load or modal opens
+  useEffect(() => {
+    if (open) setDraft(settings);
+  }, [open, settings]);
 
-const VIEW_PRESET_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  single: Image,
-  'multi-3': RotateCw,
-  'multi-4': RotateCw,
-  details: Search,
-  '360': Focus,
-  lifestyle: Home,
-};
+  const update = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
 
-export const SettingsModal = ({
-  open,
-  onOpenChange,
-  settings,
-  onSettingsChange,
-  availableCredits = 10,
-}: SettingsModalProps) => {
-  const selectedPreset = getViewPresetById(settings.viewPresetId);
+  const handleSave = () => {
+    updateSettings.mutate(draft);
+    onOpenChange(false);
+  };
 
-  const updateSetting = <K extends keyof GenerationSettings>(key: K, value: GenerationSettings[K]) => {
-    onSettingsChange({ ...settings, [key]: value });
+  const handleCancel = () => {
+    setDraft(settings);
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-primary" />
-            Parametres de Generation
+            Paramètres du Studio
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Quality */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Palette className="w-4 h-4 text-muted-foreground" />
-              Qualite de generation
-            </Label>
-            <div className="grid grid-cols-3 gap-2">
-              {QUALITY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => updateSetting('quality', option.value)}
-                  className={cn(
-                    'p-3 rounded-xl border-2 text-center transition-all',
-                    settings.quality === option.value
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                  )}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : (
+          <div className="space-y-6 py-4">
+            {/* ── Génération ── */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Génération</h3>
+              </div>
+
+              {/* Quality */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Qualité</Label>
+                <Select
+                  value={draft.quality}
+                  onValueChange={(v) => update('quality', v as StudioSettings['quality'])}
                 >
-                  <div className="font-medium text-sm">{option.label}</div>
-                  <div className="text-[10px] text-muted-foreground mt-1">{option.description}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Aspect Ratio */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Square className="w-4 h-4 text-muted-foreground" />
-              Format de l'image
-            </Label>
-            <Select value={settings.aspectRatio} onValueChange={(v) => updateSetting('aspectRatio', v as AspectRatio)}>
-              <SelectTrigger className="h-12">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ASPECT_RATIO_OPTIONS.map((option) => {
-                  const IconComponent = option.Icon;
-                  return (
-                    <SelectItem key={option.value} value={option.value}>
-                      <span className="flex items-center gap-3">
-                        <IconComponent className="w-4 h-4 text-muted-foreground" />
-                        <span className="flex flex-col items-start">
-                          <span className="font-medium">{option.label}</span>
-                          <span className="text-xs text-muted-foreground">{option.description}</span>
-                        </span>
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* View presets */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Camera className="w-4 h-4 text-muted-foreground" />
-              Angles de vue
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
-              {VIEW_PRESETS.map((preset) => {
-                const IconComponent = VIEW_PRESET_ICONS[preset.id] || Image;
-                return (
-                  <button
-                    key={preset.id}
-                    onClick={() => updateSetting('viewPresetId', preset.id)}
-                    className={cn(
-                      'p-3 rounded-xl border-2 text-left transition-all',
-                      settings.viewPresetId === preset.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-muted">
-                        <IconComponent className="w-4 h-4 text-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{preset.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{preset.description}</div>
-                      </div>
-                      <Badge variant="secondary" className="text-[10px] px-1.5">{preset.imagesCount} img</Badge>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            {selectedPreset && (
-              <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
-                <span className="font-medium">Angles : </span>
-                {selectedPreset.angles.join(' -> ')}
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Basse — Rapide</SelectItem>
+                    <SelectItem value="medium">Moyenne — Équilibré</SelectItem>
+                    <SelectItem value="high">Haute — Détaillé</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
 
-          {/* Creativity */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-muted-foreground" />
-                Niveau de creativite
-              </Label>
-              <Badge variant="outline">{settings.creativityLevel}%</Badge>
-            </div>
-            <Slider
-              value={[settings.creativityLevel]}
-              onValueChange={([v]) => updateSetting('creativityLevel', v)}
-              min={0}
-              max={100}
-              step={10}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Fidele</span>
-              <span>Creatif</span>
-            </div>
-            {settings.creativityLevel > 75 && (
-              <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2">
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                <span>Niveau eleve : le resultat peut etre moins previsible</span>
+              {/* Temperature */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">Température (créativité)</Label>
+                  <span className="text-xs font-medium text-foreground">{draft.temperature.toFixed(1)}</span>
+                </div>
+                <Slider
+                  value={[draft.temperature]}
+                  onValueChange={([v]) => update('temperature', v)}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Fidèle</span>
+                  <span>Créatif</span>
+                </div>
               </div>
-            )}
+
+              {/* Variants */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">Nombre de variantes</Label>
+                  <span className="text-xs font-medium text-foreground">{draft.variants}</span>
+                </div>
+                <Slider
+                  value={[draft.variants]}
+                  onValueChange={([v]) => update('variants', v)}
+                  min={1}
+                  max={10}
+                  step={1}
+                  className="w-full"
+                />
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* ── Classification ── */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Classification</h3>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-muted-foreground">Classification automatique</Label>
+                <Switch
+                  checked={draft.autoClassify}
+                  onCheckedChange={(v) => update('autoClassify', v)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-muted-foreground">Auto-sélection des presets</Label>
+                <Switch
+                  checked={draft.presetAutoSelect}
+                  onCheckedChange={(v) => update('presetAutoSelect', v)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">Seuil de confiance</Label>
+                  <span className="text-xs font-medium text-foreground">{draft.confidenceThreshold.toFixed(1)}</span>
+                </div>
+                <Slider
+                  value={[draft.confidenceThreshold]}
+                  onValueChange={([v]) => update('confidenceThreshold', v)}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  className="w-full"
+                />
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* ── Quotas & Limites ── */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Gauge className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Quotas & Limites</h3>
+              </div>
+
+              <div className={cn(
+                'rounded-xl border border-border p-4 space-y-2',
+              )}>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Quota mensuel</span>
+                  <span className="font-medium text-foreground">{draft.monthlyQuota} générations</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: '0%' }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les données de consommation seront disponibles après vos premières générations.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">Seuil d&apos;alerte</Label>
+                  <span className="text-xs font-medium text-foreground">{Math.round(draft.alertThreshold * 100)}%</span>
+                </div>
+                <Slider
+                  value={[draft.alertThreshold * 100]}
+                  onValueChange={([v]) => update('alertThreshold', v / 100)}
+                  min={50}
+                  max={100}
+                  step={5}
+                  className="w-full"
+                />
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* ── Export ── */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Download className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Export</h3>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Format</Label>
+                <Select
+                  value={draft.exportFormat}
+                  onValueChange={(v) => update('exportFormat', v as StudioSettings['exportFormat'])}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="png">PNG — Sans perte</SelectItem>
+                    <SelectItem value="jpg">JPG — Léger</SelectItem>
+                    <SelectItem value="webp">WebP — Optimisé web</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Résolution</Label>
+                <Select
+                  value={String(draft.exportResolution)}
+                  onValueChange={(v) => update('exportResolution', parseInt(v, 10))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1024">1024px</SelectItem>
+                    <SelectItem value="2048">2048px</SelectItem>
+                    <SelectItem value="4096">4096px</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label className="text-sm text-muted-foreground">Inclure les métadonnées</Label>
+                <Switch
+                  checked={draft.includeMetadata}
+                  onCheckedChange={(v) => update('includeMetadata', v)}
+                />
+              </div>
+            </section>
           </div>
-        </div>
+        )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
-          <Button onClick={() => onOpenChange(false)}>Appliquer</Button>
+          <Button variant="outline" onClick={handleCancel}>
+            Annuler
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={updateSettings.isPending}
+          >
+            {updateSettings.isPending ? 'Enregistrement...' : 'Enregistrer'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

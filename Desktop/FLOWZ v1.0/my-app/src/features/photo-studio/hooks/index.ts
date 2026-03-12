@@ -34,3 +34,10 @@ export { useCreateBatchJobs, useBatchProgress } from './useBatchStudioJobs';
 
 // Image persistence
 export { useSaveGeneratedImage } from './useSaveGeneratedImage';
+
+// Studio settings (persisted per user)
+export {
+  useStudioSettings,
+  type StudioSettings,
+  DEFAULT_STUDIO_SETTINGS,
+} from './useStudioSettings';
