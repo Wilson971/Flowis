@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -12,6 +12,8 @@ import {
   Search,
   BarChart3,
   Zap,
+  Loader2,
+  Wrench,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
@@ -134,14 +136,29 @@ const getWelcomeMessage = (pathname: string): string => {
   return "Bonjour ! Je suis votre Copilot FLOWZ. Comment puis-je vous aider aujourd'hui ?";
 };
 
+// Tool name display map
+const TOOL_LABELS: Record<string, string> = {
+  search_products: "Recherche produits",
+  get_product: "Chargement produit",
+  get_seo_scores: "Analyse SEO",
+  get_dashboard_kpis: "Chargement KPIs",
+  list_articles: "Liste articles",
+  generate_product_content: "Génération contenu",
+  suggest_seo_fix: "Suggestions SEO",
+  update_product_content: "Mise à jour produit",
+  push_to_store: "Sync boutique",
+};
+
 export const CopilotPanel = () => {
   const { isOpen, setCopilotOpen } = useCopilot();
   const pathname = usePathname();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const suggestions = getContextualSuggestions(pathname);
   const welcomeMessage = getWelcomeMessage(pathname);
@@ -149,7 +166,7 @@ export const CopilotPanel = () => {
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [messages, isTyping, activeTool]);
 
   // Focus input when panel opens
   useEffect(() => {
@@ -158,33 +175,132 @@ export const CopilotPanel = () => {
     }
   }, [isOpen]);
 
-  const handleSend = (text?: string) => {
-    const content = text || inputValue.trim();
-    if (!content) return;
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      timestamp: new Date(),
-    };
+  const handleSend = useCallback(
+    async (text?: string) => {
+      const content = text || inputValue.trim();
+      if (!content || isTyping) return;
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsTyping(true);
-
-    // Simulated AI response (will be replaced with real API call)
-    setTimeout(() => {
-      const assistantMessage: Message = {
+      const userMessage: Message = {
         id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Je comprends votre demande concernant "${content.slice(0, 50)}...". Cette fonctionnalité sera bientôt connectée à l'IA FLOWZ pour vous fournir des réponses personnalisées basées sur vos données.`,
+        role: "user",
+        content,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMessage]);
-      setIsTyping(false);
-    }, 1500);
-  };
+
+      setMessages((prev) => [...prev, userMessage]);
+      setInputValue("");
+      setIsTyping(true);
+      setActiveTool(null);
+
+      // Build history from previous messages (exclude the one we just added)
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      // Abort previous request if any
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const response = await fetch("/api/copilot/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: content,
+            history,
+            context: { currentPage: pathname },
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || `Erreur ${response.status}`);
+        }
+
+        // Parse SSE stream
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No response stream");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          let eventType = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ") && eventType) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                switch (eventType) {
+                  case "tool_call":
+                    setActiveTool(data.tool);
+                    break;
+                  case "tool_result":
+                    setActiveTool(null);
+                    break;
+                  case "message": {
+                    const assistantMessage: Message = {
+                      id: crypto.randomUUID(),
+                      role: "assistant",
+                      content: data.content,
+                      timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, assistantMessage]);
+                    break;
+                  }
+                  case "error": {
+                    const errorMessage: Message = {
+                      id: crypto.randomUUID(),
+                      role: "assistant",
+                      content: `Désolé, une erreur est survenue: ${data.message}`,
+                      timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, errorMessage]);
+                    break;
+                  }
+                  case "done":
+                    break;
+                }
+              } catch {
+                // Ignore malformed JSON
+              }
+              eventType = "";
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name === "AbortError") return;
+        const errorMessage: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `Erreur de connexion: ${err.message || "Impossible de contacter le serveur"}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      } finally {
+        setIsTyping(false);
+        setActiveTool(null);
+      }
+    },
+    [inputValue, isTyping, messages, pathname]
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -319,7 +435,7 @@ export const CopilotPanel = () => {
               ))}
             </AnimatePresence>
 
-            {/* Typing indicator */}
+            {/* Typing / Tool indicator */}
             <AnimatePresence>
               {isTyping && (
                 <motion.div
@@ -330,14 +446,27 @@ export const CopilotPanel = () => {
                   className="flex gap-2.5"
                 >
                   <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    {activeTool ? (
+                      <Wrench className="w-3.5 h-3.5 text-primary animate-pulse" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    )}
                   </div>
                   <div className="bg-muted/50 px-3 py-2.5 rounded-xl rounded-bl-sm">
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:300ms]" />
-                    </div>
+                    {activeTool ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />
+                        <span className="text-[10px] text-muted-foreground">
+                          {TOOL_LABELS[activeTool] || activeTool}...
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:0ms]" />
+                        <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:150ms]" />
+                        <span className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:300ms]" />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
