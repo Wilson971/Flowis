@@ -72,6 +72,7 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
     // 2. Shared restoring ref
     const isRestoringRef = useRef<boolean>(false);
     const variationSaveRef = useRef<(() => Promise<void>) | null>(null);
+    const variationDirtyRef = useRef<(() => boolean) | null>(null);
 
     // 2b. Form hook
     const methods = useProductForm({ product, isRestoringRef });
@@ -92,7 +93,7 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
             });
             return;
         }
-        if (methods.formState.isDirty) {
+        if (methods.formState.isDirty || variationDirtyRef.current?.()) {
             toast.warning("Modifications non sauvegard\u00e9es", {
                 description: "Sauvegardez d\u2019abord vos modifications (Ctrl+S) avant de publier.",
             });
@@ -442,6 +443,7 @@ export const ProductEditorContainerV2 = ({ productId }: ProductEditorContainerV2
                                     platformProductId={product?.platform_product_id}
                                     metadataVariants={product?.metadata?.variants as unknown[] | undefined}
                                     onRegisterSave={(saveFn) => { variationSaveRef.current = saveFn; }}
+                                    onRegisterDirtyCheck={(dirtyFn) => { variationDirtyRef.current = dirtyFn; }}
                                 />
                             )}
                             <SeoTabV2 />
