@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useMemo } from "react";
 import { useFormContext } from "react-hook-form";
+import { safeScrollTo } from "@/lib/utils";
 import {
     Sheet,
     SheetContent,
@@ -186,7 +187,7 @@ export const SeoDetailSheet = ({ open, onOpenChange }: SeoDetailSheetProps) => {
                 if (!domId) return;
                 const el = document.getElementById(domId);
                 if (!el) return;
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                safeScrollTo(el, { block: "center" });
                 el.classList.add("ring-2", "ring-primary", "ring-offset-2", "transition-shadow", "duration-300");
                 setTimeout(() => {
                     el.classList.remove("ring-2", "ring-primary", "ring-offset-2", "transition-shadow", "duration-300");

@@ -113,7 +113,7 @@ function InlineNameEdit({ storeId, name }: { storeId: string; name: string }) {
   const { mutate: updateStore, isPending } = useUpdateStore()
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus()
+    if (editing) inputRef.current?.focus({ preventScroll: true })
   }, [editing])
 
   const handleSave = useCallback(() => {

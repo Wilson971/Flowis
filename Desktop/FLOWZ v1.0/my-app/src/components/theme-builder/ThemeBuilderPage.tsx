@@ -197,10 +197,11 @@ export function ThemeBuilderPage() {
   }, [config, showToast]);
 
   // ── Scroll to section ────────────────────────────────────────────────────
-  const scrollToSection = useCallback((id: SectionId) => {
+  const scrollToSection = useCallback(async (id: SectionId) => {
     const el = sectionRefs.current[id];
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const { safeScrollTo } = await import("@/lib/utils");
+      safeScrollTo(el, { block: "start" });
     }
     setActiveSection(id);
   }, []);

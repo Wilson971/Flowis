@@ -174,13 +174,13 @@ export function VariantBuilder<T = unknown>({
 
     if (!trimmed) {
       setNameError("Name cannot be empty.");
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
       return;
     }
 
     if (Object.prototype.hasOwnProperty.call(variants, trimmed)) {
       setNameError(`"${trimmed}" already exists.`);
-      inputRef.current?.focus();
+      inputRef.current?.focus({ preventScroll: true });
       return;
     }
 

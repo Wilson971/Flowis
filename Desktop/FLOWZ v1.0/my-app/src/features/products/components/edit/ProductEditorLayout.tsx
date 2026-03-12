@@ -22,13 +22,13 @@ export const ProductEditorLayout = ({
             className={cn("grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6", className)}
         >
             {/* Main Content */}
-            <div className="min-w-0 space-y-6">
+            <div className="min-w-0 space-y-6" style={{ overscrollBehavior: 'contain' }}>
                 {children}
             </div>
 
             {/* Sidebar */}
             <div className="min-w-0">
-                <div className="xl:sticky xl:top-24">
+                <div className="xl:sticky xl:top-24" style={{ overscrollBehavior: 'contain' }}>
                     {sidebar}
                 </div>
             </div>
