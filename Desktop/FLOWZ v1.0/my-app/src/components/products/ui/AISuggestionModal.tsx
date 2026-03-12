@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, Sparkles, ArrowRight, Edit3, Copy } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { sanitizeHtml } from '@/lib/sanitize';
 import { getFieldLabel } from "@/lib/productHelpers";
 import { TipTapEditor } from "@/components/editor/TipTapEditor";
@@ -17,15 +17,6 @@ const RICH_TEXT_FIELDS = ["description", "short_description"];
 
 function isRichTextField(field: string) {
     return RICH_TEXT_FIELDS.includes(field);
-}
-
-function stripHtml(html: string): string {
-    if (typeof document !== "undefined") {
-        const div = document.createElement("div");
-        div.innerHTML = html;
-        return div.textContent || div.innerText || "";
-    }
-    return html.replace(/<[^>]*>/g, "");
 }
 
 interface AISuggestionModalProps {

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
+import { cn, stripHtml } from '@/lib/utils';
 import { motion } from "framer-motion";
 
 // ============================================================================
@@ -135,7 +135,7 @@ export function ProductSeoForm({
   const titleScore = calculateScore(title, 60); // Title ideal 60 chars
   const shortDescScore = calculateScore(shortDesc, 160); // Short desc ideal 160
   // Remove HTML tags for detailed description scoring
-  const detailedDescText = detailedDesc.replace(/<[^>]*>/g, '');
+  const detailedDescText = stripHtml(detailedDesc);
   const detailedDescScore = calculateScore(detailedDescText, 500); // Detailed ideal 500
 
   return (

@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { ProductFormValues } from "../../../hooks/useProductForm";
 import { useProductEditContext } from "../../../context/ProductEditContext";
 import { isFieldValidatedByAI } from "@/lib/productHelpers";
@@ -117,7 +117,7 @@ export const ProductSeoTab = () => {
     const status = useWatch({ control, name: "status" });
     const isDraft = status === 'draft';
 
-    const previewDesc = (metaDescription || productDesc).replace(/<[^>]*>/g, '').substring(0, 160);
+    const previewDesc = stripHtml(metaDescription || productDesc).substring(0, 160);
     const previewTitle = metaTitle || productTitle;
 
     // GSC keywords for this product's permalink
@@ -130,8 +130,8 @@ export const ProductSeoTab = () => {
         title: productTitle,
         meta_title: metaTitle,
         meta_description: metaDescription,
-        short_description: (shortDescription || "").replace(/<[^>]*>/g, ''),
-        description: (description || "").replace(/<[^>]*>/g, ''),
+        short_description: stripHtml(shortDescription || ""),
+        description: stripHtml(description || ""),
         slug: slug,
         images: Array.isArray(images) ? images.map((img: any) => ({
             src: img?.src || img?.url || "",

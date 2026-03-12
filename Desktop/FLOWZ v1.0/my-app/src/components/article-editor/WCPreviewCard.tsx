@@ -10,7 +10,7 @@
 import { Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, stripHtml } from '@/lib/utils';
 
 interface WCPreviewCardProps {
   title: string;
@@ -21,10 +21,6 @@ interface WCPreviewCardProps {
   tags?: string[];
   status: 'draft' | 'publish' | 'pending';
   className?: string;
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim();
 }
 
 function truncate(text: string, maxLength: number): string {

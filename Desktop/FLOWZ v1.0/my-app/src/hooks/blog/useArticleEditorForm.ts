@@ -24,7 +24,7 @@ import type {
   ArticleSeoData,
   ArticleTaxonomies,
   ArticleAuthor,
-} from '@/types/product-content';
+} from '@/types/article';
 
 /** BlogArticle with optional WordPress sync fields */
 type ArticleWithSync = BlogArticle & Partial<BlogArticleSyncFields>;

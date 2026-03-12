@@ -14,7 +14,7 @@ import { AISuggestionModal } from "@/components/products/ui/AISuggestionModal";
 import { DraftSuggestionButton } from "@/components/products/ui/DraftSuggestionButton";
 import { isFieldValidatedByAI } from "@/lib/productHelpers";
 import { motionTokens } from "@/lib/design-system";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 
 export const GeneralTabV2 = () => {
     const { register, control, getValues } = useFormContext<ProductFormValues>();
@@ -49,9 +49,6 @@ export const GeneralTabV2 = () => {
     const title = useWatch({ control, name: "title" }) || "";
     const shortDesc = useWatch({ control, name: "short_description" }) || "";
     const description = useWatch({ control, name: "description" }) || "";
-
-    // Strip HTML tags for accurate character counts
-    const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').trim();
 
     const titleScore = calculateScore(title, 60);
     const shortDescPlainText = stripHtml(shortDesc);

@@ -22,7 +22,7 @@ import {
     Loader2,
     RotateCcw,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, stripHtml } from "@/lib/utils";
 import { useProductEditContext } from "../../context/ProductEditContext";
 import { getSeoLevel } from "@/lib/seo/constants";
 import { getScoreBadgeStyle } from "@/lib/seo/scoreColors";
@@ -147,8 +147,6 @@ export const SeoDetailSheet = ({ open, onOpenChange }: SeoDetailSheetProps) => {
     );
 
     // ─── Helpers ──────────────────────────────────────────────
-
-    const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
 
     const buildProductSeoInput = useCallback(
         (overrides?: Partial<Record<string, string>>): ProductSeoInput => {

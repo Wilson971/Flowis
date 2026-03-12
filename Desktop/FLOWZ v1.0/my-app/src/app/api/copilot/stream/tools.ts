@@ -1,6 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { sanitizeHtml } from '@/lib/sanitize';
+import { stripHtml } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
 // Helper: create tools bound to a tenant + supabase client
@@ -274,11 +276,11 @@ export function createCopilotTools(tenantId: string, supabase: SupabaseClient) {
         const updatedWc = { ...currentWc };
         const changedFields: string[] = [];
 
-        if (fields.title !== undefined) { updatedWc.title = fields.title; changedFields.push("title"); }
-        if (fields.short_description !== undefined) { updatedWc.short_description = fields.short_description; changedFields.push("short_description"); }
-        if (fields.description !== undefined) { updatedWc.description = fields.description; changedFields.push("description"); }
-        if (fields.seo_title !== undefined) { updatedWc.seo_title = fields.seo_title; changedFields.push("seo_title"); }
-        if (fields.meta_description !== undefined) { updatedWc.meta_description = fields.meta_description; changedFields.push("meta_description"); }
+        if (fields.title !== undefined) { updatedWc.title = stripHtml(fields.title); changedFields.push("title"); }
+        if (fields.short_description !== undefined) { updatedWc.short_description = sanitizeHtml(fields.short_description); changedFields.push("short_description"); }
+        if (fields.description !== undefined) { updatedWc.description = sanitizeHtml(fields.description); changedFields.push("description"); }
+        if (fields.seo_title !== undefined) { updatedWc.seo_title = stripHtml(fields.seo_title); changedFields.push("seo_title"); }
+        if (fields.meta_description !== undefined) { updatedWc.meta_description = stripHtml(fields.meta_description); changedFields.push("meta_description"); }
 
         if (changedFields.length === 0) return { error: "No fields provided to update" };
 
@@ -291,7 +293,7 @@ export function createCopilotTools(tenantId: string, supabase: SupabaseClient) {
 
         // Also update top-level title if changed
         if (fields.title !== undefined) {
-          updatePayload.title = fields.title;
+          updatePayload.title = stripHtml(fields.title);
         }
 
         // Track dirty fields for sync

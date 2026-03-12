@@ -80,6 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .from("studio_jobs")
     .select("id")
     .eq("batch_id", batchId)
+    .eq("tenant_id", user.id)
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
@@ -102,7 +103,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   await supabase
     .from("batch_jobs")
     .update({ status: "processing" })
-    .eq("id", batchId);
+    .eq("id", batchId)
+    .eq("tenant_id", user.id);
 
   // 6. Forward cookies for auth propagation to process-job
   const cookieHeader = request.headers.get("cookie") || "";

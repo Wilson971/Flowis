@@ -133,17 +133,8 @@ function calculateCost(inputTokens: number, outputTokens: number): number {
     return Math.round((inputCost + outputCost) * 1000000) / 1000000; // Round to 6 decimals
 }
 
-/**
- * Log token usage (can be extended to store in DB)
- */
-function logTokenUsage(usage: TokenUsage, metadata: {
-    topic?: string;
-    targetWordCount?: number;
-    timestamp: number;
-}): void {
-    // For now, just log to console - can be extended to store in database
-    // Token usage tracking — extend to DB storage if needed
-}
+// Maximum content size to prevent unbounded memory growth during streaming
+const MAX_CONTENT_SIZE = 500_000; // ~500KB
 
 // Monthly token limit per user
 const MONTHLY_TOKEN_LIMIT = 2_000_000; // 2M tokens per month
@@ -364,6 +355,9 @@ async function generateWithRetry(
 
                 if (text) {
                     fullContent += text;
+                    if (fullContent.length > MAX_CONTENT_SIZE) {
+                        throw new Error('Content size limit exceeded');
+                    }
                     chunkCount++;
 
                     // Send chunk
@@ -405,13 +399,6 @@ async function generateWithRetry(
                 totalTokens: inputTokens + outputTokens,
                 estimatedCost: calculateCost(inputTokens, outputTokens),
             };
-
-            // Log token usage
-            logTokenUsage(tokenUsage, {
-                topic: config.topic,
-                targetWordCount: config.targetWordCount,
-                timestamp: Date.now(),
-            });
 
             // Persist AI usage to DB (fire-and-forget)
             if (onComplete) {

@@ -30,7 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn, stripHtml } from '@/lib/utils';
 import {
     useProductVersionManager,
     type ProductVersion,
@@ -87,11 +87,6 @@ function truncate(text: string | undefined | null, maxLength: number): string {
     if (!text) return '—';
     if (text.length <= maxLength) return text;
     return text.slice(0, maxLength) + '...';
-}
-
-function stripHtml(html: string | undefined | null): string {
-    if (!html) return '';
-    return html.replace(/<[^>]*>?/gm, '');
 }
 
 // ============================================================================

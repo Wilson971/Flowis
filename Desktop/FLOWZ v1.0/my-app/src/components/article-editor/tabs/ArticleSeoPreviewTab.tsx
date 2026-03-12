@@ -34,7 +34,7 @@ import { SERPPreview } from '@/components/seo/SERPPreview';
 import { SeoFieldEditor } from '@/components/seo/SeoFieldEditor';
 import { useArticleEditContext } from '../context';
 import { FieldStatusBadge } from '@/components/products/FieldStatusBadge';
-import { cn } from '@/lib/utils';
+import { cn, stripHtml } from '@/lib/utils';
 
 // ============================================================================
 // MAIN COMPONENT
@@ -64,7 +64,7 @@ export function ArticleSeoPreviewTab() {
 
   // Fallbacks for preview
   const previewTitle = seoTitle || title || 'Titre de votre article';
-  const previewDesc = (seoDescription || excerpt || '').replace(/<[^>]*>/g, '').substring(0, 160) || 'Description de votre article...';
+  const previewDesc = stripHtml(seoDescription || excerpt || '').substring(0, 160) || 'Description de votre article...';
 
   // Helpers
   const hasDraft = (field: string) => remainingProposals.includes(field);
