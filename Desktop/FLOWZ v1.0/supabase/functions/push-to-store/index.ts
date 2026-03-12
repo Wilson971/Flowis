@@ -727,6 +727,9 @@ async function pushDirtyVariations(
     }
 
     console.log(`[push-variations] Pushing ${dirtyVariations.length} dirty variations`);
+    for (const v of dirtyVariations) {
+        console.log(`[push-variations] Variation id=${v.id} external_id=${v.external_id} dirty_action=${v.dirty_action} sku=${v.sku} attributes=${JSON.stringify(v.attributes)}`);
+    }
 
     // Build batch payload
     const toCreate: Record<string, unknown>[] = [];
@@ -739,20 +742,18 @@ async function pushDirtyVariations(
     const deleteDbIds: string[] = [];
 
     for (const v of dirtyVariations) {
-        const variationPayload = buildVariationPayload(v);
-
         switch (v.dirty_action) {
             case 'created':
-                toCreate.push(variationPayload);
+                toCreate.push(buildVariationPayload(v, false));
                 createDbIds.push(v.id);
                 break;
             case 'updated':
                 if (v.external_id && !String(v.external_id).startsWith('local_')) {
-                    toUpdate.push({ id: Number(v.external_id), ...variationPayload });
+                    toUpdate.push({ id: Number(v.external_id), ...buildVariationPayload(v, true) });
                     updateDbIds.push(v.id);
                 } else {
                     // Variation was created locally and then updated before syncing
-                    toCreate.push(variationPayload);
+                    toCreate.push(buildVariationPayload(v, false));
                     createDbIds.push(v.id);
                 }
                 break;
@@ -779,7 +780,13 @@ async function pushDirtyVariations(
     if (toUpdate.length > 0) batchBody.update = toUpdate;
     if (toDeleteIds.length > 0) batchBody.delete = toDeleteIds;
 
-    if (Object.keys(batchBody).length === 0) return { created: 0, updated: 0, deleted: 0 };
+    if (Object.keys(batchBody).length === 0) {
+        console.log('[push-variations] No batch operations to send (all filtered out)');
+        return { created: 0, updated: 0, deleted: 0 };
+    }
+
+    console.log(`[push-variations] Batch payload: create=${toCreate.length}, update=${toUpdate.length}, delete=${toDeleteIds.length}`);
+    console.log(`[push-variations] Batch body:`, JSON.stringify(batchBody, null, 2));
 
     const baseUrl = credentials.shopUrl.replace(/\/+$/, '');
     const batchUrl = `${baseUrl}/wp-json/wc/v3/products/${platformProductId}/variations/batch`;
@@ -809,16 +816,22 @@ async function pushDirtyVariations(
     }
 
     const batchResult = await response.json() as {
-        create?: Array<{ id: number }>;
-        update?: Array<{ id: number }>;
-        delete?: Array<{ id: number }>;
+        create?: Array<{ id?: number; error?: { message: string; code: string } }>;
+        update?: Array<{ id?: number; error?: { message: string; code: string } }>;
+        delete?: Array<{ id?: number; error?: { message: string; code: string } }>;
     };
+
+    console.log(`[push-variations] WC batch response:`, JSON.stringify(batchResult, null, 2));
 
     // Post-push cleanup: update external_ids for created variations
     if (batchResult.create && createDbIds.length > 0) {
         for (let i = 0; i < Math.min(batchResult.create.length, createDbIds.length); i++) {
             const wcVariation = batchResult.create[i];
             const dbId = createDbIds[i];
+            if (wcVariation?.error) {
+                console.error(`[push-variations] CREATE failed for dbId=${dbId}:`, JSON.stringify(wcVariation.error));
+                continue;
+            }
             if (wcVariation?.id) {
                 await supabase
                     .from('product_variations')
@@ -833,12 +846,25 @@ async function pushDirtyVariations(
         }
     }
 
-    // Clear dirty flags on updated variations
+    // Check for update errors before clearing dirty flags
+    if (batchResult.update) {
+        for (let i = 0; i < batchResult.update.length; i++) {
+            const wcVar = batchResult.update[i];
+            if (wcVar?.error) {
+                console.error(`[push-variations] UPDATE failed for dbId=${updateDbIds[i]}:`, JSON.stringify(wcVar.error));
+            }
+        }
+    }
+
+    // Clear dirty flags on updated variations (only successful ones)
     if (updateDbIds.length > 0) {
-        await supabase
-            .from('product_variations')
-            .update({ is_dirty: false, dirty_action: null })
-            .in('id', updateDbIds);
+        const successUpdateDbIds = updateDbIds.filter((_, i) => batchResult.update && !batchResult.update[i]?.error);
+        if (successUpdateDbIds.length > 0) {
+            await supabase
+                .from('product_variations')
+                .update({ is_dirty: false, dirty_action: null })
+                .in('id', successUpdateDbIds);
+        }
     }
 
     // Hard-delete variations that were deleted from WooCommerce
@@ -849,8 +875,22 @@ async function pushDirtyVariations(
             .in('id', deleteDbIds);
     }
 
-    console.log(`[push-variations] Done: ${toCreate.length} created, ${toUpdate.length} updated, ${toDeleteIds.length} deleted`);
-    return { created: toCreate.length, updated: toUpdate.length, deleted: toDeleteIds.length };
+    // Collect per-item errors
+    const itemErrors: string[] = [];
+    if (batchResult.create) {
+        for (const item of batchResult.create) {
+            if (item?.error) itemErrors.push(`Create: ${item.error.message || item.error.code}`);
+        }
+    }
+    if (batchResult.update) {
+        for (const item of batchResult.update) {
+            if (item?.error) itemErrors.push(`Update: ${item.error.message || item.error.code}`);
+        }
+    }
+
+    const errorMsg = itemErrors.length > 0 ? itemErrors.join('; ') : undefined;
+    console.log(`[push-variations] Done: ${toCreate.length} created, ${toUpdate.length} updated, ${toDeleteIds.length} deleted${errorMsg ? ` | ERRORS: ${errorMsg}` : ''}`);
+    return { created: toCreate.length, updated: toUpdate.length, deleted: toDeleteIds.length, error: errorMsg };
 }
 
 /**
@@ -861,7 +901,7 @@ async function pushDirtyVariations(
  *
  * @see https://woocommerce.github.io/woocommerce-rest-api-docs/#product-variation-properties
  */
-function buildVariationPayload(v: Record<string, unknown>): Record<string, unknown> {
+function buildVariationPayload(v: Record<string, unknown>, isUpdate = false): Record<string, unknown> {
     const payload: Record<string, unknown> = {};
 
     // ── Core pricing ────────────────────────────────────────────────
@@ -871,7 +911,9 @@ function buildVariationPayload(v: Record<string, unknown>): Record<string, unkno
     if (v.date_on_sale_to) payload.date_on_sale_to = String(v.date_on_sale_to);
 
     // ── Identification ──────────────────────────────────────────────
-    if (v.sku != null) payload.sku = String(v.sku);
+    // Skip SKU on updates — WooCommerce re-validates uniqueness in batch and rejects
+    // duplicate SKUs even if they belong to the variation being updated
+    if (!isUpdate && v.sku != null && String(v.sku).trim() !== '') payload.sku = String(v.sku);
     if (v.global_unique_id) payload.global_unique_id = String(v.global_unique_id);
     if (v.description != null) payload.description = String(v.description || '');
     if (v.status) payload.status = String(v.status);
@@ -925,9 +967,13 @@ function buildVariationPayload(v: Record<string, unknown>): Record<string, unkno
     // ── Image (WC v3: {id} for existing, {src} for new upload) ─────
     if (v.image && typeof v.image === 'object') {
         const img = v.image as Record<string, unknown>;
-        if (img.id) {
+        const imgId = img.id ? Number(img.id) : 0;
+        // WC media library IDs are typically < 100000. Large numbers (timestamps)
+        // are locally-generated IDs from Supabase Storage uploads — not valid WC IDs.
+        const isValidWcId = imgId > 0 && imgId < 10_000_000;
+        if (isValidWcId) {
             // Existing WC media library image — send only the id
-            payload.image = { id: Number(img.id) };
+            payload.image = { id: imgId };
         } else if (img.src) {
             // External URL — WC will sideload it
             payload.image = {
@@ -1337,12 +1383,33 @@ async function handleProductPush(
         );
 
         if (!timestampCheck.shouldPush) {
+            // Even when product content is skipped (timestamp conflict),
+            // still push dirty variations — they have their own dirty tracking.
+            const isVariableSkip = metadata.type === 'variable' ||
+                (product.working_content as Record<string, unknown>)?.product_type === 'variable';
+            let variationResultSkip: VariationPushResult | undefined;
+            if (isVariableSkip) {
+                try {
+                    variationResultSkip = await pushDirtyVariations(
+                        supabase,
+                        credentials,
+                        product.id,
+                        product.platform_product_id,
+                        store.id
+                    );
+                } catch (variationError) {
+                    console.error('[push] Variation push error (timestamp-skip path):', variationError);
+                    variationResultSkip = { created: 0, updated: 0, deleted: 0, error: String(variationError) };
+                }
+            }
+            const hasVarChanges = variationResultSkip && (variationResultSkip.created > 0 || variationResultSkip.updated > 0 || variationResultSkip.deleted > 0);
             results.push({
                 id: product.id,
                 platformId: product.platform_product_id,
-                success: true,
-                skipped: true,
-                skipReason: timestampCheck.reason,
+                success: !variationResultSkip?.error,
+                skipped: !hasVarChanges,
+                skipReason: hasVarChanges ? undefined : timestampCheck.reason,
+                variations: variationResultSkip,
             });
             continue;
         }

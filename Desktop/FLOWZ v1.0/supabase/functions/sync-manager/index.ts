@@ -1002,6 +1002,7 @@ Deno.serve(async (req) => {
                         if (variableProducts.length > 0) {
                             const variationChunksData = variableProducts.map((p: any) => ({
                                 woo_product_id: p.id,
+                                woo_id: p.id,
                                 name: p.name || `Product ${p.id}`,
                                 expected_count: p.variations?.length || 0
                             }));
@@ -1210,7 +1211,7 @@ Deno.serve(async (req) => {
                                 const { data: variations, totalPages } = await wooFetch(
                                     shop_url, consumer_key, consumer_secret,
                                     `/wc/v3/products/${wooProductId}/variations`,
-                                    { per_page: "100", page: String(varPage) }
+                                    { per_page: "100", page: String(varPage), status: "any" }
                                 );
 
                                 allVariations.push(...variations);

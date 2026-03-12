@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useEffect } from "react";
 import { cn } from "../../lib/utils";
 import { AppSidebar } from "./AppSidebar";
 import { TopHeader } from "./TopHeader";
@@ -26,6 +27,37 @@ import { AnimatePresence } from "framer-motion";
 const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const { theme } = useTheme();
   const { isOpen: isCopilotOpen } = useCopilot();
+  const mainRef = useRef<HTMLElement>(null);
+  const savedScrollRef = useRef(0);
+
+  // Preserve main scroll position when Copilot panel opens/closes (push resize causes scroll reset)
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const saved = savedScrollRef.current;
+    // Restore scroll repeatedly during the 300ms animation to fight browser resets
+    const restore = () => { main.scrollTop = saved; };
+    restore();
+    const raf1 = requestAnimationFrame(restore);
+    const t1 = setTimeout(restore, 50);
+    const t2 = setTimeout(restore, 150);
+    const t3 = setTimeout(restore, 350);
+    return () => {
+      cancelAnimationFrame(raf1);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isCopilotOpen]);
+
+  // Continuously track scroll position
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const onScroll = () => { savedScrollRef.current = main.scrollTop; };
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => main.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <div className="flex h-screen w-full bg-[#0e0e0e] text-white relative overflow-hidden">
@@ -52,6 +84,7 @@ const AppLayoutContent = ({ children }: { children: React.ReactNode }) => {
 
           {/* Scrollable content area */}
           <main
+            ref={mainRef}
             id="main-content"
             role="main"
             className="flex-1 min-h-0 overflow-y-auto w-full bg-background scroll-smooth custom-scrollbar"

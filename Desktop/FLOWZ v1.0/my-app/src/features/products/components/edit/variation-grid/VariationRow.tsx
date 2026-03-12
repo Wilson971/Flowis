@@ -7,7 +7,6 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -35,6 +34,7 @@ import {
     statusBgColors,
     statusLabels,
 } from "./VariationGridColumns";
+import { useVariationContextMenu } from "./VariationRowContextMenu";
 
 export const VariationRow = React.memo(function VariationRow({
     variation,
@@ -44,10 +44,14 @@ export const VariationRow = React.memo(function VariationRow({
     onUpdateField,
     onDelete,
     onOpenDetail,
-    onImageUpload,
+    onImageClick,
     isUploading,
     show,
     parentAttributeOptions,
+    onDuplicate,
+    onCopyFieldToSelected,
+    onCopyAllToSelected,
+    selectedCount,
 }: {
     variation: EditableVariation;
     attrNames: string[];
@@ -56,22 +60,38 @@ export const VariationRow = React.memo(function VariationRow({
     onUpdateField: (field: keyof EditableVariation, value: unknown) => void;
     onDelete: () => void;
     onOpenDetail: () => void;
-    onImageUpload?: (file: File) => void;
+    onImageClick?: () => void;
     isUploading?: boolean;
     show: (key: string) => boolean;
     parentAttributeOptions?: Map<string, string[]>;
+    onDuplicate?: () => void;
+    onCopyFieldToSelected?: (field: keyof EditableVariation) => void;
+    onCopyAllToSelected?: () => void;
+    selectedCount?: number;
 }) {
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const attrMap = useMemo(
         () => new Map(variation.attributes.map((a) => [a.name, a.option])),
         [variation.attributes]
     );
     const isDeleted = variation._status === "deleted";
 
+    const { onContextMenu, contextMenuPortal } = useVariationContextMenu({
+        variation,
+        hasSelection: (selectedCount ?? 0) > 0,
+        selectedCount: selectedCount ?? 0,
+        onDuplicate: () => onDuplicate?.(),
+        onDelete,
+        onOpenDetail,
+        onCopyFieldToSelected: (field) => onCopyFieldToSelected?.(field),
+        onCopyAllToSelected: () => onCopyAllToSelected?.(),
+    });
+
     return (
+        <>
         <TableRow
+            onContextMenu={onContextMenu}
             className={cn(
-                "border-l-4 transition-all duration-200 group",
+                "border-l-2 transition-colors group",
                 statusBorderColors[variation._status],
                 statusBgColors[variation._status],
                 "hover:bg-muted/30",
@@ -79,7 +99,7 @@ export const VariationRow = React.memo(function VariationRow({
             )}
         >
             {/* Fixed: Checkbox with Status Indicator */}
-            <TableCell className="sticky left-0 bg-background group-hover:bg-muted/30 z-10 transition-colors">
+            <TableCell className="sticky left-0 bg-card group-hover:bg-muted/30 z-10 transition-colors !px-3">
                 <div className="flex items-center gap-2">
                     <Checkbox
                         checked={isSelected}
@@ -90,7 +110,7 @@ export const VariationRow = React.memo(function VariationRow({
                             <TooltipTrigger asChild>
                                 <div
                                     className={cn(
-                                        "h-2 w-2 rounded-full transition-all",
+                                        "h-2 w-2 rounded-full",
                                         variation._status === "synced" && "bg-success",
                                         variation._status === "new" && "bg-primary",
                                         variation._status === "modified" && "bg-amber-500",
@@ -111,17 +131,16 @@ export const VariationRow = React.memo(function VariationRow({
                 <TableCell>
                     <div
                         className={cn(
-                            "h-16 w-16 rounded-xl bg-muted flex items-center justify-center overflow-hidden",
-                            "border-2 border-border/50 cursor-pointer group/img relative",
-                            "transition-all duration-200",
-                            "hover:border-primary hover:shadow-md hover:scale-105"
+                            "h-10 w-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden",
+                            "border border-border/40 ring-1 ring-border/30 cursor-pointer group/img relative",
+                            "transition-[box-shadow]",
+                            "hover:ring-border/60"
                         )}
-                        onClick={() => onImageUpload && fileInputRef.current?.click()}
+                        onClick={() => onImageClick?.()}
                     >
                         {isUploading ? (
-                            <div className="flex flex-col items-center gap-1">
-                                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                                <span className="text-[9px] text-muted-foreground">Upload...</span>
+                            <div className="flex items-center justify-center">
+                                <Loader2 className="h-4 w-4 animate-spin text-foreground/70" />
                             </div>
                         ) : variation.image?.src ? (
                             <img
@@ -130,37 +149,21 @@ export const VariationRow = React.memo(function VariationRow({
                                 className="h-full w-full object-cover"
                             />
                         ) : (
-                            <div className="flex flex-col items-center gap-1">
-                                <ImageIcon className="h-5 w-5 text-muted-foreground/50" />
-                                <span className="text-[9px] text-muted-foreground/50">Ajouter</span>
-                            </div>
+                            <ImageIcon className="h-4 w-4 text-muted-foreground/40" />
                         )}
                         {!isUploading && (
                             <div className={cn(
-                                "absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100",
-                                "flex items-center justify-center transition-all duration-200"
+                                "absolute inset-0 bg-background/80 opacity-0 group-hover/img:opacity-100",
+                                "flex items-center justify-center transition-opacity"
                             )}>
-                                <span className="text-[10px] text-white font-medium">
-                                    {variation.image?.src ? 'Changer' : 'Upload'}
-                                </span>
+                                <ImageIcon className="h-3.5 w-3.5 text-foreground/70" />
                             </div>
                         )}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file && onImageUpload) onImageUpload(file);
-                                e.target.value = "";
-                            }}
-                        />
                     </div>
                 </TableCell>
             )}
 
-            {/* Attribute Columns */}
+            {/* Attribute Columns — Select from parent attribute options */}
             {attrNames.map((name) => {
                 const currentOption = attrMap.get(name) || "";
                 const options = parentAttributeOptions?.get(name);
@@ -173,7 +176,6 @@ export const VariationRow = React.memo(function VariationRow({
                                     const newAttrs = variation.attributes.map((a) =>
                                         a.name === name ? { ...a, option: val } : a
                                     );
-                                    // If attribute doesn't exist yet, add it
                                     if (!variation.attributes.some((a) => a.name === name)) {
                                         newAttrs.push({ name, option: val });
                                     }
@@ -181,8 +183,8 @@ export const VariationRow = React.memo(function VariationRow({
                                 }}
                                 disabled={isDeleted}
                             >
-                                <SelectTrigger className="h-8 text-xs w-28">
-                                    <SelectValue placeholder="\u2014" />
+                                <SelectTrigger className="h-7 text-[11px] w-24">
+                                    <SelectValue placeholder="—" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {options.map((opt) => (
@@ -193,15 +195,9 @@ export const VariationRow = React.memo(function VariationRow({
                                 </SelectContent>
                             </Select>
                         ) : (
-                            <Badge
-                                variant="outline"
-                                className={cn(
-                                    "text-xs font-medium border-border/50",
-                                    "bg-background/50 hover:border-primary/50 transition-colors"
-                                )}
-                            >
-                                {currentOption || "\u2014"}
-                            </Badge>
+                            <span className="text-xs text-muted-foreground px-2">
+                                {currentOption || "—"}
+                            </span>
                         )}
                     </TableCell>
                 );
@@ -212,7 +208,7 @@ export const VariationRow = React.memo(function VariationRow({
                 <TableCell>
                     <Input
                         defaultValue={variation.sku}
-                        className="h-8 text-xs"
+                        className="h-7 text-[11px]"
                         onBlur={(e) => {
                             if (e.target.value !== variation.sku) {
                                 onUpdateField("sku", e.target.value);
@@ -231,7 +227,7 @@ export const VariationRow = React.memo(function VariationRow({
                         step="0.01"
                         min="0"
                         defaultValue={variation.regularPrice}
-                        className="h-8 text-xs w-24"
+                        className="h-7 text-[11px] w-20"
                         onBlur={(e) => {
                             if (e.target.value !== variation.regularPrice) {
                                 onUpdateField("regularPrice", e.target.value);
@@ -250,8 +246,8 @@ export const VariationRow = React.memo(function VariationRow({
                         step="0.01"
                         min="0"
                         defaultValue={variation.salePrice}
-                        className="h-8 text-xs w-24"
-                        placeholder="\u2014"
+                        className="h-7 text-[11px] w-20"
+                        placeholder={"\u2014"}
                         onBlur={(e) => {
                             if (e.target.value !== variation.salePrice) {
                                 onUpdateField("salePrice", e.target.value);
@@ -270,7 +266,7 @@ export const VariationRow = React.memo(function VariationRow({
                         min="0"
                         defaultValue={variation.stockQuantity ?? ""}
                         className={cn(
-                            "h-8 text-xs w-20",
+                            "h-7 text-[11px] w-16",
                             variation.stockStatus === "outofstock" &&
                             "border-destructive/50"
                         )}
@@ -292,7 +288,7 @@ export const VariationRow = React.memo(function VariationRow({
                 <TableCell>
                     <Input
                         defaultValue={variation.weight}
-                        className="h-8 text-xs w-16"
+                        className="h-7 text-[11px] w-14"
                         placeholder="kg"
                         onBlur={(e) => {
                             if (e.target.value !== variation.weight) {
@@ -307,7 +303,7 @@ export const VariationRow = React.memo(function VariationRow({
             {/* Dimensions (compact read-only -- editable in sheet) */}
             {show("dimensions") && (
                 <TableCell>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums">
                         {variation.dimensions.length || variation.dimensions.width || variation.dimensions.height
                             ? `${variation.dimensions.length || "0"}\u00D7${variation.dimensions.width || "0"}\u00D7${variation.dimensions.height || "0"}`
                             : "\u2014"}
@@ -320,7 +316,7 @@ export const VariationRow = React.memo(function VariationRow({
                 <TableCell>
                     <Input
                         defaultValue={variation.globalUniqueId}
-                        className="h-8 text-xs w-28"
+                        className="h-7 text-[11px] w-24"
                         placeholder="EAN/GTIN"
                         onBlur={(e) => {
                             if (e.target.value !== variation.globalUniqueId) {
@@ -353,7 +349,7 @@ export const VariationRow = React.memo(function VariationRow({
                         onValueChange={(val) => onUpdateField("backorders", val)}
                         disabled={isDeleted}
                     >
-                        <SelectTrigger className="h-8 text-xs w-28">
+                        <SelectTrigger className="h-7 text-[11px] w-24">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -373,7 +369,7 @@ export const VariationRow = React.memo(function VariationRow({
                         onValueChange={(val) => onUpdateField("taxStatus", val)}
                         disabled={isDeleted}
                     >
-                        <SelectTrigger className="h-8 text-xs w-24">
+                        <SelectTrigger className="h-7 text-[11px] w-20">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -390,7 +386,7 @@ export const VariationRow = React.memo(function VariationRow({
                 <TableCell>
                     <Input
                         defaultValue={variation.taxClass}
-                        className="h-8 text-xs w-20"
+                        className="h-7 text-[11px] w-16"
                         placeholder="standard"
                         onBlur={(e) => {
                             if (e.target.value !== variation.taxClass) {
@@ -408,7 +404,7 @@ export const VariationRow = React.memo(function VariationRow({
                     <Input
                         type="date"
                         defaultValue={variation.dateOnSaleFrom ? variation.dateOnSaleFrom.split("T")[0] : ""}
-                        className="h-8 text-xs w-32"
+                        className="h-7 text-[11px] w-28"
                         onBlur={(e) => {
                             const val = e.target.value || "";
                             if (val !== (variation.dateOnSaleFrom?.split("T")[0] ?? "")) {
@@ -426,7 +422,7 @@ export const VariationRow = React.memo(function VariationRow({
                     <Input
                         type="date"
                         defaultValue={variation.dateOnSaleTo ? variation.dateOnSaleTo.split("T")[0] : ""}
-                        className="h-8 text-xs w-32"
+                        className="h-7 text-[11px] w-28"
                         onBlur={(e) => {
                             const val = e.target.value || "";
                             if (val !== (variation.dateOnSaleTo?.split("T")[0] ?? "")) {
@@ -442,7 +438,7 @@ export const VariationRow = React.memo(function VariationRow({
             {show("description") && (
                 <TableCell>
                     <span
-                        className="text-xs text-muted-foreground truncate block max-w-[140px]"
+                        className="text-[11px] text-muted-foreground truncate block max-w-[120px]"
                         title={variation.description}
                     >
                         {variation.description || "\u2014"}
@@ -458,32 +454,25 @@ export const VariationRow = React.memo(function VariationRow({
                         onValueChange={(val) => onUpdateField("status", val)}
                         disabled={isDeleted}
                     >
-                        <SelectTrigger
-                            className={cn(
-                                "h-8 text-xs w-28 border-border/50 font-medium",
-                                variation.status === "publish" && "border-success/50 bg-success/5 text-success",
-                                variation.status === "private" && "border-amber-500/50 bg-amber-500/5 text-amber-700",
-                                variation.status === "draft" && "border-muted-foreground/50 bg-muted/30 text-muted-foreground"
-                            )}
-                        >
+                        <SelectTrigger className="h-7 text-[11px] w-24 border-border/50 font-medium">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="publish" className="text-success">
+                            <SelectItem value="publish">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-success" />
+                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                     Publié
                                 </div>
                             </SelectItem>
-                            <SelectItem value="private" className="text-amber-700">
+                            <SelectItem value="private">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-amber-500" />
+                                    <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                                     Privé
                                 </div>
                             </SelectItem>
-                            <SelectItem value="draft" className="text-muted-foreground">
+                            <SelectItem value="draft">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-muted-foreground" />
+                                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
                                     Brouillon
                                 </div>
                             </SelectItem>
@@ -500,12 +489,12 @@ export const VariationRow = React.memo(function VariationRow({
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "h-8 w-8 rounded-lg",
-                            "hover:bg-primary/10 hover:text-primary",
-                            "transition-all"
+                            "h-7 w-7 rounded-lg",
+                            "hover:bg-muted/60 hover:text-foreground",
+                            "transition-colors"
                         )}
                         onClick={onOpenDetail}
-                        title="Ouvrir les détails"
+                        aria-label="Ouvrir les détails"
                     >
                         <Expand className="h-4 w-4" />
                     </Button>
@@ -514,17 +503,19 @@ export const VariationRow = React.memo(function VariationRow({
                         variant="ghost"
                         size="icon"
                         className={cn(
-                            "h-8 w-8 rounded-lg",
+                            "h-7 w-7 rounded-lg",
                             "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
-                            "transition-all"
+                            "transition-colors"
                         )}
                         onClick={onDelete}
-                        title="Supprimer cette variation"
+                        aria-label="Supprimer cette variation"
                     >
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>
             </TableCell>
         </TableRow>
+        {contextMenuPortal}
+        </>
     );
 });

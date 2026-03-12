@@ -46,16 +46,16 @@ export const SELECTABLE_COLUMNS = GRID_COLUMNS.filter((c) => !c.fixed);
 // ============================================================================
 
 export const statusBorderColors: Record<VariationStatus, string> = {
-    synced: "border-l-emerald-500",
-    new: "border-l-blue-500",
-    modified: "border-l-amber-500",
-    deleted: "border-l-red-500",
+    synced: "border-l-emerald-500/50",
+    new: "border-l-blue-500/50",
+    modified: "border-l-amber-500/50",
+    deleted: "border-l-red-500/50",
 };
 
 export const statusBgColors: Record<VariationStatus, string> = {
-    synced: "bg-success/5",
-    new: "bg-primary/5",
-    modified: "bg-amber-500/5",
+    synced: "",
+    new: "",
+    modified: "",
     deleted: "bg-destructive/5",
 };
 
@@ -82,7 +82,7 @@ export interface VariationGridProps {
     ) => void;
     onDelete: (localId: string) => void;
     onOpenDetail: (localId: string) => void;
-    onImageUpload?: (localId: string, file: File) => void;
+    onImageClick?: (localId: string) => void;
     isLoading?: boolean;
     changeCounter?: number;
     uploadingVariationId?: string | null;
@@ -91,4 +91,8 @@ export interface VariationGridProps {
     onVisibleColumnsChange?: (cols: Set<string>) => void;
     /** Available options per attribute name (from parent product) */
     parentAttributeOptions?: Map<string, string[]>;
+    /** Quick edit actions */
+    onDuplicateVariation?: (localId: string) => void;
+    onCopyFieldToSelected?: (sourceLocalId: string, field: keyof EditableVariation) => void;
+    onCopyAllFieldsToSelected?: (sourceLocalId: string) => void;
 }

@@ -168,6 +168,32 @@ import { styles, motionTokens, typographyTokens } from '@/lib/design-system'
 import { cn } from '@/lib/utils'  // clsx + tailwind-merge
 ```
 
+### Scroll Propagation Prevention (Known Pitfall)
+
+**NEVER use `scrollIntoView()`** inside nested scrollable containers (e.g., panels, drawers, modals using `<ScrollArea>`). It propagates scroll to ALL parent containers, causing the entire page layout to jump to the top.
+
+```typescript
+// WRONG — propagates scroll to the whole page
+scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
+
+// CORRECT — scope scroll to the nearest scroll container only
+const container = el.closest('[data-radix-scroll-area-viewport]');
+if (container) {
+  container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+}
+```
+
+Also use `preventScroll` when programmatically focusing inputs inside panels:
+```typescript
+// WRONG — may trigger parent scroll
+inputRef.current?.focus();
+
+// CORRECT — prevents focus-triggered scroll propagation
+inputRef.current?.focus({ preventScroll: true });
+```
+
+> `overscroll-behavior: contain` does NOT prevent `scrollIntoView()` propagation — only programmatic `scrollTo()` on the correct container works.
+
 ## Security Patterns
 
 ### Prompt Injection Prevention

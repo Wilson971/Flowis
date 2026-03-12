@@ -16,7 +16,7 @@ import {
     Eye,
     EyeOff,
     Shuffle,
-    ChevronDown,
+    ChevronRight,
     Palette,
     Ruler,
 } from "lucide-react";
@@ -135,18 +135,15 @@ export function AttributeSidebar({
     return (
         <Card className="overflow-hidden h-full flex flex-col">
             {/* Header */}
-            <div className="p-4 border-b border-border/50 bg-gradient-to-b from-muted/30 to-background">
+            <div className="p-4 border-b border-border/40 bg-muted/20">
                 <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-primary" />
-                        <h3 className="text-sm font-semibold">Attributs</h3>
+                        <div className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
+                        <h3 className="text-[13px] font-semibold tracking-tight text-foreground">Attributs</h3>
                     </div>
-                    <Badge
-                        variant="secondary"
-                        className="text-xs bg-primary/10 text-primary border-0"
-                    >
+                    <span className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-muted/60 text-muted-foreground inline-flex items-center tabular-nums">
                         {attributes.length}
-                    </Badge>
+                    </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                     Définissez les attributs pour créer des variations
@@ -164,8 +161,8 @@ export function AttributeSidebar({
                             exit={{ opacity: 0 }}
                             className="p-6 text-center"
                         >
-                            <div className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-muted/30 mb-2">
-                                <Shuffle className="h-5 w-5 text-muted-foreground/50" />
+                            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50 mb-2">
+                                <Shuffle className="h-[18px] w-[18px] text-muted-foreground/50" />
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 Aucun attribut
@@ -194,7 +191,7 @@ export function AttributeSidebar({
                     variant="outline"
                     size="sm"
                     onClick={handleAddAttribute}
-                    className="w-full gap-2 hover:bg-primary hover:text-primary-foreground transition-all"
+                    className="w-full gap-2 h-8 text-[11px] rounded-lg font-medium transition-colors"
                 >
                     <Plus className="h-4 w-4" />
                     Ajouter un attribut
@@ -243,10 +240,10 @@ function AttributeSidebarItem({
             <Collapsible open={isOpen} onOpenChange={onToggleOpen}>
                 <div
                     className={cn(
-                        "rounded-lg border transition-all",
+                        "rounded-lg border transition-colors",
                         isActive
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border/50 bg-card hover:border-primary/30 hover:shadow-sm"
+                            ? "border-border/60 bg-muted/40 shadow-sm"
+                            : "border-border/50 bg-card hover:border-border/60 hover:shadow-sm"
                     )}
                 >
                     {/* Header */}
@@ -265,8 +262,8 @@ function AttributeSidebarItem({
                                 className={cn(
                                     "flex h-7 w-7 items-center justify-center rounded-lg shrink-0",
                                     attribute.visible
-                                        ? "bg-primary/10 text-primary"
-                                        : "bg-muted/50 text-muted-foreground"
+                                        ? "bg-muted/60 text-foreground/70 ring-1 ring-border/40"
+                                        : "bg-muted/40 text-muted-foreground/60"
                                 )}
                             >
                                 {Icon}
@@ -285,7 +282,7 @@ function AttributeSidebarItem({
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     {/* Visible badge */}
                                     {attribute.visible ? (
-                                        <Eye className="h-3 w-3 text-success" />
+                                        <Eye className="h-3 w-3 text-foreground/70" />
                                     ) : (
                                         <EyeOff className="h-3 w-3 text-muted-foreground/50" />
                                     )}
@@ -293,7 +290,7 @@ function AttributeSidebarItem({
                                     {attribute.variation && (
                                         <Badge
                                             variant="secondary"
-                                            className="h-3 px-1 text-[9px] bg-primary/10 text-primary border-0"
+                                            className="h-3 px-1 text-[9px] bg-muted/60 text-muted-foreground border-0"
                                         >
                                             Variation
                                         </Badge>
@@ -304,7 +301,7 @@ function AttributeSidebarItem({
                             {/* Values count */}
                             <Badge
                                 variant="outline"
-                                className="shrink-0 h-5 px-1.5 text-[10px] font-semibold border-border/50"
+                                className="shrink-0 h-5 px-1.5 text-[10px] font-medium border-border/50 tabular-nums"
                             >
                                 {options.length}
                             </Badge>
@@ -316,12 +313,12 @@ function AttributeSidebarItem({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 shrink-0"
+                                className="h-7 w-7 shrink-0"
                             >
-                                <ChevronDown
+                                <ChevronRight
                                     className={cn(
-                                        "h-3.5 w-3.5 transition-transform",
-                                        isOpen && "rotate-180"
+                                        "h-3.5 w-3.5 transition-transform duration-200",
+                                        isOpen && "rotate-90"
                                     )}
                                 />
                             </Button>
@@ -344,7 +341,7 @@ function AttributeSidebarItem({
                                                 className={cn(
                                                     "text-[11px] font-medium h-6 px-2.5",
                                                     "bg-muted/50 text-foreground border border-border/50",
-                                                    "hover:border-primary/50 hover:bg-muted transition-all"
+                                                    "hover:border-border hover:bg-muted transition-colors"
                                                 )}
                                             >
                                                 {colorPreview && (

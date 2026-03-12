@@ -334,6 +334,90 @@ export function useVariationManager({
         setVariations((prev) => [...prev, newVar]);
     }, []);
 
+    const duplicateVariation = useCallback(
+        (localId: string) => {
+            const source = variations.find((v) => v._localId === localId);
+            if (!source || source._status === "deleted") return;
+            const clone: EditableVariation = {
+                ...source,
+                _localId: generateTempId(),
+                _status: "new",
+                dbId: undefined,
+                externalId: undefined,
+                sku: source.sku ? `${source.sku}-copy` : "",
+                attributes: source.attributes.map((a) => ({ ...a })),
+                dimensions: { ...source.dimensions },
+                image: source.image ? { ...source.image } : null,
+            };
+            setVariations((prev) => {
+                const idx = prev.findIndex((v) => v._localId === localId);
+                const next = [...prev];
+                next.splice(idx + 1, 0, clone);
+                return next;
+            });
+            setChangeCounter((c) => c + 1);
+            toast.success("Variation dupliquée");
+        },
+        [variations]
+    );
+
+    const copyFieldToSelected = useCallback(
+        (sourceLocalId: string, field: keyof EditableVariation) => {
+            const source = variations.find((v) => v._localId === sourceLocalId);
+            if (!source) return;
+            const value = source[field];
+            setVariations((prev) =>
+                prev.map((v) => {
+                    if (!selectedIds.has(v._localId)) return v;
+                    if (v._localId === sourceLocalId) return v;
+                    if (v._status === "deleted") return v;
+                    return {
+                        ...v,
+                        [field]: value,
+                        _status: v._status === "new" ? "new" : "modified",
+                    };
+                })
+            );
+            setChangeCounter((c) => c + 1);
+            toast.success(`Valeur appliquée à ${selectedIds.size - (selectedIds.has(sourceLocalId) ? 1 : 0)} variation(s)`);
+        },
+        [variations, selectedIds]
+    );
+
+    const copyAllFieldsToSelected = useCallback(
+        (sourceLocalId: string) => {
+            const source = variations.find((v) => v._localId === sourceLocalId);
+            if (!source) return;
+            const fieldsToCopy: (keyof EditableVariation)[] = [
+                "sku", "regularPrice", "salePrice", "stockQuantity", "manageStock",
+                "stockStatus", "weight", "dimensions", "description", "status",
+                "globalUniqueId", "backorders", "taxStatus", "taxClass",
+                "dateOnSaleFrom", "dateOnSaleTo",
+            ];
+            setVariations((prev) =>
+                prev.map((v) => {
+                    if (!selectedIds.has(v._localId)) return v;
+                    if (v._localId === sourceLocalId) return v;
+                    if (v._status === "deleted") return v;
+                    const updated = { ...v };
+                    for (const f of fieldsToCopy) {
+                        const val = source[f];
+                        if (f === "dimensions") {
+                            (updated as any).dimensions = { ...(source.dimensions) };
+                        } else {
+                            (updated as any)[f] = val;
+                        }
+                    }
+                    updated._status = v._status === "new" ? "new" : "modified";
+                    return updated;
+                })
+            );
+            setChangeCounter((c) => c + 1);
+            toast.success(`Toutes les valeurs copiées vers ${selectedIds.size - (selectedIds.has(sourceLocalId) ? 1 : 0)} variation(s)`);
+        },
+        [variations, selectedIds]
+    );
+
     // ===== MATRIX GENERATION =====
 
     const generateFromAttributes = useCallback(
@@ -350,6 +434,13 @@ export function useVariationManager({
             const optionArrays = variationAttrs.map((a) => a.options);
             const combos = cartesianProduct(optionArrays);
 
+            // Build metadata lookup for each attribute (id, slug) for WC compatibility
+            const attrMeta = variationAttrs.map((a) => ({
+                id: a.id ?? 0,
+                name: a.name,
+                slug: a.name.toLowerCase().replace(/\s+/g, "-"),
+            }));
+
             // Build lookup of existing variations by attribute key
             const existingMap = new Map<string, EditableVariation>();
             for (const v of variations) {
@@ -363,7 +454,9 @@ export function useVariationManager({
 
             for (const combo of combos) {
                 const attrs: VariationAttribute[] = combo.map((option, i) => ({
-                    name: attrNames[i],
+                    id: attrMeta[i].id,
+                    name: attrMeta[i].name,
+                    slug: attrMeta[i].slug,
                     option,
                 }));
                 const key = attributeKey(attrs);
@@ -699,6 +792,11 @@ export function useVariationManager({
 
         // Bulk
         bulkUpdateField,
+
+        // Quick edit
+        duplicateVariation,
+        copyFieldToSelected,
+        copyAllFieldsToSelected,
 
         // Persistence
         saveVariations: saveMutation.mutateAsync,

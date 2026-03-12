@@ -46,12 +46,11 @@ export function BulkVariationToolbar({
     return (
         <div
             className={cn(
-                "flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2",
-                "text-sm"
+                "flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-2"
             )}
         >
-            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-            <span className="font-medium text-foreground">
+            <CheckCircle2 className="h-4 w-4 text-foreground/70 shrink-0" />
+            <span className="text-[13px] font-medium text-foreground tabular-nums">
                 {selectedCount} sélectionnée(s)
             </span>
 
@@ -91,7 +90,7 @@ export function BulkVariationToolbar({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 text-[11px]"
                     onClick={onDeleteSelected}
                 >
                     <Trash2 className="mr-1.5 h-3.5 w-3.5" />
@@ -104,7 +103,7 @@ export function BulkVariationToolbar({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6"
+                    className="h-7 w-7"
                     onClick={onClearSelection}
                 >
                     <X className="h-3.5 w-3.5" />
@@ -141,14 +140,14 @@ function BulkPriceAction({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]">
                     {icon}
                     <span className="ml-1">{label}</span>
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-3" align="start">
                 <div className="space-y-2">
-                    <p className="text-xs font-medium">Définir {label.toLowerCase()}</p>
+                    <p className="text-[11px] font-medium">Définir {label.toLowerCase()}</p>
                     <Input
                         type="number"
                         step="0.01"
@@ -162,7 +161,7 @@ function BulkPriceAction({
                     <Button
                         type="button"
                         size="sm"
-                        className="w-full h-7"
+                        className="w-full h-7 text-[11px] rounded-lg font-medium"
                         onClick={handleApply}
                         disabled={!value}
                     >
@@ -193,14 +192,14 @@ function BulkStockAction({
     return (
         <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                <Button type="button" variant="outline" size="sm" className="h-7 text-[11px]">
                     <Package className="h-3.5 w-3.5" />
                     <span className="ml-1">Stock</span>
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-3" align="start">
                 <div className="space-y-2">
-                    <p className="text-xs font-medium">Définir stock</p>
+                    <p className="text-[11px] font-medium">Définir stock</p>
                     <Input
                         type="number"
                         min="0"
@@ -213,7 +212,7 @@ function BulkStockAction({
                     <Button
                         type="button"
                         size="sm"
-                        className="w-full h-7"
+                        className="w-full h-7 text-[11px] rounded-lg font-medium"
                         onClick={handleApply}
                         disabled={!value}
                     >
@@ -232,7 +231,7 @@ function BulkStatusAction({
 }) {
     return (
         <Select onValueChange={onApply}>
-            <SelectTrigger className="h-7 w-auto text-xs border">
+            <SelectTrigger className="h-7 w-auto text-[11px] border">
                 <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
@@ -251,7 +250,7 @@ function BulkBackordersAction({
 }) {
     return (
         <Select onValueChange={onApply}>
-            <SelectTrigger className="h-7 w-auto text-xs border">
+            <SelectTrigger className="h-7 w-auto text-[11px] border">
                 <ShieldCheck className="h-3.5 w-3.5 mr-1" />
                 <SelectValue placeholder="Préco." />
             </SelectTrigger>
@@ -271,7 +270,7 @@ function BulkTaxStatusAction({
 }) {
     return (
         <Select onValueChange={onApply}>
-            <SelectTrigger className="h-7 w-auto text-xs border">
+            <SelectTrigger className="h-7 w-auto text-[11px] border">
                 <Receipt className="h-3.5 w-3.5 mr-1" />
                 <SelectValue placeholder="Taxe" />
             </SelectTrigger>

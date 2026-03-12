@@ -59,7 +59,9 @@ export interface ProductVariation {
 }
 
 export interface VariationAttribute {
+    id?: number;
     name: string;
+    slug?: string;
     option: string;
 }
 

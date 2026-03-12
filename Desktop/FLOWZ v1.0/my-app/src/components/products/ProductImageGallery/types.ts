@@ -29,6 +29,7 @@ export interface ProductImageGalleryProps {
     onDownload?: (image: ProductImage) => void;
     onDelete?: (image: ProductImage) => Promise<void>;
     maxImages?: number;
+    maxVisible?: number;
     isLoading?: boolean;
     isDisabled?: boolean;
     allowDelete?: boolean;

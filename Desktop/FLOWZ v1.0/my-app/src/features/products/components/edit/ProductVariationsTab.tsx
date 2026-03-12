@@ -30,6 +30,7 @@ import { AttributeDetailPanel } from "./AttributeDetailPanel";
 import { VariationGrid } from "./VariationGrid";
 import { BulkVariationToolbar } from "./BulkVariationToolbar";
 import { VariationDetailSheet } from "./VariationDetailSheet";
+import { VariationImageGalleryModal, type GalleryImage } from "./variation-grid/VariationImageGalleryModal";
 import { useVariationManager } from "../../hooks/useVariationManager";
 import { useVariationImageUpload } from "@/hooks/variations/useVariationImages";
 import { useDirtyVariationsCount } from "@/hooks/products/useProductVariations";
@@ -41,14 +42,7 @@ import type { VariationImage } from "@/hooks/products/useProductVariations";
 // CONSTANTS
 // ============================================================================
 
-const TAB_ACCENTS = [
-    { border: "border-l-success", bg: "bg-success/5", dot: "bg-success", text: "text-success", badgeBg: "bg-success/10" },
-    { border: "border-l-amber-500", bg: "bg-amber-500/5", dot: "bg-amber-500", text: "text-amber-600", badgeBg: "bg-amber-500/10" },
-    { border: "border-l-sky-500", bg: "bg-sky-500/5", dot: "bg-sky-500", text: "text-sky-600", badgeBg: "bg-sky-500/10" },
-    { border: "border-l-purple-500", bg: "bg-purple-500/5", dot: "bg-purple-500", text: "text-purple-600", badgeBg: "bg-purple-500/10" },
-    { border: "border-l-rose-500", bg: "bg-rose-500/5", dot: "bg-rose-500", text: "text-rose-600", badgeBg: "bg-rose-500/10" },
-    { border: "border-l-teal-500", bg: "bg-teal-500/5", dot: "bg-teal-500", text: "text-teal-600", badgeBg: "bg-teal-500/10" },
-];
+const ATTR_ACCENT = "bg-muted/40 text-foreground";
 
 // ============================================================================
 // TYPES
@@ -80,12 +74,14 @@ export function ProductVariationsTab({
     const { watch } = useFormContext<ProductFormValues>();
     const { remove } = useFieldArray({ name: "attributes" });
     const attributes = watch("attributes") || [];
+    const formImages = watch("images") || [];
 
     // ===== UI STATE =====
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [studioTab, setStudioTab] = useState<"attributs" | "grille">("grille");
+    const [studioTab, setStudioTab] = useState<"attributs" | "grille">("attributs");
     const [detailVariationId, setDetailVariationId] = useState<string | null>(null);
     const [selectedAttributeIndex, setSelectedAttributeIndex] = useState<number | null>(null);
+    const [galleryVariationId, setGalleryVariationId] = useState<string | null>(null);
 
     // ===== HOOKS =====
     const manager = useVariationManager({
@@ -135,6 +131,13 @@ export function ProductVariationsTab({
         }
     }, [attributes.length, selectedAttributeIndex]);
 
+
+    // NOTE: Auto-generation was removed — variations must come from DB or metadata
+    // (which preserve WooCommerce external IDs). Auto-generating replaces real
+    // variations with local-only copies that lack externalId, causing push-to-store
+    // to create duplicates instead of updating existing WC variations.
+    // Users can still manually click "Générer" to create the cartesian product.
+
     // ===== COMPUTED =====
     const variationAttributes = attributes.filter(
         (a) => a.variation && a.options.length > 0
@@ -147,6 +150,11 @@ export function ProductVariationsTab({
     );
 
     // Build a map of attribute name → available options for inline editing
+    // Serialize options to a stable key so useMemo recalculates when option values change
+    // (watch() may return the same array reference with mutated contents)
+    const attributeOptionsKey = JSON.stringify(
+        attributes.filter((a) => a.variation).map((a) => [a.name, a.options])
+    );
     const parentAttributeOptions = useMemo(() => {
         const map = new Map<string, string[]>();
         for (const attr of attributes) {
@@ -155,7 +163,8 @@ export function ProductVariationsTab({
             }
         }
         return map;
-    }, [attributes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [attributeOptionsKey]);
 
     const priceRange = useMemo(() => {
         const prices = manager.variations
@@ -178,6 +187,48 @@ export function ProductVariationsTab({
     );
 
     // ===== HANDLERS =====
+
+    // Cascade rename: when an attribute option is renamed in the detail panel,
+    // update all variations that reference the old value
+    const handleRenameOption = useCallback(
+        (attributeName: string, oldValue: string, newValue: string) => {
+            for (const variation of manager.variations) {
+                const attr = variation.attributes.find(
+                    (a) => a.name === attributeName && a.option === oldValue
+                );
+                if (attr) {
+                    const newAttrs = variation.attributes.map((a) =>
+                        a.name === attributeName && a.option === oldValue
+                            ? { ...a, option: newValue }
+                            : a
+                    );
+                    manager.updateVariationField(variation._localId, "attributes", newAttrs);
+                }
+            }
+        },
+        [manager.variations, manager.updateVariationField]
+    );
+
+    // When an attribute option is removed, unset it on affected variations
+    const handleRemoveOption = useCallback(
+        (attributeName: string, removedValue: string) => {
+            for (const variation of manager.variations) {
+                const attr = variation.attributes.find(
+                    (a) => a.name === attributeName && a.option === removedValue
+                );
+                if (attr) {
+                    const newAttrs = variation.attributes.map((a) =>
+                        a.name === attributeName && a.option === removedValue
+                            ? { ...a, option: "" }
+                            : a
+                    );
+                    manager.updateVariationField(variation._localId, "attributes", newAttrs);
+                }
+            }
+        },
+        [manager.variations, manager.updateVariationField]
+    );
+
     const handleGenerate = useCallback(() => {
         manager.generateFromAttributes(attributes);
     }, [manager, attributes]);
@@ -190,6 +241,67 @@ export function ProductVariationsTab({
         },
         [handleUpload, manager.updateVariationField]
     );
+
+    // Product gallery images + variation images for the picker
+    const productGalleryImages: GalleryImage[] = useMemo(() => {
+        const seen = new Set<string>();
+        const images: GalleryImage[] = [];
+
+        // Product main gallery
+        for (const [i, img] of formImages.entries()) {
+            if (img.src && !seen.has(img.src)) {
+                seen.add(img.src);
+                images.push({
+                    id: img.id ?? `img-${i}`,
+                    src: img.src,
+                    alt: img.alt || "",
+                    name: img.name || "",
+                });
+            }
+        }
+
+        // Variation images
+        for (const v of manager.variations) {
+            if (v.image?.src && !seen.has(v.image.src)) {
+                seen.add(v.image.src);
+                const label = v.attributes.map((a) => a.option).join(" / ");
+                images.push({
+                    id: v.image.id ?? `var-${v._localId}`,
+                    src: v.image.src,
+                    alt: v.image.alt || "",
+                    name: label || v.image.name || "",
+                });
+            }
+        }
+
+        return images;
+    }, [formImages, manager.variations]);
+
+    const handleGallerySelectImage = useCallback(
+        (image: GalleryImage) => {
+            if (!galleryVariationId) return;
+            const variationImage: VariationImage = {
+                id: typeof image.id === "number" ? image.id : Date.now(),
+                src: image.src,
+                name: image.name || "",
+                alt: image.alt || "",
+            };
+            manager.updateVariationField(galleryVariationId, "image", variationImage);
+        },
+        [galleryVariationId, manager.updateVariationField]
+    );
+
+    const handleGalleryUpload = useCallback(
+        (file: File) => {
+            if (!galleryVariationId) return;
+            handleVariationImageUpload(galleryVariationId, file);
+        },
+        [galleryVariationId, handleVariationImageUpload]
+    );
+
+    const galleryVariation = galleryVariationId
+        ? manager.variations.find((v) => v._localId === galleryVariationId) ?? null
+        : null;
 
     const handleRemoveAttribute = useCallback((index: number) => {
         remove(index);
@@ -224,34 +336,35 @@ export function ProductVariationsTab({
             animate="visible"
         >
             {/* ── Inline Summary Card ── */}
-            <Card className="rounded-xl">
-                <CardContent className="p-6">
+            <Card className={cn("rounded-xl border border-border/40")}>
+                <CardContent className="relative p-6">
+                    <div className="absolute inset-0 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] pointer-events-none" />
                     {/* Top bar: title + open button */}
-                    <div className="flex items-center justify-between">
+                    <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                                <Shuffle className="h-4 w-4 text-primary" />
+                            <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-muted/60 ring-1 ring-border/50")}>
+                                <Shuffle className="h-4 w-4 text-foreground/70" />
                             </div>
                             <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-foreground">
+                                <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
                                     Variations
                                 </h3>
-                                <Badge variant="secondary" className="text-xs">
-                                    {manager.stats.total}
+                                <Badge variant="secondary" className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-muted/60 text-muted-foreground">
+                                    <span className="tabular-nums">{manager.stats.total}</span>
                                 </Badge>
                                 {manager.hasUnsavedChanges && (
                                     <Badge
                                         variant="outline"
-                                        className="text-xs border-amber-500/50 text-amber-700 bg-amber-500/10"
+                                        className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-amber-500/10 text-amber-600"
                                     >
                                         <AlertCircle className="mr-1 h-3 w-3" />
-                                        {manager.stats.new + manager.stats.modified + manager.stats.deleted} modif.
+                                        <span className="tabular-nums">{manager.stats.new + manager.stats.modified + manager.stats.deleted}</span> modif.
                                     </Badge>
                                 )}
                                 {dirtyVariationsCount > 0 && !manager.hasUnsavedChanges && (
                                     <Badge
                                         variant="outline"
-                                        className="text-xs border-sky-500/50 text-sky-700 bg-sky-500/10"
+                                        className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-sky-500/10 text-sky-600"
                                     >
                                         <RefreshCw className="mr-1 h-3 w-3" />
                                         Sync requise
@@ -265,7 +378,7 @@ export function ProductVariationsTab({
                             variant="outline"
                             size="sm"
                             onClick={() => setDialogOpen(true)}
-                            className="gap-2 bg-success/5 text-success border-success/[0.02] hover:bg-success/15 hover:text-success/90 hover:border-success/20 transition-all ml-auto h-8 px-3 text-xs"
+                            className="h-8 text-[11px] rounded-lg gap-1.5 font-medium transition-colors ml-auto px-3"
                         >
                             <Settings2 className="h-3.5 w-3.5" />
                             <span className="hidden sm:inline">Gérer les Variations</span>
@@ -275,22 +388,22 @@ export function ProductVariationsTab({
                     <Separator className="my-4" />
 
                     {/* Summary stats grid */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="relative grid grid-cols-3 gap-4">
                         <div className="rounded-lg bg-muted/30 p-3">
                             <p className="text-xs text-muted-foreground">Attributs</p>
-                            <p className="text-sm font-medium text-foreground">
+                            <p className="text-[13px] tabular-nums font-medium text-foreground">
                                 {variationAttributeCount}
                             </p>
                         </div>
                         <div className="rounded-lg bg-muted/30 p-3">
                             <p className="text-xs text-muted-foreground">Fourchette prix</p>
-                            <p className="text-sm font-medium text-foreground">
+                            <p className="text-[13px] tabular-nums font-medium text-foreground">
                                 {priceRange}
                             </p>
                         </div>
                         <div className="rounded-lg bg-muted/30 p-3">
                             <p className="text-xs text-muted-foreground">Stock total</p>
-                            <p className="text-sm font-medium text-foreground">
+                            <p className="text-[13px] tabular-nums font-medium text-foreground">
                                 {totalStock}
                             </p>
                         </div>
@@ -320,25 +433,25 @@ export function ProductVariationsTab({
                             <Separator orientation="vertical" className="h-6" />
 
                             <div className="flex items-center gap-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                                    <Shuffle className="h-4 w-4 text-primary" />
+                                <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-muted/60 ring-1 ring-border/50")}>
+                                    <Shuffle className="h-4 w-4 text-foreground/70" />
                                 </div>
-                                <span className="font-semibold text-foreground">
+                                <span className="text-[15px] font-semibold tracking-tight text-foreground">
                                     Variation Studio
                                 </span>
                             </div>
 
-                            <Badge variant="secondary">
-                                {manager.stats.total} variations
+                            <Badge variant="secondary" className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-muted/60 text-muted-foreground">
+                                <span className="tabular-nums">{manager.stats.total}</span> variations
                             </Badge>
 
                             {manager.hasUnsavedChanges && (
                                 <Badge
                                     variant="outline"
-                                    className="text-xs border-amber-500/50 text-amber-700 bg-amber-500/10"
+                                    className="h-5 rounded-full px-2 text-[10px] font-medium border-0 bg-amber-500/10 text-amber-600"
                                 >
                                     <AlertCircle className="mr-1 h-3 w-3" />
-                                    {manager.stats.new + manager.stats.modified + manager.stats.deleted} modif.
+                                    <span className="tabular-nums">{manager.stats.new + manager.stats.modified + manager.stats.deleted}</span> modif.
                                 </Badge>
                             )}
 
@@ -351,12 +464,9 @@ export function ProductVariationsTab({
                                 size="sm"
                                 onClick={handleGenerate}
                                 disabled={!canGenerate}
-                                className={cn(
-                                    "gap-2 font-medium transition-all",
-                                    canGenerate && "hover:bg-primary hover:text-primary-foreground hover:shadow-md"
-                                )}
+                                className="h-8 text-[11px] rounded-lg gap-1.5 font-medium transition-colors"
                             >
-                                <RefreshCw className="h-4 w-4" />
+                                <RefreshCw className="h-3.5 w-3.5" />
                                 Générer
                             </Button>
 
@@ -366,12 +476,10 @@ export function ProductVariationsTab({
                                 size="sm"
                                 onClick={handleSaveAndClose}
                                 disabled={manager.isSaving}
+                                className="h-8 text-[11px] rounded-lg gap-1.5 font-medium"
                             >
-                                {manager.isSaving ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Save className="mr-2 h-4 w-4" />
-                                )}
+                                {manager.isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                <Save className="h-3.5 w-3.5" />
                                 Enregistrer &amp; Fermer
                             </Button>
                         </div>
@@ -382,29 +490,29 @@ export function ProductVariationsTab({
                             <div className="w-[64px] shrink-0 border-r border-border bg-muted/20 flex flex-col items-center py-3 gap-1">
                                 <button
                                     type="button"
-                                    onClick={() => setStudioTab("grille")}
-                                    className={cn(
-                                        "flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 w-[56px] transition-colors",
-                                        studioTab === "grille"
-                                            ? "bg-primary/10 text-primary"
-                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                    )}
-                                >
-                                    <LayoutGrid className="h-5 w-5" />
-                                    <span className="text-[10px] font-medium leading-none">Grille</span>
-                                </button>
-                                <button
-                                    type="button"
                                     onClick={() => setStudioTab("attributs")}
                                     className={cn(
                                         "flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 w-[56px] transition-colors",
                                         studioTab === "attributs"
-                                            ? "bg-primary/10 text-primary"
+                                            ? "bg-muted/60 text-foreground"
                                             : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                                     )}
                                 >
-                                    <SlidersHorizontal className="h-5 w-5" />
+                                    <SlidersHorizontal className="h-[18px] w-[18px]" />
                                     <span className="text-[10px] font-medium leading-none">Attributs</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setStudioTab("grille")}
+                                    className={cn(
+                                        "flex flex-col items-center gap-1 rounded-lg px-2 py-2.5 w-[56px] transition-colors",
+                                        studioTab === "grille"
+                                            ? "bg-muted/60 text-foreground"
+                                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    )}
+                                >
+                                    <LayoutGrid className="h-[18px] w-[18px]" />
+                                    <span className="text-[10px] font-medium leading-none">Grille</span>
                                 </button>
                             </div>
 
@@ -420,25 +528,37 @@ export function ProductVariationsTab({
                                         />
 
                                         {/* Right: Details + Grid */}
-                                        <div className="grid grid-rows-2 gap-4 h-full min-h-0">
-                                            {/* Attribute Details Panel */}
+                                        <div className="grid grid-rows-2 gap-6 h-full min-h-0">
+                                            {/* ── SECTION: Attributs ── */}
+                                            <div className="min-h-0 flex flex-col gap-2">
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
+                                                    <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Attribut sélectionné</span>
+                                                </div>
                                             {selectedAttributeIndex !== null && attributes[selectedAttributeIndex] ? (
-                                                <div className="min-h-0 overflow-y-auto">
+                                                <div className="min-h-0 overflow-y-auto flex-1">
                                                     <AttributeDetailPanel
                                                         index={selectedAttributeIndex}
                                                         onRemove={() => handleRemoveAttribute(selectedAttributeIndex)}
                                                         onGenerate={canGenerate ? handleGenerate : undefined}
                                                         variationCount={manager.variations.length}
+                                                        onRenameOption={handleRenameOption}
+                                                        onRemoveOption={handleRemoveOption}
                                                     />
                                                 </div>
                                             ) : (
-                                                <div className="min-h-0 flex items-center justify-center rounded-xl border-2 border-dashed border-border/50 bg-muted/20">
+                                                <div className="min-h-0 flex-1 flex items-center justify-center rounded-xl border-2 border-dashed border-border/50 bg-muted/20">
                                                     <p className="text-sm text-muted-foreground">Sélectionnez un attribut</p>
                                                 </div>
                                             )}
+                                            </div>
 
-                                            {/* Variations Grid */}
-                                            <div className="min-h-0 h-full">
+                                            {/* ── SECTION: Variations ── */}
+                                            <div className="min-h-0 h-full flex flex-col gap-2">
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-foreground/40" />
+                                                    <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Variations</span>
+                                                </div>
                                                 <VariationGrid
                                                     variations={manager.variations}
                                                     selectedIds={manager.selectedIds}
@@ -447,11 +567,14 @@ export function ProductVariationsTab({
                                                     onUpdateField={manager.updateVariationField}
                                                     onDelete={manager.deleteVariation}
                                                     onOpenDetail={setDetailVariationId}
-                                                    onImageUpload={handleVariationImageUpload}
+                                                    onImageClick={setGalleryVariationId}
                                                     isLoading={manager.isLoading}
                                                     changeCounter={manager.changeCounter}
                                                     uploadingVariationId={uploadingVariationId}
                                                     parentAttributeOptions={parentAttributeOptions}
+                                                    onDuplicateVariation={manager.duplicateVariation}
+                                                    onCopyFieldToSelected={manager.copyFieldToSelected}
+                                                    onCopyAllFieldsToSelected={manager.copyAllFieldsToSelected}
                                                 />
                                             </div>
                                         </div>
@@ -463,7 +586,7 @@ export function ProductVariationsTab({
                                     {/* Header: bulk toolbar + attribute legend */}
                                     <div className="p-4 border-b border-border/50 space-y-3">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-sm font-semibold text-foreground">
+                                            <p className="text-[13px] font-semibold tracking-tight text-foreground">
                                                 Grille de variations
                                             </p>
                                             <BulkVariationToolbar
@@ -474,23 +597,22 @@ export function ProductVariationsTab({
                                             />
                                         </div>
 
-                                        {/* Colored attribute legend bar */}
+                                        {/* Monochrome attribute legend bar */}
                                         {attributes.filter((a) => a.variation).length > 0 && (
                                             <div className="flex flex-wrap gap-2">
                                                 {attributes
                                                     .filter((a) => a.variation)
-                                                    .map((attr, idx) => {
-                                                        const accent = TAB_ACCENTS[idx % TAB_ACCENTS.length];
+                                                    .map((attr) => {
                                                         return (
                                                             <div
                                                                 key={attr.name}
                                                                 className={cn(
                                                                     "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs",
-                                                                    accent.badgeBg
+                                                                    ATTR_ACCENT
                                                                 )}
                                                             >
-                                                                <div className={cn("h-2 w-2 rounded-full shrink-0", accent.dot)} />
-                                                                <span className={cn("font-medium", accent.text)}>
+                                                                <div className="h-2 w-2 rounded-full shrink-0 bg-foreground/40" />
+                                                                <span className="font-medium text-foreground">
                                                                     {attr.name}
                                                                 </span>
                                                                 <span className="text-muted-foreground">
@@ -513,10 +635,13 @@ export function ProductVariationsTab({
                                             onUpdateField={manager.updateVariationField}
                                             onDelete={manager.deleteVariation}
                                             onOpenDetail={setDetailVariationId}
-                                            onImageUpload={handleVariationImageUpload}
+                                            onImageClick={setGalleryVariationId}
                                             isLoading={manager.isLoading}
                                             changeCounter={manager.changeCounter}
                                             uploadingVariationId={uploadingVariationId}
+                                            onDuplicateVariation={manager.duplicateVariation}
+                                            onCopyFieldToSelected={manager.copyFieldToSelected}
+                                            onCopyAllFieldsToSelected={manager.copyAllFieldsToSelected}
                                         />
                                     </div>
                                 </div>
@@ -525,11 +650,11 @@ export function ProductVariationsTab({
 
                         {/* ── Footer ── */}
                         <div className="h-10 shrink-0 border-t border-border bg-muted/30 flex items-center px-4 text-xs text-muted-foreground gap-4">
-                            <span>{manager.stats.total} variations</span>
+                            <span><span className="tabular-nums">{manager.stats.total}</span> variations</span>
                             <Separator orientation="vertical" className="h-4" />
-                            <span>{manager.stats.new} nouvelle(s)</span>
-                            <span>{manager.stats.modified} modifiée(s)</span>
-                            <span>{manager.stats.deleted} supprimée(s)</span>
+                            <span><span className="tabular-nums">{manager.stats.new}</span> nouvelle(s)</span>
+                            <span><span className="tabular-nums">{manager.stats.modified}</span> modifiée(s)</span>
+                            <span><span className="tabular-nums">{manager.stats.deleted}</span> supprimée(s)</span>
                         </div>
                     </div>
                 </DialogContentFullscreen>
@@ -551,9 +676,9 @@ export function ProductVariationsTab({
                         );
                     }
                 }}
-                onImageUpload={(file) => {
+                onImageClick={() => {
                     if (detailVariationId) {
-                        handleVariationImageUpload(detailVariationId, file);
+                        setGalleryVariationId(detailVariationId);
                     }
                 }}
                 isUploadingImage={
@@ -561,6 +686,17 @@ export function ProductVariationsTab({
                     uploadingVariationId === detailVariationId
                 }
                 parentAttributeOptions={parentAttributeOptions}
+            />
+
+            {/* Image Gallery Modal */}
+            <VariationImageGalleryModal
+                open={!!galleryVariationId}
+                onOpenChange={(open) => { if (!open) setGalleryVariationId(null); }}
+                productImages={productGalleryImages}
+                currentImageSrc={galleryVariation?.image?.src ?? null}
+                onSelectImage={handleGallerySelectImage}
+                onUploadImage={handleGalleryUpload}
+                isUploading={!!galleryVariationId && uploadingVariationId === galleryVariationId}
             />
         </motion.div>
     );

@@ -16,6 +16,7 @@ import {
     RefreshCw,
     CheckCircle2,
     AlertCircle,
+    Pencil,
 } from "lucide-react";
 import { useState, KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,10 @@ interface AttributeDetailPanelProps {
     onRemove: () => void;
     onGenerate?: () => void;
     variationCount?: number;
+    /** Called when an attribute option is renamed — allows cascading to variations */
+    onRenameOption?: (attributeName: string, oldValue: string, newValue: string) => void;
+    /** Called when an attribute option is removed — allows cleaning up variations */
+    onRemoveOption?: (attributeName: string, removedValue: string) => void;
 }
 
 // ============================================================================
@@ -81,6 +86,8 @@ export function AttributeDetailPanel({
     onRemove,
     onGenerate,
     variationCount = 0,
+    onRenameOption,
+    onRemoveOption,
 }: AttributeDetailPanelProps) {
     const { register, watch, setValue } = useFormContext<ProductFormValues>();
     const [termInput, setTermInput] = useState("");
@@ -125,6 +132,10 @@ export function AttributeDetailPanel({
             options.filter((o: string) => o !== term),
             { shouldDirty: true }
         );
+        // Notify parent to clean up variations referencing this value
+        if (onRemoveOption && attributeName) {
+            onRemoveOption(attributeName, term);
+        }
     };
 
     const handleRenameTerm = (oldTerm: string, newTerm: string) => {
@@ -144,6 +155,10 @@ export function AttributeDetailPanel({
             options.map((o: string) => (o === oldTerm ? trimmed : o)),
             { shouldDirty: true }
         );
+        // Cascade rename to all variations that reference this value
+        if (onRenameOption && attributeName) {
+            onRenameOption(attributeName, oldTerm, trimmed);
+        }
         setEditingTerm(null);
     };
 
@@ -151,7 +166,7 @@ export function AttributeDetailPanel({
         <Card className="h-full">
             <CardHeader className="pb-4 border-b border-border/50">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold">
+                    <CardTitle className="text-[15px] font-semibold tracking-tight text-foreground">
                         Détails de l&apos;attribut
                     </CardTitle>
                     <div className="flex items-center gap-2">
@@ -161,15 +176,12 @@ export function AttributeDetailPanel({
                                 variant="outline"
                                 size="sm"
                                 onClick={onGenerate}
-                                className={cn(
-                                    "gap-2 font-medium transition-all",
-                                    "hover:bg-primary hover:text-primary-foreground hover:shadow-md"
-                                )}
+                                className="h-8 text-[11px] rounded-lg gap-1.5 font-medium transition-colors"
                             >
-                                <RefreshCw className="h-4 w-4" />
+                                <RefreshCw className="h-3.5 w-3.5" />
                                 Générer les variations
                                 {variationCount > 0 && (
-                                    <Badge variant="secondary" className="ml-1 text-xs">
+                                    <Badge variant="secondary" className="ml-1 text-xs tabular-nums">
                                         {variationCount}
                                     </Badge>
                                 )}
@@ -179,26 +191,26 @@ export function AttributeDetailPanel({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="h-8 text-[11px] rounded-lg gap-1.5 font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={onRemove}
                         >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                             Supprimer
                         </Button>
                     </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="p-6 space-y-5">
+            <CardContent className="p-6 space-y-6">
                 {/* Attribute Name */}
                 <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-foreground">
+                    <Label className="text-[13px] font-medium text-foreground">
                         Nom de l&apos;attribut
                     </Label>
                     <Input
                         {...register(`attributes.${index}.name`)}
                         placeholder="Ex: Couleur, Taille, Matériau..."
-                        className="h-10 font-medium bg-background"
+                        className="h-10 rounded-lg font-medium bg-background"
                     />
                     <p className="text-xs text-muted-foreground leading-relaxed">
                         Le nom affiché sur la fiche produit
@@ -210,9 +222,9 @@ export function AttributeDetailPanel({
                     {/* Visible Toggle */}
                     <div
                         className={cn(
-                            "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-all cursor-pointer",
+                            "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-colors cursor-pointer",
                             isVisible
-                                ? "bg-success/10 border-success/30 shadow-sm"
+                                ? "bg-emerald-500/5 border-emerald-500/20 shadow-sm"
                                 : "bg-muted/20 border-border/50 hover:border-border"
                         )}
                         onClick={() =>
@@ -225,7 +237,7 @@ export function AttributeDetailPanel({
                             className={cn(
                                 "h-4 w-4 transition-colors shrink-0",
                                 isVisible
-                                    ? "text-success"
+                                    ? "text-emerald-600"
                                     : "text-muted-foreground"
                             )}
                         />
@@ -245,9 +257,9 @@ export function AttributeDetailPanel({
                     {/* Variation Toggle */}
                     <div
                         className={cn(
-                            "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-all cursor-pointer",
+                            "flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border transition-colors cursor-pointer",
                             isVariation
-                                ? "bg-primary/10 border-primary/30 shadow-sm"
+                                ? "bg-muted/40 border-border/60 shadow-sm"
                                 : "bg-muted/20 border-border/50 hover:border-border"
                         )}
                         onClick={() =>
@@ -260,7 +272,7 @@ export function AttributeDetailPanel({
                             className={cn(
                                 "h-4 w-4 transition-colors shrink-0",
                                 isVariation
-                                    ? "text-primary"
+                                    ? "text-foreground/70"
                                     : "text-muted-foreground"
                             )}
                         />
@@ -281,9 +293,9 @@ export function AttributeDetailPanel({
                 {/* Help Text */}
                 <div className={cn(
                     "p-3 rounded-lg border text-xs leading-relaxed flex items-start gap-2",
-                    isVisible && isVariation && "bg-success/5 border-success/20 text-success",
-                    isVisible && !isVariation && "bg-primary/5 border-primary/20 text-blue-700 dark:text-blue-400",
-                    !isVisible && isVariation && "bg-amber-500/5 border-amber-500/20 text-amber-700 dark:text-amber-400",
+                    isVisible && isVariation && "bg-emerald-500/5 border-emerald-500/20 text-emerald-600",
+                    isVisible && !isVariation && "bg-muted/30 border-border/50 text-foreground",
+                    !isVisible && isVariation && "bg-amber-500/5 border-amber-500/20 text-amber-600",
                     !isVisible && !isVariation && "bg-muted/30 border-border/50 text-muted-foreground"
                 )}>
                     {isVisible && isVariation && (
@@ -327,17 +339,17 @@ export function AttributeDetailPanel({
                 {/* Values Section */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <Label className="text-[13px] font-medium text-foreground flex items-center gap-2">
                             Valeurs de l&apos;attribut
                             <Badge
                                 variant="secondary"
-                                className="text-[10px] h-5 px-2 font-semibold bg-primary/10 text-primary border-0"
+                                className="text-[10px] h-5 px-2 font-medium bg-muted/60 text-muted-foreground border-0 tabular-nums"
                             >
                                 {options.length}
                             </Badge>
                         </Label>
                         {options.length > 0 && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground tabular-nums">
                                 {options.length}{" "}
                                 {options.length === 1 ? "valeur" : "valeurs"}
                             </span>
@@ -381,34 +393,45 @@ export function AttributeDetailPanel({
                                             key={`${idx}-${term}`}
                                             variant="secondary"
                                             className={cn(
-                                                "gap-1.5 pr-1 text-xs font-medium h-7 px-2.5 cursor-pointer",
+                                                "group/badge gap-1 pr-1 text-xs font-medium h-7 px-2.5 cursor-default",
                                                 "bg-background text-foreground border border-border/50",
-                                                "hover:border-primary/50 hover:shadow-sm transition-all"
+                                                "hover:bg-muted/60 hover:border-border/80 hover:-translate-y-0.5 hover:shadow-md",
+                                                "transition-all duration-150 ease-out"
                                             )}
-                                            onDoubleClick={() => {
-                                                setEditingTerm(term);
-                                                setEditingValue(term);
-                                            }}
-                                            title="Double-cliquer pour modifier"
                                         >
                                             {colorPreview && (
                                                 <div
-                                                    className="h-3 w-3 rounded-full mr-1 border border-border/50 shrink-0"
+                                                    className="h-3 w-3 rounded-full border border-border/50 shrink-0"
                                                     style={{ backgroundColor: colorPreview }}
                                                 />
                                             )}
                                             <span className="truncate max-w-[150px]">{term}</span>
                                             <button
                                                 type="button"
+                                                onClick={() => {
+                                                    setEditingTerm(term);
+                                                    setEditingValue(term);
+                                                }}
+                                                className={cn(
+                                                    "rounded-full p-0.5 shrink-0",
+                                                    "opacity-0 group-hover/badge:opacity-60 hover:!opacity-100 hover:bg-muted",
+                                                    "transition-opacity duration-150"
+                                                )}
+                                                aria-label={`Renommer "${term}"`}
+                                            >
+                                                <Pencil className="h-2.5 w-2.5" />
+                                            </button>
+                                            <button
+                                                type="button"
                                                 onClick={() => handleRemoveTerm(term)}
                                                 className={cn(
-                                                    "ml-1 rounded-full p-0.5 shrink-0",
-                                                    "hover:bg-destructive/20 hover:text-destructive",
-                                                    "transition-all"
+                                                    "rounded-full p-0.5 shrink-0",
+                                                    "opacity-0 group-hover/badge:opacity-60 hover:!opacity-100 hover:bg-destructive/10 hover:text-destructive",
+                                                    "transition-opacity duration-150"
                                                 )}
-                                                title={`Supprimer "${term}"`}
+                                                aria-label={`Supprimer "${term}"`}
                                             >
-                                                <X className="h-3 w-3" />
+                                                <X className="h-2.5 w-2.5" />
                                             </button>
                                         </Badge>
                                     );
@@ -443,12 +466,7 @@ export function AttributeDetailPanel({
                                 <Button
                                     type="button"
                                     size="sm"
-                                    className={cn(
-                                        "h-9 shrink-0 gap-1.5 transition-all",
-                                        termInput.trim()
-                                            ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                                            : "bg-muted text-muted-foreground"
-                                    )}
+                                    className="h-8 text-[11px] rounded-lg gap-1.5 font-medium"
                                     onClick={handleAddTerm}
                                     disabled={!termInput.trim()}
                                 >

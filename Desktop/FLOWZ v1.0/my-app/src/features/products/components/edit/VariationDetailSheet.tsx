@@ -46,7 +46,7 @@ interface VariationDetailSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onUpdateField: (field: keyof EditableVariation, value: unknown) => void;
-    onImageUpload?: (file: File) => void;
+    onImageClick?: () => void;
     isUploadingImage?: boolean;
     /** Available options per attribute name (from parent product) */
     parentAttributeOptions?: Map<string, string[]>;
@@ -61,11 +61,10 @@ export function VariationDetailSheet({
     open,
     onOpenChange,
     onUpdateField,
-    onImageUpload,
+    onImageClick,
     isUploadingImage,
     parentAttributeOptions,
 }: VariationDetailSheetProps) {
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     if (!variation) return null;
 
@@ -77,7 +76,7 @@ export function VariationDetailSheet({
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="w-[420px] sm:w-[480px] overflow-y-auto">
                 <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
+                    <SheetTitle className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
                         Variation: {attributeTitle}
                     </SheetTitle>
                     <SheetDescription asChild>
@@ -123,14 +122,14 @@ export function VariationDetailSheet({
                 <div key={variation._localId} className="space-y-6 mt-6">
                     {/* Image */}
                     <section>
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                            <ImageIcon className="h-3.5 w-3.5" />
+                        <Label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                            <ImageIcon className="h-3 w-3" />
                             Image
                         </Label>
                         <div className="flex items-end gap-3">
                             <div
                                 className="h-32 w-32 rounded-xl bg-muted border border-border flex items-center justify-center overflow-hidden cursor-pointer group relative"
-                                onClick={() => onImageUpload && fileInputRef.current?.click()}
+                                onClick={() => onImageClick?.()}
                             >
                                 {isUploadingImage ? (
                                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -148,17 +147,6 @@ export function VariationDetailSheet({
                                         </span>
                                     </div>
                                 )}
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file && onImageUpload) onImageUpload(file);
-                                        e.target.value = "";
-                                    }}
-                                />
                             </div>
                             {variation.image?.src && (
                                 <Button
@@ -179,20 +167,20 @@ export function VariationDetailSheet({
 
                     {/* Pricing */}
                     <section className="space-y-3">
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <DollarSign className="h-3.5 w-3.5" />
+                        <Label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
+                            <DollarSign className="h-3 w-3" />
                             Tarification
                         </Label>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Prix régulier</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Prix régulier</Label>
                                 <Input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     defaultValue={variation.regularPrice}
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     onBlur={(e) =>
                                         onUpdateField(
                                             "regularPrice",
@@ -202,13 +190,13 @@ export function VariationDetailSheet({
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Prix promo</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Prix promo</Label>
                                 <Input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     defaultValue={variation.salePrice}
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     placeholder="—"
                                     onBlur={(e) =>
                                         onUpdateField(
@@ -221,10 +209,10 @@ export function VariationDetailSheet({
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs">SKU</Label>
+                            <Label className="text-[11px] font-medium text-foreground">SKU</Label>
                             <Input
                                 defaultValue={variation.sku}
-                                className="h-9"
+                                className="h-9 rounded-lg"
                                 onBlur={(e) =>
                                     onUpdateField("sku", e.target.value)
                                 }
@@ -232,13 +220,13 @@ export function VariationDetailSheet({
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs flex items-center gap-1.5">
+                            <Label className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                                 <Barcode className="h-3 w-3" />
                                 GTIN / EAN
                             </Label>
                             <Input
                                 defaultValue={variation.globalUniqueId}
-                                className="h-9"
+                                className="h-9 rounded-lg"
                                 placeholder="0012345678905"
                                 onBlur={(e) =>
                                     onUpdateField("globalUniqueId", e.target.value)
@@ -248,25 +236,25 @@ export function VariationDetailSheet({
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label className="text-xs flex items-center gap-1.5">
+                                <Label className="text-[11px] font-medium text-foreground flex items-center gap-1.5">
                                     <CalendarRange className="h-3 w-3" />
                                     Début promo
                                 </Label>
                                 <Input
                                     type="datetime-local"
                                     defaultValue={variation.dateOnSaleFrom || ""}
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     onBlur={(e) =>
                                         onUpdateField("dateOnSaleFrom", e.target.value)
                                     }
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Fin promo</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Fin promo</Label>
                                 <Input
                                     type="datetime-local"
                                     defaultValue={variation.dateOnSaleTo || ""}
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     onBlur={(e) =>
                                         onUpdateField("dateOnSaleTo", e.target.value)
                                     }
@@ -279,13 +267,13 @@ export function VariationDetailSheet({
 
                     {/* Stock */}
                     <section className="space-y-3">
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <Package className="h-3.5 w-3.5" />
+                        <Label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
+                            <Package className="h-3 w-3" />
                             Inventaire
                         </Label>
 
                         <div className="flex items-center justify-between">
-                            <Label className="text-xs">
+                            <Label className="text-[11px] font-medium text-foreground">
                                 Gérer le stock
                             </Label>
                             <Switch
@@ -299,14 +287,14 @@ export function VariationDetailSheet({
                         {variation.manageStock && (
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs">Quantité</Label>
+                                    <Label className="text-[11px] font-medium text-foreground">Quantité</Label>
                                     <Input
                                         type="number"
                                         min="0"
                                         defaultValue={
                                             variation.stockQuantity ?? ""
                                         }
-                                        className="h-9"
+                                        className="h-9 rounded-lg"
                                         onBlur={(e) =>
                                             onUpdateField(
                                                 "stockQuantity",
@@ -321,7 +309,7 @@ export function VariationDetailSheet({
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs">
+                                    <Label className="text-[11px] font-medium text-foreground">
                                         Statut stock
                                     </Label>
                                     <Select
@@ -330,7 +318,7 @@ export function VariationDetailSheet({
                                             onUpdateField("stockStatus", val)
                                         }
                                     >
-                                        <SelectTrigger className="h-9">
+                                        <SelectTrigger className="h-9 rounded-lg">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -351,14 +339,14 @@ export function VariationDetailSheet({
 
                         {!variation.manageStock && (
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Statut stock</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Statut stock</Label>
                                 <Select
                                     value={variation.stockStatus}
                                     onValueChange={(val) =>
                                         onUpdateField("stockStatus", val)
                                     }
                                 >
-                                    <SelectTrigger className="h-9">
+                                    <SelectTrigger className="h-9 rounded-lg">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -377,14 +365,14 @@ export function VariationDetailSheet({
                         )}
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Précommandes (backorders)</Label>
+                            <Label className="text-[11px] font-medium text-foreground">Précommandes (backorders)</Label>
                             <Select
                                 value={variation.backorders}
                                 onValueChange={(val) =>
                                     onUpdateField("backorders", val)
                                 }
                             >
-                                <SelectTrigger className="h-9">
+                                <SelectTrigger className="h-9 rounded-lg">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -406,16 +394,16 @@ export function VariationDetailSheet({
 
                     {/* Dimensions */}
                     <section className="space-y-3">
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <Ruler className="h-3.5 w-3.5" />
+                        <Label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
+                            <Ruler className="h-3 w-3" />
                             Logistique
                         </Label>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Poids (kg)</Label>
+                            <Label className="text-[11px] font-medium text-foreground">Poids (kg)</Label>
                             <Input
                                 defaultValue={variation.weight}
-                                className="h-9"
+                                className="h-9 rounded-lg"
                                 onBlur={(e) =>
                                     onUpdateField("weight", e.target.value)
                                 }
@@ -424,12 +412,12 @@ export function VariationDetailSheet({
 
                         <div className="grid grid-cols-3 gap-2">
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Long. (cm)</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Long. (cm)</Label>
                                 <Input
                                     defaultValue={
                                         variation.dimensions.length
                                     }
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     onBlur={(e) =>
                                         onUpdateField("dimensions", {
                                             ...variation.dimensions,
@@ -439,12 +427,12 @@ export function VariationDetailSheet({
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Larg. (cm)</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Larg. (cm)</Label>
                                 <Input
                                     defaultValue={
                                         variation.dimensions.width
                                     }
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     onBlur={(e) =>
                                         onUpdateField("dimensions", {
                                             ...variation.dimensions,
@@ -454,12 +442,12 @@ export function VariationDetailSheet({
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Haut. (cm)</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Haut. (cm)</Label>
                                 <Input
                                     defaultValue={
                                         variation.dimensions.height
                                     }
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     onBlur={(e) =>
                                         onUpdateField("dimensions", {
                                             ...variation.dimensions,
@@ -475,21 +463,21 @@ export function VariationDetailSheet({
 
                     {/* Fiscalité */}
                     <section className="space-y-3">
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <Receipt className="h-3.5 w-3.5" />
+                        <Label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
+                            <Receipt className="h-3 w-3" />
                             Fiscalité
                         </Label>
 
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Statut fiscal</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Statut fiscal</Label>
                                 <Select
                                     value={variation.taxStatus}
                                     onValueChange={(val) =>
                                         onUpdateField("taxStatus", val)
                                     }
                                 >
-                                    <SelectTrigger className="h-9">
+                                    <SelectTrigger className="h-9 rounded-lg">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -506,10 +494,10 @@ export function VariationDetailSheet({
                                 </Select>
                             </div>
                             <div className="space-y-1.5">
-                                <Label className="text-xs">Classe de taxe</Label>
+                                <Label className="text-[11px] font-medium text-foreground">Classe de taxe</Label>
                                 <Input
                                     defaultValue={variation.taxClass}
-                                    className="h-9"
+                                    className="h-9 rounded-lg"
                                     placeholder="standard"
                                     onBlur={(e) =>
                                         onUpdateField("taxClass", e.target.value)
@@ -523,13 +511,13 @@ export function VariationDetailSheet({
 
                     {/* Description & Status */}
                     <section className="space-y-3">
-                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            <FileText className="h-3.5 w-3.5" />
+                        <Label className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider flex items-center gap-1.5">
+                            <FileText className="h-3 w-3" />
                             Description & Statut
                         </Label>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Description</Label>
+                            <Label className="text-[11px] font-medium text-foreground">Description</Label>
                             <Textarea
                                 defaultValue={variation.description}
                                 className="min-h-[80px] text-sm"
@@ -544,14 +532,14 @@ export function VariationDetailSheet({
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Statut</Label>
+                            <Label className="text-[11px] font-medium text-foreground">Statut</Label>
                             <Select
                                 value={variation.status}
                                 onValueChange={(val) =>
                                     onUpdateField("status", val)
                                 }
                             >
-                                <SelectTrigger className="h-9">
+                                <SelectTrigger className="h-9 rounded-lg">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -579,7 +567,7 @@ export function VariationDetailSheet({
                                 />
                                 <Label
                                     htmlFor="virtual-toggle"
-                                    className="text-xs"
+                                    className="text-[11px] font-medium text-foreground"
                                 >
                                     Virtuel
                                 </Label>
@@ -599,7 +587,7 @@ export function VariationDetailSheet({
                                 />
                                 <Label
                                     htmlFor="downloadable-toggle"
-                                    className="text-xs"
+                                    className="text-[11px] font-medium text-foreground"
                                 >
                                     Téléchargeable
                                 </Label>

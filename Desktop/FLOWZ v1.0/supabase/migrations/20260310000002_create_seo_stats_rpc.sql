@@ -3,6 +3,10 @@
 -- Replaces client-side fetching of ALL products for averaging
 -- ============================================================================
 
+-- Drop existing functions to allow return type changes
+DROP FUNCTION IF EXISTS public.get_seo_stats(uuid);
+DROP FUNCTION IF EXISTS public.get_seo_global_score(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_seo_stats(p_store_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -50,10 +54,12 @@ AS $$
 DECLARE
     v_avg_score numeric;
     v_analyzed_count bigint;
+    v_total_count bigint;
     v_critical_count bigint;
     v_warning_count bigint;
     v_good_count bigint;
     v_breakdown jsonb;
+    v_pillars jsonb;
     v_prev_score numeric;
     v_change numeric;
 BEGIN
@@ -68,10 +74,11 @@ BEGIN
     SELECT
         COALESCE(ROUND(AVG(seo_score)), 0),
         COUNT(*) FILTER (WHERE seo_score IS NOT NULL),
+        COUNT(*),
         COUNT(*) FILTER (WHERE seo_score < 50),
         COUNT(*) FILTER (WHERE seo_score >= 50 AND seo_score < 70),
         COUNT(*) FILTER (WHERE seo_score >= 70)
-    INTO v_avg_score, v_analyzed_count, v_critical_count, v_warning_count, v_good_count
+    INTO v_avg_score, v_analyzed_count, v_total_count, v_critical_count, v_warning_count, v_good_count
     FROM products
     WHERE store_id = p_store_id AND seo_score IS NOT NULL;
 
@@ -87,6 +94,42 @@ BEGIN
 
     IF v_breakdown IS NULL THEN
         v_breakdown := '{"titles":0,"descriptions":0,"images":0,"technical":0}'::jsonb;
+    END IF;
+
+    -- Aggregate per-field f_* pillar averages + issue counts (score < 60)
+    SELECT jsonb_build_object(
+        'meta_title', jsonb_build_object(
+            'avgScore', COALESCE(ROUND(AVG((seo_breakdown->>'f_meta_title')::numeric)), 0),
+            'issueCount', COUNT(*) FILTER (WHERE (seo_breakdown->>'f_meta_title')::numeric < 60)
+        ),
+        'title_product', jsonb_build_object(
+            'avgScore', COALESCE(ROUND(AVG((seo_breakdown->>'f_title')::numeric)), 0),
+            'issueCount', COUNT(*) FILTER (WHERE (seo_breakdown->>'f_title')::numeric < 60)
+        ),
+        'meta_description', jsonb_build_object(
+            'avgScore', COALESCE(ROUND(AVG((seo_breakdown->>'f_meta_description')::numeric)), 0),
+            'issueCount', COUNT(*) FILTER (WHERE (seo_breakdown->>'f_meta_description')::numeric < 60)
+        ),
+        'description', jsonb_build_object(
+            'avgScore', COALESCE(ROUND(AVG((seo_breakdown->>'f_description')::numeric)), 0),
+            'issueCount', COUNT(*) FILTER (WHERE (seo_breakdown->>'f_description')::numeric < 60)
+        ),
+        'images', jsonb_build_object(
+            'avgScore', COALESCE(ROUND(AVG((seo_breakdown->>'f_images')::numeric)), 0),
+            'issueCount', COUNT(*) FILTER (WHERE (seo_breakdown->>'f_images')::numeric < 60)
+        ),
+        'slug', jsonb_build_object(
+            'avgScore', COALESCE(ROUND(AVG((seo_breakdown->>'f_slug')::numeric)), 0),
+            'issueCount', COUNT(*) FILTER (WHERE (seo_breakdown->>'f_slug')::numeric < 60)
+        )
+    ) INTO v_pillars
+    FROM products
+    WHERE store_id = p_store_id
+      AND seo_breakdown IS NOT NULL
+      AND seo_breakdown ? 'f_meta_title';
+
+    IF v_pillars IS NULL THEN
+        v_pillars := '{}'::jsonb;
     END IF;
 
     -- Previous month trend from kpi_snapshots
@@ -106,11 +149,13 @@ BEGIN
     RETURN jsonb_build_object(
         'averageScore', v_avg_score,
         'analyzedProductsCount', v_analyzed_count,
+        'totalProductsCount', v_total_count,
         'criticalCount', v_critical_count,
         'warningCount', v_warning_count,
         'goodCount', v_good_count,
         'previousMonthChange', COALESCE(ROUND(v_change), 0),
-        'breakdown', v_breakdown
+        'breakdown', v_breakdown,
+        'pillars', v_pillars
     );
 END;
 $$;
