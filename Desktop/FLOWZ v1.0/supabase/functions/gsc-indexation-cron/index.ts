@@ -440,14 +440,21 @@ Deno.serve(async (_req) => {
                     p_site_id: site.id,
                 });
 
-                // === 5. Update quota counters ===
+                // === 5. Update quota counters (H3 fix: use atomic RPC for inspection count) ===
+                // Update submission count directly (single-writer: only cron calls this)
                 await supabase.from("gsc_indexation_settings").upsert({
                     site_id: site.id,
                     tenant_id: site.tenant_id,
                     daily_submission_count: submissionCount,
-                    daily_inspection_count: inspectionCount,
                     quota_reset_date: today,
                 }, { onConflict: "site_id" });
+                // Atomic increment for inspection count (may race with inspect-batch UI calls)
+                if (inspectionCount > 0) {
+                    await supabase.rpc("increment_gsc_inspection_count", {
+                        p_site_id: site.id,
+                        p_count: inspectionCount,
+                    });
+                }
 
             } catch (err) {
                 logs.push(`${site.site_url}: ERROR — ${err}`);

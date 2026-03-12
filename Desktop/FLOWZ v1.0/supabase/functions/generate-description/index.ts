@@ -63,7 +63,7 @@ serve(async (req: Request) => {
 
         console.log(`[generate-description] Starting for product ${product_id}`);
 
-        // Fetch product data
+        // H1 fix: Add tenant_id check to prevent IDOR
         const { data: product, error: productError } = await supabase
             .from("products")
             .select(`
@@ -81,6 +81,7 @@ serve(async (req: Request) => {
                 metadata
             `)
             .eq("id", product_id)
+            .eq("tenant_id", user.id)
             .single();
 
         if (productError || !product) {
@@ -149,7 +150,8 @@ serve(async (req: Request) => {
                 draft_generated_content: newDraft,
                 updated_at: new Date().toISOString(),
             })
-            .eq("id", product_id);
+            .eq("id", product_id)
+            .eq("tenant_id", user.id);
 
         if (updateError) {
             console.error("[generate-description] Update failed:", updateError);

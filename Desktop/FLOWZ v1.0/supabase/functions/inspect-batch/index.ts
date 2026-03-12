@@ -111,15 +111,32 @@ async function processSite(
         accessToken = await refreshAccessToken(rt);
     }
 
-    // Check daily quota
+    // H3 fix: Atomic quota check — reset if new day, then read count
     const today = new Date().toISOString().slice(0, 10);
+
+    // Ensure row exists + reset count if new day (atomic upsert)
+    await supabase.from("gsc_indexation_settings").upsert({
+        site_id: site.id,
+        tenant_id: site.tenant_id,
+        daily_inspection_count: 0,
+        quota_reset_date: today,
+    }, { onConflict: "site_id", ignoreDuplicates: true });
+
+    // Reset count if stale date
+    await supabase
+        .from("gsc_indexation_settings")
+        .update({ daily_inspection_count: 0, quota_reset_date: today })
+        .eq("site_id", site.id)
+        .neq("quota_reset_date", today);
+
+    // Read current count after potential reset
     const { data: settings } = await supabase
         .from("gsc_indexation_settings")
-        .select("daily_inspection_count, quota_reset_date")
+        .select("daily_inspection_count")
         .eq("site_id", site.id)
         .single();
 
-    const inspectionCount = settings?.quota_reset_date === today ? (settings.daily_inspection_count || 0) : 0;
+    const inspectionCount = settings?.daily_inspection_count || 0;
     const DAILY_LIMIT = 2000;
     const quotaRemaining = Math.max(0, DAILY_LIMIT - inspectionCount);
     const toInspect = Math.min(batchSize, quotaRemaining);
@@ -191,13 +208,21 @@ async function processSite(
         await new Promise(r => setTimeout(r, 120));
     }
 
-    // Update quota counter
-    await supabase.from("gsc_indexation_settings").upsert({
-        site_id: site.id,
-        tenant_id: site.tenant_id,
-        daily_inspection_count: inspectionCount + inspected,
-        quota_reset_date: today,
-    }, { onConflict: "site_id" });
+    // H3 fix: Increment quota atomically via RPC or raw increment
+    // Use rpc if available, otherwise update with current + inspected
+    await supabase.rpc("increment_gsc_inspection_count", {
+        p_site_id: site.id,
+        p_count: inspected,
+    }).then(({ error }: any) => {
+        // Fallback if RPC doesn't exist yet
+        if (error) {
+            return supabase
+                .from("gsc_indexation_settings")
+                .update({ daily_inspection_count: inspectionCount + inspected })
+                .eq("site_id", site.id)
+                .eq("quota_reset_date", today);
+        }
+    });
 
     // Snapshot history
     try {

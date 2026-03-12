@@ -214,14 +214,21 @@ async function processSite(
 
     const totalInspected = inspectedNew + inspectedUpdated;
 
-    // Update quota
+    // H3 fix: Atomic quota increment via RPC
     if (totalInspected > 0) {
-        await supabase.from("gsc_indexation_settings").upsert({
-            site_id: site.id,
-            tenant_id: site.tenant_id,
-            daily_inspection_count: usedToday + totalInspected,
-            quota_reset_date: today,
-        }, { onConflict: "site_id" });
+        await supabase.rpc("increment_gsc_inspection_count", {
+            p_site_id: site.id,
+            p_count: totalInspected,
+        }).then(({ error }: any) => {
+            if (error) {
+                return supabase.from("gsc_indexation_settings").upsert({
+                    site_id: site.id,
+                    tenant_id: site.tenant_id,
+                    daily_inspection_count: usedToday + totalInspected,
+                    quota_reset_date: today,
+                }, { onConflict: "site_id" });
+            }
+        });
 
         // Snapshot history
         try {
