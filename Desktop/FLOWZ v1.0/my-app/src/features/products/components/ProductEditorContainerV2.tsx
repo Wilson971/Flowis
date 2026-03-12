@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormProvider, useWatch } from "react-hook-form";
 import { AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,9 +32,28 @@ import { ProductEditorLayoutV2 } from "./edit/ProductEditorLayoutV2";
 import { ProductEditorHeaderV2 } from "./edit/ProductEditorHeaderV2";
 import { ProductEditorSidebarV2 } from "./edit/ProductEditorSidebarV2";
 import { GeneralTabV2 } from "./edit/tabs/GeneralTabV2";
-import { MediaTabV2 } from "./edit/tabs/MediaTabV2";
-import { VariationsTabV2 } from "./edit/tabs/VariationsTabV2";
-import { SeoTabV2 } from "./edit/tabs/SeoTabV2";
+
+const TabLoadingSkeleton = () => (
+    <div className="p-6 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+    </div>
+);
+
+const MediaTabV2 = dynamic(
+    () => import("./edit/tabs/MediaTabV2").then(mod => mod.MediaTabV2),
+    { loading: TabLoadingSkeleton }
+);
+
+const VariationsTabV2 = dynamic(
+    () => import("./edit/tabs/VariationsTabV2").then(mod => mod.VariationsTabV2),
+    { loading: TabLoadingSkeleton }
+);
+
+const SeoTabV2 = dynamic(
+    () => import("./edit/tabs/SeoTabV2").then(mod => mod.SeoTabV2),
+    { loading: TabLoadingSkeleton }
+);
 import { ConflictResolutionDialog } from "@/components/products/ConflictResolutionDialog";
 import { useSelectedStore } from "@/contexts/StoreContext";
 import { useCategories } from "@/hooks/products/useProductCategories";

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FormProvider, useWatch } from "react-hook-form";
 import { AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProduct } from "@/hooks/products/useProducts";
@@ -28,9 +29,28 @@ import {
 } from "../context/ProductEditContext";
 import { ProductEditorLayout } from "./edit/ProductEditorLayout";
 import { ProductGeneralTab } from "./edit/ProductGeneralTab";
-import { ProductMediaTab } from "./edit/ProductMediaTab";
-import { ProductSeoTab } from "./edit/ProductSeoTab";
-import { ProductVariationsTab } from "./edit/ProductVariationsTab";
+
+const TabLoadingSkeleton = () => (
+    <div className="p-6 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+    </div>
+);
+
+const ProductMediaTab = dynamic(
+    () => import("./edit/ProductMediaTab").then(mod => mod.ProductMediaTab),
+    { loading: TabLoadingSkeleton }
+);
+
+const ProductVariationsTab = dynamic(
+    () => import("./edit/ProductVariationsTab").then(mod => mod.ProductVariationsTab),
+    { loading: TabLoadingSkeleton }
+);
+
+const ProductSeoTab = dynamic(
+    () => import("./edit/ProductSeoTab").then(mod => mod.ProductSeoTab),
+    { loading: TabLoadingSkeleton }
+);
 import { ProductSidebar } from "./edit/ProductSidebar";
 import { ConflictResolutionDialog } from "@/components/products/ConflictResolutionDialog";
 import { useSelectedStore } from "@/contexts/StoreContext";

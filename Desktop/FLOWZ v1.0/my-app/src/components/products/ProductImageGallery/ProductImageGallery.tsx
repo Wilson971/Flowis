@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Image from "next/image";
 import {
     DndContext,
     closestCenter,
@@ -38,7 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Trash2, Image as ImageIcon } from "lucide-react";
+import { RefreshCw, Trash2, Image as ImageIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
@@ -66,6 +67,7 @@ export const ProductImageGallery = ({
     onDownload,
     onDelete,
     maxImages = 15,
+    maxVisible,
     isLoading = false,
     isDisabled = false,
     allowDelete = true,
@@ -81,6 +83,8 @@ export const ProductImageGallery = ({
     const [imagesToDelete, setImagesToDelete] = useState<(string | number)[] | null>(null);
     const [editingAltImage, setEditingAltImage] = useState<ProductImage | null>(null);
     const [editingAltText, setEditingAltText] = useState("");
+    const [galleryOpen, setGalleryOpen] = useState(false);
+    const [galleryIndex, setGalleryIndex] = useState(0);
 
     // Hook personnalisé pour la logique
     const {
@@ -360,68 +364,104 @@ export const ProductImageGallery = ({
                             items={sortedImages.map((img) => img.id)}
                             strategy={rectSortingStrategy}
                         >
-                            <div className={cn(
-                                "grid gap-3",
-                                "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
-                            )}>
-                                {/* Images */}
-                                {sortedImages.map((image, index) => {
-                                    const isPrimary = index === 0;
+                            {(() => {
+                                // Calculate how many thumbnails to show
+                                // maxVisible accounts for the primary image taking 1 slot visually but we count it as 1 image
+                                const hasOverflow = maxVisible != null && sortedImages.length > maxVisible;
+                                const visibleImages = hasOverflow ? sortedImages.slice(0, maxVisible) : sortedImages;
+                                const hiddenCount = hasOverflow ? sortedImages.length - maxVisible : 0;
 
-                                    return (
-                                        <motion.div
-                                            key={image.id}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            className={cn(
-                                                "aspect-square",
-                                                isPrimary && "col-span-2 row-span-2"
-                                            )}
-                                        >
-                                            <ImageThumbnail
-                                                image={image}
-                                                isPrimary={isPrimary && showPrimaryBadge}
-                                                isSelected={selectedImages.has(image.id)}
-                                                onView={() => openPreview(image.id)}
-                                                onSetPrimary={() => setPrimaryImage(image.id)}
-                                                onDelete={() => handleDeleteRequest(image.id)}
-                                                onEditAlt={() => handleEditAlt(image.id)}
-                                                onDownload={() => handleDownload(image.id)}
-                                                onToggleSelection={() => handleToggleSelection(image.id)}
-                                                allowDelete={allowDelete}
-                                                className="w-full h-full"
-                                            />
-                                        </motion.div>
-                                    );
-                                })}
+                                return (
+                                    <div className={cn(
+                                        "grid gap-3",
+                                        "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5",
+                                    )}>
+                                        {/* Images */}
+                                        {visibleImages.map((image, index) => {
+                                            const isPrimary = index === 0;
+                                            const isLastVisible = hasOverflow && index === visibleImages.length - 1;
 
-                                {/* Upload en cours */}
-                                {uploadingItems.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="aspect-square rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center"
-                                    >
-                                        <div className="text-center">
-                                            <RefreshCw className="h-6 w-6 text-primary animate-spin mx-auto mb-2" />
-                                            <p className="text-xs text-muted-foreground">{item.progress}%</p>
-                                        </div>
+                                            return (
+                                                <motion.div
+                                                    key={image.id}
+                                                    initial={{ opacity: 0, scale: 0.9 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.9 }}
+                                                    className={cn(
+                                                        "aspect-square relative",
+                                                        isPrimary && "col-span-2 row-span-2"
+                                                    )}
+                                                >
+                                                    <ImageThumbnail
+                                                        image={image}
+                                                        isPrimary={isPrimary && showPrimaryBadge}
+                                                        isSelected={selectedImages.has(image.id)}
+                                                        onView={() => {
+                                                            if (isLastVisible) {
+                                                                setGalleryIndex(0);
+                                                                setGalleryOpen(true);
+                                                            } else {
+                                                                openPreview(image.id);
+                                                            }
+                                                        }}
+                                                        onSetPrimary={() => setPrimaryImage(image.id)}
+                                                        onDelete={() => handleDeleteRequest(image.id)}
+                                                        onEditAlt={() => handleEditAlt(image.id)}
+                                                        onDownload={() => handleDownload(image.id)}
+                                                        onToggleSelection={() => handleToggleSelection(image.id)}
+                                                        allowDelete={allowDelete}
+                                                        className="w-full h-full"
+                                                    />
+                                                    {/* "+X" overlay on last visible thumbnail */}
+                                                    {isLastVisible && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setGalleryIndex(0);
+                                                                setGalleryOpen(true);
+                                                            }}
+                                                            className="absolute inset-0 z-10 rounded-lg bg-black/60 backdrop-blur-[2px] flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors hover:bg-black/70"
+                                                        >
+                                                            <span className="text-2xl font-bold text-white">
+                                                                +{hiddenCount}
+                                                            </span>
+                                                            <span className="text-xs text-white/80">
+                                                                Voir tout
+                                                            </span>
+                                                        </button>
+                                                    )}
+                                                </motion.div>
+                                            );
+                                        })}
+
+                                        {/* Upload en cours */}
+                                        {uploadingItems.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="aspect-square rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 flex items-center justify-center"
+                                            >
+                                                <div className="text-center">
+                                                    <RefreshCw className="h-6 w-6 text-primary animate-spin mx-auto mb-2" />
+                                                    <p className="text-xs text-muted-foreground">{item.progress}%</p>
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {/* Bouton d'ajout — toujours visible après les vignettes */}
+                                        {canAddMore && (
+                                            <div className="aspect-square">
+                                                <AddImageButton
+                                                    onFilesSelected={handleFilesSelected}
+                                                    disabled={isLoading || isDisabled}
+                                                    maxImages={maxImages}
+                                                    currentCount={images.length}
+                                                    className="w-full h-full"
+                                                />
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
-
-                                {/* Bouton d'ajout */}
-                                {canAddMore && (
-                                    <div className="aspect-square">
-                                        <AddImageButton
-                                            onFilesSelected={handleFilesSelected}
-                                            disabled={isLoading || isDisabled}
-                                            maxImages={maxImages}
-                                            currentCount={images.length}
-                                            className="w-full h-full"
-                                        />
-                                    </div>
-                                )}
-                            </div>
+                                );
+                            })()}
                         </SortableContext>
                     </DndContext>
 
@@ -530,6 +570,115 @@ export const ProductImageGallery = ({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Gallery lightbox modal */}
+            <AnimatePresence>
+                {galleryOpen && sortedImages.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                        onClick={() => setGalleryOpen(false)}
+                    >
+                        {/* Close button */}
+                        <button
+                            type="button"
+                            onClick={() => setGalleryOpen(false)}
+                            className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+
+                        {/* Counter */}
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 px-3 py-1.5 rounded-full bg-white/10 text-white text-sm font-medium tabular-nums">
+                            {galleryIndex + 1} / {sortedImages.length}
+                        </div>
+
+                        {/* Previous button */}
+                        {sortedImages.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setGalleryIndex((prev) => (prev - 1 + sortedImages.length) % sortedImages.length);
+                                }}
+                                className="absolute left-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                            >
+                                <ChevronLeft className="h-6 w-6" />
+                            </button>
+                        )}
+
+                        {/* Main image */}
+                        <motion.div
+                            key={sortedImages[galleryIndex]?.id}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="relative max-w-[85vw] max-h-[80vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <Image
+                                src={sortedImages[galleryIndex]?.url || sortedImages[galleryIndex]?.src || ""}
+                                alt={sortedImages[galleryIndex]?.alt || ""}
+                                width={400}
+                                height={400}
+                                className="max-w-full max-h-[80vh] object-contain rounded-lg"
+                                unoptimized
+                            />
+                            {sortedImages[galleryIndex]?.alt && (
+                                <p className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent rounded-b-lg text-white text-sm text-center">
+                                    {sortedImages[galleryIndex].alt}
+                                </p>
+                            )}
+                        </motion.div>
+
+                        {/* Next button */}
+                        {sortedImages.length > 1 && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setGalleryIndex((prev) => (prev + 1) % sortedImages.length);
+                                }}
+                                className="absolute right-4 z-50 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+                            >
+                                <ChevronRight className="h-6 w-6" />
+                            </button>
+                        )}
+
+                        {/* Thumbnail strip */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm max-w-[90vw] overflow-x-auto">
+                            {sortedImages.map((image, index) => (
+                                <button
+                                    key={image.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setGalleryIndex(index);
+                                    }}
+                                    className={cn(
+                                        "w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 transition-all",
+                                        index === galleryIndex
+                                            ? "border-white ring-1 ring-white/50 scale-110"
+                                            : "border-transparent opacity-60 hover:opacity-100"
+                                    )}
+                                >
+                                    <Image
+                                        src={image.url || image.src || ""}
+                                        alt={image.alt || ""}
+                                        width={80}
+                                        height={80}
+                                        className="w-full h-full object-cover"
+                                        unoptimized
+                                    />
+                                </button>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </>
     );
 };

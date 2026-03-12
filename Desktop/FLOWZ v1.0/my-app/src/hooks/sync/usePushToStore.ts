@@ -146,7 +146,13 @@ export function usePushToStore() {
             if (sessionError || !session) {
                 throw new Error('Session expirée. Veuillez vous reconnecter.');
             }
-            return executePushWithRetry(supabase, params);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 30_000);
+            try {
+                return await executePushWithRetry(supabase, params, 0, controller.signal);
+            } finally {
+                clearTimeout(timeout);
+            }
         },
         onSuccess: (data, variables) => {
             // Invalidate specific queries based on type
@@ -288,13 +294,17 @@ export function usePushProductBatch() {
                 throw new Error('Session expirée. Veuillez vous reconnecter.');
             }
 
-            const response = await executePushWithRetry(supabase, {
-                type: 'product',
-                ids: product_ids,
-                force,
-            });
-
-            return response;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 30_000);
+            try {
+                return await executePushWithRetry(supabase, {
+                    type: 'product',
+                    ids: product_ids,
+                    force,
+                }, 0, controller.signal);
+            } finally {
+                clearTimeout(timeout);
+            }
         },
         onSuccess: (data, variables) => {
             const successCount = data.successful ?? 0;

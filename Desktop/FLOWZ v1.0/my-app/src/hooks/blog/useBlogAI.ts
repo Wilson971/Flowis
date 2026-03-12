@@ -88,7 +88,7 @@ export function useGenerateArticle() {
     }) => {
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+      const timeoutId = setTimeout(() => controller.abort(), 300_000); // 5 minute timeout for long-form generation
 
       try {
         const response = await fetch('/api/flowriter/stream', {

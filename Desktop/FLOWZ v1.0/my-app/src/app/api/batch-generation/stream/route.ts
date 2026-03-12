@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fetchImageSafe } from '@/lib/ssrf';
 import { batchGenerationRequestSchema } from '@/schemas/batch-generation';
 import { detectPromptInjection } from '@/lib/ai/prompt-safety';
+import { RETRY_CONFIG, calculateBackoff, classifyError } from '@/lib/ai/retry';
 import {
     buildProductTitlePrompt,
     buildShortDescriptionPrompt,
@@ -34,45 +35,6 @@ import { calculateProductSeoScore } from '@/lib/seo/analyzer';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for batch processing
-
-// ============================================================================
-// RETRY CONFIG (from FloWriter)
-// ============================================================================
-
-const RETRY_CONFIG = {
-    maxRetries: 3,
-    baseDelay: 1000,
-    maxDelay: 10000,
-    retryableCodes: [429, 500, 502, 503, 504],
-};
-
-function calculateBackoff(attempt: number): number {
-    const delay = Math.min(
-        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
-        RETRY_CONFIG.maxDelay
-    );
-    const jitter = delay * 0.25 * (Math.random() * 2 - 1);
-    return Math.round(delay + jitter);
-}
-
-function classifyError(error: any): { retryable: boolean; code: string; message: string } {
-    const msg = error.message?.toLowerCase() || '';
-    const status = error.status || error.code;
-
-    if (status === 429 || msg.includes('quota') || msg.includes('rate limit')) {
-        return { retryable: true, code: 'QUOTA_EXCEEDED', message: 'Quota API dépassé' };
-    }
-    if (status === 503 || msg.includes('unavailable')) {
-        return { retryable: true, code: 'SERVICE_UNAVAILABLE', message: 'Service IA indisponible' };
-    }
-    if (msg.includes('safety') || msg.includes('blocked') || msg.includes('harmful')) {
-        return { retryable: false, code: 'CONTENT_BLOCKED', message: 'Contenu bloqué par les filtres de sécurité' };
-    }
-    if (msg.includes('timeout') || msg.includes('deadline')) {
-        return { retryable: true, code: 'TIMEOUT', message: 'Timeout de l\'API' };
-    }
-    return { retryable: true, code: 'UNKNOWN', message: error.message || 'Erreur inconnue' };
-}
 
 // ============================================================================
 // IMAGE FETCHING (uses shared SSRF protection from @/lib/ssrf)

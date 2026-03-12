@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { detectPromptInjection, sanitizeUserInput } from '@/lib/ai/prompt-safety';
+import { RETRY_CONFIG, calculateBackoff, classifyError as classifyErrorBase } from '@/lib/ai/retry';
 
 // ============================================================================
 // FLOWRITER v2.0 - Node.js Runtime for Extended Timeout Support
@@ -10,28 +11,6 @@ import { detectPromptInjection, sanitizeUserInput } from '@/lib/ai/prompt-safety
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for long-form article generation
-
-// ============================================================================
-// RETRY CONFIGURATION
-// ============================================================================
-
-const RETRY_CONFIG = {
-    maxRetries: 3,
-    baseDelay: 1000, // 1 second
-    maxDelay: 10000, // 10 seconds
-    retryableCodes: [429, 500, 502, 503, 504],
-};
-
-// Exponential backoff with jitter
-function calculateBackoff(attempt: number): number {
-    const delay = Math.min(
-        RETRY_CONFIG.baseDelay * Math.pow(2, attempt),
-        RETRY_CONFIG.maxDelay
-    );
-    // Add jitter (±25%)
-    const jitter = delay * 0.25 * (Math.random() * 2 - 1);
-    return Math.round(delay + jitter);
-}
 
 // ============================================================================
 // ERROR CODES AND MESSAGES
@@ -76,27 +55,16 @@ const ERROR_CODES = {
 } as const;
 
 function classifyError(error: any): typeof ERROR_CODES[keyof typeof ERROR_CODES] {
-    const message = error.message?.toLowerCase() || '';
-    const status = error.status || error.code;
+    const base = classifyErrorBase(error);
+    const msg = (error?.message || '').toLowerCase();
 
-    if (status === 429 || message.includes('quota') || message.includes('rate limit')) {
-        return ERROR_CODES.QUOTA_EXCEEDED;
-    }
-    if (status === 503 || message.includes('unavailable')) {
-        return ERROR_CODES.SERVICE_UNAVAILABLE;
-    }
-    if (message.includes('timeout') || message.includes('deadline')) {
-        return ERROR_CODES.TIMEOUT;
-    }
-    if (message.includes('network') || message.includes('fetch') || message.includes('econnreset')) {
-        return ERROR_CODES.NETWORK_ERROR;
-    }
-    if (message.includes('safety') || message.includes('blocked') || message.includes('harmful')) {
-        return ERROR_CODES.CONTENT_BLOCKED;
-    }
-    if (status === 400 || message.includes('invalid')) {
-        return ERROR_CODES.INVALID_REQUEST;
-    }
+    // Map centralized codes to route-specific ERROR_CODES
+    if (base.code === 'QUOTA_EXCEEDED') return ERROR_CODES.QUOTA_EXCEEDED;
+    if (base.code === 'SERVICE_UNAVAILABLE') return ERROR_CODES.SERVICE_UNAVAILABLE;
+    if (base.code === 'TIMEOUT') return ERROR_CODES.TIMEOUT;
+    if (base.code === 'NETWORK_ERROR') return ERROR_CODES.NETWORK_ERROR;
+    if (msg.includes('safety') || msg.includes('blocked') || msg.includes('harmful')) return ERROR_CODES.CONTENT_BLOCKED;
+    if (base.code === 'FATAL' && (msg.includes('invalid') || (error?.status === 400))) return ERROR_CODES.INVALID_REQUEST;
     return ERROR_CODES.UNKNOWN_ERROR;
 }
 
