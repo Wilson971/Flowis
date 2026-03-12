@@ -21,7 +21,12 @@ function coerceNumber(v: string | number | null | undefined, fallback: undefined
 function coerceNumber(v: string | number | null | undefined, fallback: null): number | null;
 function coerceNumber(v: string | number | null | undefined, fallback: null | undefined): number | null | undefined {
     if (v == null || v === "") return fallback;
-    return Number(v);
+    if (typeof v === "number") return v;
+    // Handle European format: "10,99" → "10.99"
+    const normalized = v.replace(",", ".");
+    const num = Number(normalized);
+    if (Number.isNaN(num)) return fallback;
+    return num;
 }
 
 /** Return non-empty string or undefined */
