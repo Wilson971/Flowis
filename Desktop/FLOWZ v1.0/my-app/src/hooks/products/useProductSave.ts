@@ -10,6 +10,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { z } from 'zod';
 import type { ContentData } from '@/types/productContent';
 import { PRODUCT_TYPE_DEFAULT } from '@/features/products/schemas/product-schema';
@@ -244,6 +245,14 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
     const { triggerAutoSync, isAutoSyncing } = useAutoSync('product');
 
     const mutation = useMutation({
+        retry: (failureCount, error) => {
+            // Don't retry user-facing errors or data conflicts
+            if (error instanceof StaleDataError) return false;
+            if (error instanceof DuplicateSkuError) return false;
+            // Retry once for network/transient errors
+            return failureCount < 1;
+        },
+        retryDelay: 1000,
         mutationFn: async ({
             productId,
             data: formData,
@@ -300,6 +309,14 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                     (newWorkingContent as Record<string, unknown>)[field] = formVal;
                 }
             }
+            // Sanitize HTML fields before writing to DB
+            if (typeof newWorkingContent.description === 'string') {
+                newWorkingContent.description = sanitizeHtml(newWorkingContent.description);
+            }
+            if (typeof newWorkingContent.short_description === 'string') {
+                newWorkingContent.short_description = sanitizeHtml(newWorkingContent.short_description);
+            }
+
             // SEO is nested — merge subfields
             if (formData.seo) {
                 newWorkingContent.seo = { ...currentWorking.seo, ...formData.seo };
@@ -471,7 +488,13 @@ export function useProductSave(options: UseProductSaveOptions = {}) {
                     duration: 8000,
                 });
             } else {
-                toast.error('Erreur de sauvegarde', { description: error.message });
+                console.error('[useProductSave] Unexpected error:', error);
+                const isNetwork = error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch');
+                toast.error('Erreur de sauvegarde', {
+                    description: isNetwork
+                        ? 'Connexion perdue — vérifiez votre réseau et réessayez.'
+                        : 'Une erreur inattendue est survenue. Veuillez réessayer.',
+                });
             }
         },
     });
