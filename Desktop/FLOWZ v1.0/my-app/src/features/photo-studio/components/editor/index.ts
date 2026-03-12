@@ -1,9 +1,16 @@
 export { CropTool } from "./CropTool";
 export { ImageAdjustments } from "./ImageAdjustments";
+export type { AdjustmentValues, ImageAdjustmentsProps } from "./ImageAdjustments";
 export { AnnotationLayer } from "./AnnotationLayer";
+export type { Annotation } from "./AnnotationLayer";
 export { SessionTimeline } from "./SessionTimeline";
 export type { SessionTimelineProps } from "./SessionTimeline";
 export { EditorControlPanel } from "./ControlPanel";
 export type { EditorControlPanelProps } from "./ControlPanel";
 export { EditorActionBar } from "./ActionBar";
 export type { EditorActionBarProps, EditorTool } from "./ActionBar";
+export { EditorCanvas } from "./EditorCanvas";
+export { EditorHub } from "./EditorHub";
+export type { EditorHubProps } from "./EditorHub";
+export { editorReducer, initialEditorState } from "./editorReducer";
+export type { EditorState, EditorAction, ActiveTool } from "./editorReducer";
