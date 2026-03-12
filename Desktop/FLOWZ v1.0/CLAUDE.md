@@ -371,18 +371,58 @@ FloWriter generates drafts → User edits in Standalone Editor → Publish/Sched
 
 ## Photo Studio Workflow
 
-AI-powered product photography with batch processing:
+AI-powered product photography with batch processing and full editor:
 
 ```
-Product selection → Choose action (remove_bg, replace_bg, enhance, generate_angles, generate_scene)
-→ Optional preset selection → Create batch_jobs parent row → Insert studio_jobs per product
-→ Poll progress every 3s → Completion notification → Retry failed jobs
+Product selection → Choose action → Optional preset selection → Create batch_jobs + studio_jobs
+→ Server-side processing (process-batch → process-job per item) → Gemini 2.5 Flash generation
+→ Storage upload + studio_images insertion → Poll progress every 3s
+→ EditorHub for review/editing → Validation workflow (draft → approved → published)
+→ Publish to product → Sync to WooCommerce/Shopify
 ```
 
-Key components:
-- `PhotoStudioPage` - Main page with product grid + selection
+### Action Registry (pluggable)
+
+Actions are isolated handlers in `features/photo-studio/actions/`:
+- **Preset-based** (replace_bg variants): same handler, different bg config → add a bg = add 1 config entry
+- **Dedicated** (enhance, harmonize, magic_edit): specialized prompts per action
+- Registry: `getActionHandler(action)` dispatches to correct handler
+
+All 13 actions: `remove_bg`, `enhance`, `enhance_light`, `enhance_color`, `replace_bg`, `replace_bg_white`, `replace_bg_studio`, `replace_bg_marble`, `replace_bg_wood`, `generate_angles`, `generate_scene`, `harmonize`, `magic_edit`
+
+### Key Components
+
+- `PhotoStudioPage` - Main page with Produits/Résultats tabs, ViewSwitcher, analytics
 - `StudioBatchPanel` - Bottom action bar for batch configuration
 - `BatchStudioProgressPanel` - Real-time progress with per-job status
+- `EditorHub` - Full-screen editor dialog (crop, adjust, annotate, compare, generate)
+- `ViewSwitcher` - Toggle between gallery/compare/lighttable views
+- `GalleryView` - Selectable image grid with filters + bulk actions
+- `CompareOverlay` - Before/after slider with drag + synchronized zoom
+- `LightTable` - Creative workspace with drag & drop, annotations, contact sheet export
+- `StudioAnalyticsDashboard` - Metrics, latency chart, errors, CSV export
+- `ClassificationPanel` - AI product classification with preset recommendations
+- `ValidationBadge` / `BulkActions` / `PublishToProductDialog` - Validation workflow UI
+
+### Additional Tables
+
+- `studio_images` - Generated image lifecycle (draft → approved → published)
+- `studio_metrics` - Per-job tracking (latency, tokens, cost, error_type)
+- `studio_quotas` - Monthly quotas per tenant (generations_used/limit, cost)
+- `profiles.studio_settings` - JSONB column for user preferences (quality, temperature, quotas, export)
+
+### Additional API Routes
+
+- `POST/PATCH/GET /api/photo-studio/images` - Image validation workflow (approve, publish, revoke, reject)
+- `GET /api/photo-studio/metrics` - Stats & export (via `get_studio_stats` RPC)
+
+### Photo Studio Hooks
+
+- `useStudioSettings()` - Read/write profiles.studio_settings
+- `useStudioImages(params)` - CRUD + validation workflow for studio_images
+- `useStudioQuota()` - Monthly quota tracking + near-limit/exceeded alerts
+- `useStudioMetrics(from, to)` - Aggregated stats via RPC
+- `useAutoClassify(productId, imageUrl)` - AI classification with 24h cache
 
 ## Design Conventions (MANDATORY)
 
