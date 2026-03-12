@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProduct } from "@/hooks/products/useProducts";
+import { StaleDataError, DuplicateSkuError } from "@/hooks/products/useProductSave";
 import { useConflictDetection, useDirtyVariationsCount } from "@/hooks/products";
 import { useProductContent } from "@/hooks/products/useProductContent";
 import { useDraftActions } from "@/features/products/hooks/useDraftActions";
@@ -78,6 +79,9 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // 2d. Variation dirty check ref — registered by ProductVariationsTab
     const variationDirtyRef = useRef<(() => boolean) | null>(null);
 
+    // 2e. Double-save prevention lock
+    const isSavingRef = useRef(false);
+
     // 2b. Form hook with Zod validation + restoring guard
     const methods = useProductForm({ product, isRestoringRef });
 
@@ -92,23 +96,6 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
 
     // 4a. Push to store (explicit publish action)
     const pushToStore = usePushSingleProduct();
-
-    const handlePublish = useCallback(() => {
-        const title = methods.getValues("title");
-        if (!title?.trim()) {
-            toast.warning("Titre requis", {
-                description: "Le produit doit avoir un titre avant d'être publié vers la boutique.",
-            });
-            return;
-        }
-        if (methods.formState.isDirty || variationDirtyRef.current?.()) {
-            toast.warning("Modifications non sauvegardées", {
-                description: "Sauvegardez d'abord vos modifications (Ctrl+S) avant de publier.",
-            });
-            return;
-        }
-        pushToStore.push(productId);
-    }, [pushToStore, productId, methods]);
 
     // 4b. Conflict detection
     const { data: conflictData, refetch: refetchConflicts } = useConflictDetection(productId);
@@ -233,6 +220,8 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
     // FIX B3: Deduplicated — was previously two nearly-identical functions
     // ------------------------------------------------------------------------
     const handleManualSave = useCallback(async (data: ProductFormValues) => {
+        if (isSavingRef.current) return; // Prevent double-save
+        isSavingRef.current = true;
         try {
             setSaveStatus('saving');
             // Arm the post-save guard BEFORE the save so the stabilization effect
@@ -279,9 +268,16 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
                 saveStatusTimerRef.current = null;
                 setSaveStatus('idle');
             }, 5000);
-            toast.error("Erreur de sauvegarde", {
-                description: e instanceof Error ? e.message : "Une erreur est survenue. Veuillez réessayer.",
-            });
+            if (e instanceof StaleDataError || e instanceof DuplicateSkuError) {
+                // These are user-facing errors with safe messages — already handled by useProductSave.onError
+            } else {
+                console.error("[ProductEditor] Save failed:", e);
+                toast.error("Erreur de sauvegarde", {
+                    description: "Une erreur est survenue. Veuillez réessayer.",
+                });
+            }
+        } finally {
+            isSavingRef.current = false;
         }
     }, [actions, methods, history, versionManager, productId]);
 
@@ -307,6 +303,30 @@ export const ProductEditorContainer = ({ productId }: ProductEditorContainerProp
         onSave: () => handleKeyboardSaveRef.current(),
         enabled: !isLoading && !!product,
     });
+
+    // ------------------------------------------------------------------------
+    // PUBLISH: Auto-save before publish if dirty
+    // ------------------------------------------------------------------------
+    const handlePublish = useCallback(async () => {
+        const title = methods.getValues("title");
+        if (!title?.trim()) {
+            toast.warning("Titre requis", {
+                description: "Le produit doit avoir un titre avant d'être publié vers la boutique.",
+            });
+            return;
+        }
+        // Auto-save before publish if there are unsaved changes
+        if (methods.formState.isDirty || variationDirtyRef.current?.()) {
+            try {
+                const formData = methods.getValues();
+                await handleManualSave(formData);
+            } catch {
+                // Save failed — toast already shown by handleManualSave
+                return;
+            }
+        }
+        pushToStore.push(productId);
+    }, [pushToStore, productId, methods, handleManualSave]);
 
     // ------------------------------------------------------------------------
     // VERSION RESTORE: Callback when restoring from sidebar history

@@ -252,7 +252,7 @@ export const ProductEditorHeader = ({
                     </Button>
                     <Button
                         onClick={onPublish}
-                        disabled={isPublishing || isDirty || (!hasPendingChanges && !hasConflict)}
+                        disabled={isPublishing || isSaving || (!hasPendingChanges && !hasConflict && !isDirty)}
                         variant="outline"
                         className={cn(
                             "h-10 px-6 font-semibold tracking-tight text-xs uppercase tracking-widest transition-colors",
