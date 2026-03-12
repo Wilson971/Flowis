@@ -47,6 +47,7 @@ function decryptToken(encryptedStr: string): string {
 
 // ─── Google API ───────────────────────────────────────────────────────────────
 
+// M6 fix: Validate token refresh response structure
 async function refreshAccessToken(rt: string): Promise<string> {
     const res = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -58,8 +59,14 @@ async function refreshAccessToken(rt: string): Promise<string> {
             refresh_token: rt,
         }),
     });
-    if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
+    if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`Token refresh failed: ${res.status} — ${body.slice(0, 200)}`);
+    }
     const data = await res.json();
+    if (typeof data.access_token !== "string" || !data.access_token) {
+        throw new Error("Token refresh response missing access_token");
+    }
     return data.access_token;
 }
 

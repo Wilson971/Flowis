@@ -91,11 +91,13 @@ export async function POST(request: NextRequest) {
         } else {
             // Auto-select: never inspected first, then oldest inspected
             // Fetch already-inspected sitemap_url_ids first (subquery syntax not supported in Supabase JS)
+            // M4 fix: Add limit to prevent unbounded fetch on large sites
             const { data: alreadyInspected } = await supabase
                 .from('gsc_indexation_status')
                 .select('sitemap_url_id')
                 .eq('site_id', body.siteId)
-                .eq('tenant_id', user.id);
+                .eq('tenant_id', user.id)
+                .limit(2000);
 
             const inspectedIds = (alreadyInspected || []).map(r => r.sitemap_url_id).filter(Boolean);
 

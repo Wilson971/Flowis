@@ -303,10 +303,11 @@ Deno.serve(async (_req) => {
                                 last_seen_at: new Date().toISOString(),
                                 is_active: true,
                             }));
-                            await supabase.from("gsc_sitemap_urls").upsert(batch, { onConflict: "site_id,url" });
+                            const { error: upsertErr } = await supabase.from("gsc_sitemap_urls").upsert(batch, { onConflict: "site_id,url" });
+                            if (upsertErr) logs.push(`${site.site_url}: sitemap upsert error — ${upsertErr.message}`);
                         }
 
-                        // Queue new URLs for indexation
+                        // Queue new URLs for indexation (M1 fix: add error handling)
                         if (setting.auto_index_new && newUrls.length > 0) {
                             const queueBatch = newUrls.map(e => ({
                                 site_id: site.id,
@@ -315,11 +316,12 @@ Deno.serve(async (_req) => {
                                 action: "URL_UPDATED",
                                 status: "pending",
                             }));
-                            await supabase.from("gsc_indexation_queue").upsert(queueBatch, { onConflict: "site_id,url,action" });
-                            logs.push(`${site.site_url}: ${newUrls.length} new URLs queued`);
+                            const { error: qNewErr } = await supabase.from("gsc_indexation_queue").upsert(queueBatch, { onConflict: "site_id,url,action" });
+                            if (qNewErr) logs.push(`${site.site_url}: new queue upsert error — ${qNewErr.message}`);
+                            else logs.push(`${site.site_url}: ${newUrls.length} new URLs queued`);
                         }
 
-                        // Queue updated URLs
+                        // Queue updated URLs (M1 fix: add error handling)
                         if (setting.auto_index_updated && updatedUrls.length > 0) {
                             const queueBatch = updatedUrls.map(e => ({
                                 site_id: site.id,
@@ -328,8 +330,9 @@ Deno.serve(async (_req) => {
                                 action: "URL_UPDATED",
                                 status: "pending",
                             }));
-                            await supabase.from("gsc_indexation_queue").upsert(queueBatch, { onConflict: "site_id,url,action" });
-                            logs.push(`${site.site_url}: ${updatedUrls.length} updated URLs queued`);
+                            const { error: qUpdErr } = await supabase.from("gsc_indexation_queue").upsert(queueBatch, { onConflict: "site_id,url,action" });
+                            if (qUpdErr) logs.push(`${site.site_url}: updated queue upsert error — ${qUpdErr.message}`);
+                            else logs.push(`${site.site_url}: ${updatedUrls.length} updated URLs queued`);
                         }
 
                         // Update sitemap hash

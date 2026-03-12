@@ -109,6 +109,13 @@ async function refreshAccessToken(tokens: TokenSet): Promise<TokenSet> {
     }
 
     const data = await response.json();
+    // M6 fix: Validate response structure
+    if (typeof data.access_token !== "string" || !data.access_token) {
+        throw new Error("Token refresh response missing access_token");
+    }
+    if (typeof data.expires_in !== "number") {
+        throw new Error("Token refresh response missing expires_in");
+    }
     return {
         access_token: data.access_token,
         refresh_token: data.refresh_token || tokens.refresh_token,

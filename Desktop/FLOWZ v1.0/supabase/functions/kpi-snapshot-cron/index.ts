@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
       const storeId = store.id as string;
       const tenantId = store.tenant_id as string;
 
-      // Parallel queries for this store
+      // M2 fix: Parallel queries without N+1 — use products.seo_score directly
       const [
         { count: totalProducts },
         { count: aiOptimized },
@@ -93,18 +93,13 @@ Deno.serve(async (req: Request) => {
           .eq("store_id", storeId)
           .not("working_content", "is", null),
 
+        // Use products.seo_score directly instead of N+1 via product_seo_analysis
         supabase
-          .from("product_seo_analysis")
-          .select("overall_score")
-          .in(
-            "product_id",
-            (
-              await supabase
-                .from("products")
-                .select("id")
-                .eq("store_id", storeId)
-            ).data?.map((p: { id: string }) => p.id) ?? []
-          ),
+          .from("products")
+          .select("seo_score")
+          .eq("store_id", storeId)
+          .not("seo_score", "is", null)
+          .limit(500),
 
         supabase
           .from("blog_articles")
@@ -121,10 +116,10 @@ Deno.serve(async (req: Request) => {
           .neq("status", "auto_draft"),
       ]);
 
-      const scores = (seoData ?? []) as { overall_score: number }[];
+      const scores = (seoData ?? []) as { seo_score: number }[];
       const avgSeo =
         scores.length > 0
-          ? scores.reduce((sum, r) => sum + (r.overall_score ?? 0), 0) /
+          ? scores.reduce((sum, r) => sum + (r.seo_score ?? 0), 0) /
             scores.length
           : 0;
 
@@ -151,6 +146,7 @@ Deno.serve(async (req: Request) => {
     const tenantIds = [...new Set(stores.map((s) => s.tenant_id as string))];
 
     for (const tenantId of tenantIds) {
+      // M2 fix: Same N+1 fix for global tenant metrics
       const [
         { count: totalProducts },
         { count: aiOptimized },
@@ -170,17 +166,11 @@ Deno.serve(async (req: Request) => {
           .not("working_content", "is", null),
 
         supabase
-          .from("product_seo_analysis")
-          .select("overall_score")
-          .in(
-            "product_id",
-            (
-              await supabase
-                .from("products")
-                .select("id")
-                .eq("tenant_id", tenantId)
-            ).data?.map((p: { id: string }) => p.id) ?? []
-          ),
+          .from("products")
+          .select("seo_score")
+          .eq("tenant_id", tenantId)
+          .not("seo_score", "is", null)
+          .limit(500),
 
         supabase
           .from("blog_articles")
@@ -197,10 +187,10 @@ Deno.serve(async (req: Request) => {
           .neq("status", "auto_draft"),
       ]);
 
-      const scores = (seoData ?? []) as { overall_score: number }[];
+      const scores = (seoData ?? []) as { seo_score: number }[];
       const avgSeo =
         scores.length > 0
-          ? scores.reduce((sum, r) => sum + (r.overall_score ?? 0), 0) /
+          ? scores.reduce((sum, r) => sum + (r.seo_score ?? 0), 0) /
             scores.length
           : 0;
 

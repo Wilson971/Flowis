@@ -40,11 +40,13 @@ export async function POST(req: NextRequest) {
 
   const { store_id } = parsed.data
 
-  // Use the SAME join pattern as useStores() client hook — this works for sync
+  // M5 fix: Add tenant_id filter + explicit columns instead of select(*)
   const { data: store, error: storeError } = await supabase
     .from('stores')
     .select(`
-      *,
+      id,
+      name,
+      platform,
       platform_connections(
         id,
         shop_url,
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
       )
     `)
     .eq('id', store_id)
+    .eq('tenant_id', user.id)
     .maybeSingle()
 
   if (storeError) {
