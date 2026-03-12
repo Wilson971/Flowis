@@ -196,7 +196,11 @@ export function useConflictDetection(productId?: string) {
             );
         },
         enabled: !!productId,
-        staleTime: STALE_TIMES.LIST,
+        staleTime: STALE_TIMES.REALTIME,
+        refetchInterval: () => {
+            if (typeof document !== 'undefined' && document.hidden) return false;
+            return 15_000;
+        },
     });
 }
 
