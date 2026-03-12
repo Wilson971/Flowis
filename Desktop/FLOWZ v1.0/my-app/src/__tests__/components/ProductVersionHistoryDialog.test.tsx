@@ -132,7 +132,7 @@ describe('ProductVersionHistoryDialog', () => {
         fireEvent.click(screen.getByText('v63'));
 
         await waitFor(() => {
-            expect(screen.getByText(/Sauvegarde par Marie Dupont/i)).toBeInTheDocument();
+            expect(screen.getByText(/Par Marie Dupont/i)).toBeInTheDocument();
         });
     });
 
