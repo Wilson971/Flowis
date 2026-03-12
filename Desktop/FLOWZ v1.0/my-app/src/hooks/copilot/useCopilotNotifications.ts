@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useCallback } from "react"
+import { useMemo, useCallback, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { CopilotNotification } from "@/types/copilot"
 
@@ -32,6 +32,9 @@ function saveDismissed(dismissed: Record<string, number>) {
 }
 
 export function useCopilotNotifications({ enabled = true }: { enabled?: boolean } = {}) {
+  // H3 fix: Track dismissed IDs in state to trigger re-render
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set(Object.keys(getDismissed())))
+
   const { data: raw = [], isLoading } = useQuery<CopilotNotification[]>({
     queryKey: ["copilot-notifications"],
     queryFn: async () => {
@@ -47,9 +50,8 @@ export function useCopilotNotifications({ enabled = true }: { enabled?: boolean 
   })
 
   const notifications = useMemo(() => {
-    const dismissed = getDismissed()
-    return raw.filter((n) => !dismissed[n.id])
-  }, [raw])
+    return raw.filter((n) => !dismissedIds.has(n.id))
+  }, [raw, dismissedIds])
 
   const count = notifications.length
   const hasUrgent = notifications.some((n) => n.priority === "urgent")
@@ -58,6 +60,7 @@ export function useCopilotNotifications({ enabled = true }: { enabled?: boolean 
     const dismissed = getDismissed()
     dismissed[id] = Date.now()
     saveDismissed(dismissed)
+    setDismissedIds((prev) => new Set([...prev, id]))
   }, [])
 
   return { notifications, count, hasUrgent, dismiss, isLoading }

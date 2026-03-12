@@ -32,6 +32,7 @@ export function useConversations() {
       .select("id, conversation_id, role, content, tool_calls, feedback, created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true })
+      .limit(200)
 
     if (error) throw error
 

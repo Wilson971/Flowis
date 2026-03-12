@@ -121,13 +121,19 @@ CREATE POLICY "copilot_memory_delete" ON public.copilot_memory
 -- updated_at triggers
 -- =============================================================
 
-CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
+-- M6 fix: Use DO block to avoid overwriting existing function from other migrations
+DO $$
 BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'set_updated_at' AND pronamespace = 'public'::regnamespace) THEN
+    CREATE FUNCTION public.set_updated_at() RETURNS TRIGGER AS $fn$
+    BEGIN
+      NEW.updated_at = now();
+      RETURN NEW;
+    END;
+    $fn$ LANGUAGE plpgsql;
+  END IF;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE TRIGGER trg_copilot_conversations_updated_at
   BEFORE UPDATE ON public.copilot_conversations

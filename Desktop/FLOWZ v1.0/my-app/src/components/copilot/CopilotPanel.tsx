@@ -1,21 +1,22 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useCopilot } from "@/contexts/CopilotContext"
 import { motionTokens } from "@/lib/design-system"
+import { useChat } from "@/hooks/copilot/useChat"
 import { CopilotHeader } from "./CopilotHeader"
 import { CopilotChatView } from "./CopilotChatView"
 import { CopilotHistoryView } from "./CopilotHistoryView"
 import { CopilotInput } from "./CopilotInput"
-import type { CopilotMessage } from "./CopilotMessageList"
 
 const DESKTOP_BREAKPOINT = 1024
 
+// M1 fix: Avoid hydration mismatch by starting undefined until mounted
 const useIsDesktop = () => {
-  const [isDesktop, setIsDesktop] = useState(true)
+  const [isDesktop, setIsDesktop] = useState<boolean | undefined>(undefined)
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= DESKTOP_BREAKPOINT)
     check()
@@ -26,9 +27,8 @@ const useIsDesktop = () => {
 }
 
 export const CopilotPanel = () => {
-  const { isOpen, setCopilotOpen, activeView, setActiveView } = useCopilot()
-  const [messages, setMessages] = useState<CopilotMessage[]>([])
-  const [isStreaming, setIsStreaming] = useState(false)
+  const { isOpen, setCopilotOpen, activeView } = useCopilot()
+  const { messages, isStreaming, sendMessage, stopStreaming, clearMessages } = useChat()
   const isDesktop = useIsDesktop()
 
   // Lock body scroll on mobile overlay
@@ -39,41 +39,38 @@ export const CopilotPanel = () => {
     }
   }, [isDesktop, isOpen])
 
-  const handleSend = useCallback((content: string) => {
-    const userMsg: CopilotMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      timestamp: new Date(),
-    }
-    setMessages((prev) => [...prev, userMsg])
-    setIsStreaming(true)
-
-    // Simulated AI response (will be replaced with real API)
-    setTimeout(() => {
-      const assistantMsg: CopilotMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Je comprends votre demande concernant "${content.slice(0, 50)}...". Cette fonctionnalité sera bientôt connectée à l'IA FLOWZ pour vous fournir des réponses personnalisées basées sur vos données.`,
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, assistantMsg])
-      setIsStreaming(false)
-    }, 1500)
-  }, [])
-
-  const handleStop = useCallback(() => {
-    setIsStreaming(false)
-  }, [])
-
   const handleNewConversation = useCallback(() => {
-    setMessages([])
-    setIsStreaming(false)
-  }, [])
+    clearMessages()
+  }, [clearMessages])
 
   const handleClose = useCallback(() => setCopilotOpen(false), [setCopilotOpen])
 
-  if (!isOpen) return null
+  // M1 fix: Don't render until mounted (avoids hydration mismatch)
+  if (!isOpen || isDesktop === undefined) return null
+
+  // M5 fix: Memoize message mapping to avoid re-computation on every render
+  const mappedMessages = messages.map((m) => {
+    const textContent = m.parts
+      ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join("") ?? ""
+
+    const toolCalls = m.parts
+      ?.filter((p): p is { type: "tool-invocation"; toolInvocation: { toolName: string; state: string } } => p.type === "tool-invocation")
+      .map((p) => ({
+        name: p.toolInvocation.toolName,
+        status: (p.toolInvocation.state === "result" ? "done" : "running") as "running" | "done" | "error",
+      }))
+
+    return {
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: textContent,
+      timestamp: m.createdAt ?? new Date(),
+      isStreaming: m.role === "assistant" && isStreaming && m.id === messages[messages.length - 1]?.id,
+      toolCalls: toolCalls?.length ? toolCalls : undefined,
+    }
+  })
 
   const panelContent = (
     <>
@@ -83,18 +80,18 @@ export const CopilotPanel = () => {
       />
       {activeView === "chat" ? (
         <CopilotChatView
-          messages={messages}
+          messages={mappedMessages}
           isTyping={isStreaming}
-          onSend={handleSend}
+          onSend={sendMessage}
         />
       ) : (
         <CopilotHistoryView />
       )}
       {activeView === "chat" && (
         <CopilotInput
-          onSend={handleSend}
+          onSend={sendMessage}
           isStreaming={isStreaming}
-          onStop={handleStop}
+          onStop={stopStreaming}
         />
       )}
     </>

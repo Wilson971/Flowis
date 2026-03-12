@@ -5,9 +5,12 @@ import { Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AIOrb } from "@/components/ui/ai-orb"
 import { cn } from "@/lib/utils"
+import { useFeedback } from "@/hooks/copilot/useFeedback"
 import { ToolIndicator } from "./ToolIndicator"
+import { MarkdownRenderer } from "./MarkdownRenderer"
 
 interface AssistantMessageProps {
+  messageId?: string
   content: string
   timestamp: Date
   isStreaming?: boolean
@@ -16,6 +19,7 @@ interface AssistantMessageProps {
 }
 
 export function AssistantMessage({
+  messageId,
   content,
   isStreaming,
   isInterrupted,
@@ -23,6 +27,8 @@ export function AssistantMessage({
 }: AssistantMessageProps) {
   const [copied, setCopied] = useState(false)
   const [feedback, setFeedback] = useState<"up" | "down" | null>(null)
+  // H4 fix: Persist feedback to DB
+  const feedbackMutation = useFeedback()
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -42,8 +48,8 @@ export function AssistantMessage({
         ))}
 
         {/* Content */}
-        <div className="px-3 py-2 rounded-xl rounded-bl-sm bg-muted/50 text-foreground/90 text-xs leading-relaxed whitespace-pre-wrap">
-          {content}
+        <div className="px-3 py-2 rounded-xl rounded-bl-sm bg-muted/50 text-foreground/90 text-xs leading-relaxed">
+          <MarkdownRenderer content={content} />
           {isStreaming && (
             <span className="inline-block w-1.5 h-3.5 bg-primary/70 ml-0.5 animate-pulse rounded-sm" />
           )}
@@ -70,7 +76,11 @@ export function AssistantMessage({
             variant="ghost"
             size="icon"
             className={cn("h-6 w-6 rounded-lg", feedback === "up" && "text-success")}
-            onClick={() => setFeedback(feedback === "up" ? null : "up")}
+            onClick={() => {
+              const next = feedback === "up" ? null : "up"
+              setFeedback(next)
+              if (messageId) feedbackMutation.mutate({ messageId, feedback: next })
+            }}
             aria-label="Utile"
           >
             <ThumbsUp className="w-3 h-3" />
@@ -79,7 +89,11 @@ export function AssistantMessage({
             variant="ghost"
             size="icon"
             className={cn("h-6 w-6 rounded-lg", feedback === "down" && "text-destructive")}
-            onClick={() => setFeedback(feedback === "down" ? null : "down")}
+            onClick={() => {
+              const next = feedback === "down" ? null : "down"
+              setFeedback(next)
+              if (messageId) feedbackMutation.mutate({ messageId, feedback: next })
+            }}
             aria-label="Pas utile"
           >
             <ThumbsDown className="w-3 h-3" />

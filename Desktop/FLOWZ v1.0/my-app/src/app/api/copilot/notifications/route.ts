@@ -1,13 +1,20 @@
 import { NextRequest } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { rateLimitOrNull } from "@/lib/rate-limit"
 import type { CopilotNotification } from "@/types/copilot"
 
 export const runtime = "nodejs"
+
+const RATE_LIMIT = { maxRequests: 20, windowMs: 60_000 }
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new Response("Unauthorized", { status: 401 })
+
+  // H2 fix: Add rate limiting
+  const rateLimited = rateLimitOrNull(user.id, "copilot-notifications", RATE_LIMIT)
+  if (rateLimited) return rateLimited
 
   // Load user notification preferences
   const { data: settings } = await supabase
@@ -16,11 +23,16 @@ export async function GET(req: NextRequest) {
     .eq("tenant_id", user.id)
     .single()
 
-  const prefs = settings?.notifications ?? { enabled: true, types: {} }
-  if (!prefs.enabled) return Response.json({ notifications: [] })
+  // M3 fix: Safely parse JSONB notifications preferences
+  const rawPrefs = settings?.notifications as Record<string, unknown> | null | undefined
+  const prefsEnabled = rawPrefs?.enabled !== false
+  const types = (typeof rawPrefs?.types === "object" && rawPrefs.types !== null
+    ? rawPrefs.types
+    : {}) as Record<string, boolean | undefined>
+
+  if (!prefsEnabled) return Response.json({ notifications: [] })
 
   const notifications: CopilotNotification[] = []
-  const types = prefs.types ?? {}
 
   // SEO Critical
   if (types.seo_critical !== false) {
