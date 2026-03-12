@@ -41,3 +41,10 @@ export {
   type StudioSettings,
   DEFAULT_STUDIO_SETTINGS,
 } from './useStudioSettings';
+
+// Studio images validation workflow
+export {
+  useStudioImages,
+  type StudioImage,
+  type FetchParams as StudioImageFetchParams,
+} from './useStudioImages';
