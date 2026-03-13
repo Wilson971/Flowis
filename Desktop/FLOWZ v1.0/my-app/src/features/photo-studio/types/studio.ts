@@ -231,3 +231,68 @@ export type BrandStyle = {
   created_at: string;
   updated_at: string;
 };
+
+// ─── Preset Categories ─────────────────────────────────────
+export type PresetCategory = 'studio' | 'lifestyle' | 'exterior' | 'artistic'
+
+export const PRESET_CATEGORY_LABELS: Record<PresetCategory, string> = {
+  studio: 'Studio',
+  lifestyle: 'Lifestyle',
+  exterior: 'Extérieur',
+  artistic: 'Artistique',
+}
+
+export const PRESET_CATEGORY_ICONS: Record<PresetCategory, string> = {
+  studio: 'Camera',
+  lifestyle: 'Home',
+  exterior: 'Trees',
+  artistic: 'Sparkles',
+}
+
+// ─── Prompt Builder ─────────────────────────────────────────
+export type PromptDimension = 'lighting' | 'angle' | 'ambiance' | 'surface'
+
+export interface PromptBlock {
+  id: string
+  dimension: PromptDimension
+  label: string
+  promptFragment: string
+  technicalPrompt: string
+}
+
+export interface SelectedBlocks {
+  lighting: string | null
+  angle: string | null
+  ambiance: string | null
+  surface: string | null
+}
+
+// ─── Favorite Presets ───────────────────────────────────────
+export interface FavoritePreset {
+  id: string
+  name: string
+  presetId: string | null
+  selectedBlocks: SelectedBlocks
+  customPromptText: string
+  createdAt: string
+}
+
+// ─── Editor State ───────────────────────────────────────────
+export type EditorMode = 'simple' | 'expert'
+export type CanvasTool = 'select' | 'crop' | 'draw' | 'text' | 'shape' | null
+
+export interface ImageAdjustmentValues {
+  brightness: number
+  contrast: number
+  saturation: number
+  sharpness: number
+  temperature: number
+}
+
+export const DEFAULT_ADJUSTMENTS: ImageAdjustmentValues = {
+  brightness: 0,
+  contrast: 0,
+  saturation: 0,
+  sharpness: 0,
+  temperature: 0,
+}
