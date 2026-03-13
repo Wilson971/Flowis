@@ -157,6 +157,12 @@ export const RATE_LIMIT_PHOTO_BATCH: RateLimitConfig = {
   windowMs: 60_000,
 };
 
+/** SEO keyword research: 10 requests per minute per user */
+export const RATE_LIMIT_SEO_KEYWORDS: RateLimitConfig = {
+  maxRequests: 10,
+  windowMs: 60_000,
+};
+
 /** GSC OAuth: 5 requests per minute per user */
 export const RATE_LIMIT_GSC_OAUTH: RateLimitConfig = {
   maxRequests: 5,
