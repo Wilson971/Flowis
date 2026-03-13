@@ -49,3 +49,6 @@ export {
   getViewPresetById,
   VIEW_ANGLE_LABELS,
 } from './viewPresets';
+
+// Prompt blocks for prompt builder
+export * from './promptBlocks';
