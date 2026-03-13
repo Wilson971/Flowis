@@ -48,3 +48,15 @@ export {
   type StudioImage,
   type FetchParams as StudioImageFetchParams,
 } from './useStudioImages';
+
+// FabricJS canvas editor
+export { useFabricEditor } from './useFabricEditor';
+
+// Prompt builder (3-layer enrichment)
+export { usePromptBuilder } from './usePromptBuilder';
+
+// Favorite presets CRUD
+export { useFavoritePresets } from './useFavoritePresets';
+
+// Gallery reorder with dnd-kit
+export { useGalleryReorder } from './useGalleryReorder';
